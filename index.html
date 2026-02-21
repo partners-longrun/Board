@@ -6,6 +6,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>파트너스 영업지원</title>
+
+    <!-- ========================================== -->
+    <!-- [필수 설정] 구글 앱스 스크립트 웹앱 URL 입력 -->
+    <!-- ========================================== -->
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec'; // [TODO] 여기에 웹앱 URL을 붙여넣으세요
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -148,8 +156,6 @@
 
     <script>
         // --- 0. API Configuration ---
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec'; // [TODO] Replace with your actual GAS Web App URL
-
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
@@ -576,7 +582,7 @@
                 ${detailCard('생보 시상금', '생보 시상금')}
                 ${detailCard('본부 시상금', '본부 시상금')}
              </div>
-             <div class="mt-8 text-center"><span class="inline-block px-4 py-2 bg-gray-100 rounded-full text-sm text-gray-500 font-medium select-none">💡 Tip: 지급/환수 금액을 클릭하면 상세 내역을 볼 수 있습니다.</span></div>
+             <div class="mt-8 text-center"><div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">💡 Tip: 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.</div></div>
              `;
             return div;
         }
