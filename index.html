@@ -230,10 +230,29 @@
             }
         };
 
-        // --- 3. Persistence ---
+        // --- 3. Persistence & Session ---
+        let sessionTimeoutTimer;
+        const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+
+        function resetSessionTimer() {
+            if (!state.user) return;
+            clearTimeout(sessionTimeoutTimer);
+            saveSession(); // Update timestamp
+            sessionTimeoutTimer = setTimeout(() => {
+                alert('30분 동안 움직임이 없어 안전을 위해 로그아웃 되었습니다.');
+                logout();
+            }, SESSION_DURATION);
+        }
+
+        // Add listeners to reset timer on user interaction
+        ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, resetSessionTimer, true);
+        });
+
         function saveSession() {
             if (state.user) {
-                localStorage.setItem('partners_session', JSON.stringify({
+                // Use sessionStorage to clear when browser is closed
+                sessionStorage.setItem('partners_session', JSON.stringify({
                     user: state.user,
                     months: state.months,
                     currentMonth: state.currentMonth,
@@ -243,17 +262,18 @@
         }
 
         function restoreSession() {
-            const s = localStorage.getItem('partners_session');
+            const s = sessionStorage.getItem('partners_session');
             if (s) {
                 try {
                     const sess = JSON.parse(s);
-                    // 12 hours expiration
-                    if (new Date().getTime() - sess.timestamp < 12 * 60 * 60 * 1000) {
+                    // 30 minutes expiration check
+                    if (new Date().getTime() - sess.timestamp < SESSION_DURATION) {
                         state.user = sess.user;
                         state.months = sess.months;
                         state.currentMonth = sess.currentMonth;
                         const hash = location.hash.replace('#/', '');
                         state.currentView = (hash && hash !== 'login') ? hash : (state.user.role === '지사대표' ? 'branch' : 'dashboard');
+                        resetSessionTimer();
                         return true;
                     }
                 } catch (e) { console.error('Restore failed', e); }
@@ -262,7 +282,8 @@
         }
 
         function clearSession() {
-            localStorage.removeItem('partners_session');
+            clearTimeout(sessionTimeoutTimer);
+            sessionStorage.removeItem('partners_session');
             history.pushState(null, '', ' ');
         }
 
@@ -356,10 +377,6 @@
                             <div class="space-y-2 text-center">
                                 <label class="block text-sm font-bold text-gray-700">비밀번호</label>
                                 <input type="password" id="password" placeholder="비밀번호를 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400 text-center" required>
-                            </div>
-                            <div class="flex items-center">
-                                <input id="remember-me" name="remember-me" type="checkbox" class="h-5 w-5 text-primary border-gray-300 rounded focus:ring-primary cursor-pointer">
-                                <label for="remember-me" class="ml-2 block text-sm text-gray-500 cursor-pointer">로그인 상태 유지</label>
                             </div>
                             <button type="submit" class="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primaryHover hover:shadow-lg transition duration-200 text-lg">로그인</button>
                         </form>
