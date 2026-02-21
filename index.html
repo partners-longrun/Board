@@ -5,7 +5,7 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>파트너스 영업지원 1</title>
+    <title>파트너스 영업지원</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -189,7 +189,7 @@
         };
 
         const LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
-            <span class="text-xl font-bold text-gray-800 tracking-tight">파트너스본부</span>
+            <span class="text-xl font-bold text-gray-800 tracking-tight">파트너스 <span class="text-primary">영업지원</span></span>
         </div>`;
         const LOGO_BIG = `<div class="flex flex-col items-center justify-center gap-5 text-white select-none">
             <h1 class="text-3xl font-bold tracking-widest drop-shadow-md">파트너스<span class="font-light">본부</span></h1>
@@ -567,7 +567,7 @@
                 <p class="text-gray-500 text-sm mt-1">월별 시상금 지급 및 환수 현황입니다.</p>
              </div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                 <div class="col-span-2 md:col-span-1">${card('실지급 총액', net, 'border-primary', false, true)}</div>
+                 <div class="col-span-2 md:col-span-1">${card('실지급 총액 (세전)', net, 'border-primary', false, true)}</div>
                  <div class="col-span-1">${card('총 지급액', totalPay, 'border-blue-500')}</div>
                  <div class="col-span-1">${card('총 환수액', totalRef, 'border-red-500', true)}</div>
              </div>
@@ -671,14 +671,14 @@
             div.innerHTML = `
              <div class="mb-6"><h2 class="text-2xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2></div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                <div class="col-span-2 md:col-span-1">${card('나의 증원수당', agg.net, 'border-primary', false, true)}</div>
+                <div class="col-span-2 md:col-span-1">${card('나의 증원수당 (세전)', agg.net, 'border-primary', false, true)}</div>
                 <div class="col-span-1 md:col-span-1">${card('총 지급액', agg.pay, 'border-blue-500')}</div>
                 <div class="col-span-1 md:col-span-1">${card('총 환수액', agg.refund, 'border-red-500', true)}</div>
              </div>
              ${listHtml}
              <div class="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-600 leading-relaxed shadow-inner">
                 <p class="font-bold mb-2 text-gray-800">※ 증원수당 관련 안내</p>
-                <p class="mb-4">증원수당은 관리자수당이 아니므로 산하 인원의 실적을 오픈하지는 못합니다.<br>
+                <p class="mb-4">증원수당은 관리자수당(오버라이드)이 아닙니다.<br>
                 증원수당은 산하인원의 실적과 연계되어 정확하게 계산되고 있음을 안내드립니다.<br>
                 증원수당과 관련하여 궁금하신 부분이 있으시면 언제든 박용수 본부장에게 연락주시기 바랍니다.</p>
                 
