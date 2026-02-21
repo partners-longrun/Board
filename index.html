@@ -371,12 +371,12 @@
                         
                         <form id="loginForm" class="space-y-6">
                             <div class="space-y-2">
-                                <label class="block text-sm font-bold text-gray-700">사번</label>
-                                <input type="text" id="staffId" placeholder="사번을 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400" required>
+                                <label class="block text-sm font-bold text-gray-700 text-left">사번</label>
+                                <input type="text" id="staffId" placeholder="사번을 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400 text-center" required>
                             </div>
                             <div class="space-y-2">
-                                <label class="block text-sm font-bold text-gray-700">비밀번호</label>
-                                <input type="password" id="password" placeholder="비밀번호를 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400" required>
+                                <label class="block text-sm font-bold text-gray-700 text-left">비밀번호</label>
+                                <input type="password" id="password" placeholder="비밀번호를 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400 text-center" required>
                             </div>
                             <button type="submit" class="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primaryHover hover:shadow-lg transition duration-200 text-lg">로그인</button>
                         </form>
@@ -607,7 +607,8 @@
         function createBranchView() {
             const div = document.createElement('div');
             const d = state.data.rewardData?.summary || {};
-            const keys = ['손보사 법인시상', '생보사 법인시상', '2차년 인센티브'];
+            // 백엔드의 getRewardData 함수 정의에 맞춰 다시 롤백
+            const keys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브'];
             let totalPay = 0, totalRef = 0;
             keys.forEach(k => { const obj = d[k] || { pay: 0, refund: 0 }; totalPay += obj.pay; totalRef += obj.refund; });
             const net = totalPay + totalRef;
@@ -640,8 +641,8 @@
                 <div class="col-span-1">${card('총 환수액', totalRef, 'border-red-500', true)}</div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               ${detailCard('손보 법인', '손보사 법인시상')}
-               ${detailCard('생보 법인', '생보사 법인시상')}
+               ${detailCard('손보 법인', '손보 법인시상금')}
+               ${detailCard('생보 법인', '생보 법인시상금')}
                ${detailCard('2차년 인센티브', '2차년 인센티브')}
             </div>`;
             return div;
