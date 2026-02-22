@@ -242,6 +242,7 @@
             currentMonth: '',
             months: [],
             data: {},
+            lapseList: [],
             adminTab: 'reward',
             adminSubTab: 'active',
             adminPage: 1,
@@ -743,18 +744,178 @@
             div.innerHTML = `
                 <div class="mb-8">
                     <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효관리</h2>
-                    <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다. (준비 중)</p>
+                    <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                         <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    </div>
-                    <h3 class="text-gray-600 font-bold mb-2 text-lg">기능 준비 중</h3>
-                    <p class="text-gray-400 text-sm">기능을 개발 중입니다. 곧 찾아뵙겠습니다.</p>
+                <div id="lapse-container" class="min-h-[400px]">
+                     <div class="flex items-center justify-center h-40">
+                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                     </div>
                 </div>
             `;
+
+            // Fetch data and render
+            setTimeout(async () => {
+                showLoading(true);
+                const res = await callApi('getLapsedContracts', state.user.staffId);
+                showLoading(false);
+
+                const container = div.querySelector('#lapse-container');
+                if (res.error || !res.success) {
+                    container.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
+                    return;
+                }
+
+                state.lapseList = res.list || [];
+                renderLapseContents(container, state.lapseList);
+            }, 10);
+
             return div;
         }
+
+        function renderLapseContents(container, data) {
+            if (data.length === 0) {
+                container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</div>`;
+                return;
+            }
+
+            // Desktop Table Layout
+            const desktopRows = data.map((x, idx) => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-center">
+                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}">${x['계약상태']}</span>
+               </td>
+               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+             </tr>`).join('');
+
+            const desktopTable = `
+                <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-3">
+                            <span class="w-1.5 h-5 bg-red-400 rounded-full block text-sm"></span>
+                            <span>실효계약 리스트 <span class="text-xs font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                            <thead class="bg-gray-50 border-b border-gray-100"><tr class="text-left text-gray-600">
+                                <th class="p-3 font-semibold text-center">상태</th>
+                                <th class="p-3 font-semibold text-center">모집인</th>
+                                <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                                <th class="p-3 font-semibold">보험사</th>
+                                <th class="p-3 font-semibold">증권번호</th>
+                                <th class="p-3 font-semibold">상품명</th>
+                                <th class="p-3 text-right font-semibold">계속보험료</th>
+                                <th class="p-3 font-semibold">계약일</th>
+                                <th class="p-3 text-center font-semibold">납입회차</th>
+                                <th class="p-3 text-center font-semibold">최종납입월</th>
+                                <th class="p-3 text-center font-semibold">계약자</th>
+                                <th class="p-3 text-center font-semibold">데이터기준일</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            // Mobile Card Layout
+            const mobileCards = data.map((x, idx) => `
+                <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}">${x['계약상태']}</span>
+                        <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
+                    </div>
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex-grow pr-3">
+                            <h4 class="font-bold text-gray-800 text-lg mb-0.5">${x['계약자']} <span class="text-xs font-normal text-gray-500 ml-1">고객님</span></h4>
+                            <p class="text-sm text-gray-600 truncate-product leading-snug w-full max-w-[200px]" title="${x['상품명']}">${x['상품명']}</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-gray-50 mt-1">
+                         <div class="text-xs text-gray-400">최종납: <span class="font-mono">${x['최종납입월']}</span></div>
+                         <div class="font-bold text-blue-600 text-[15px]">${formatMoney(x['계속보험료'])}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            const mobileContainer = `
+                <div class="md:hidden flex flex-col gap-3 pb-8">
+                     <div class="flex items-center justify-between px-1 mb-1">
+                        <span class="text-sm font-bold text-gray-600">총 <span class="text-red-500">${data.length}</span>건</span>
+                     </div>
+                     ${mobileCards}
+                </div>
+            `;
+
+            container.innerHTML = desktopTable + mobileContainer;
+        }
+
+        window.openMobileLapseDetail = function (idx) {
+            const data = state.lapseList[idx];
+            if (!data) return;
+
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 fade-in";
+
+            const detailRow = (label, val, highlight = false) => `
+                <div class="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-0">
+                    <span class="text-sm text-gray-500 font-medium">${label}</span>
+                    <span class="text-sm text-gray-900 ${highlight ? 'font-bold text-blue-600' : ''} text-right break-words max-w-[65%]">${val}</span>
+                </div>
+            `;
+
+            modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transform transition-transform translate-y-0 slide-up">
+                <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur z-10">
+                    <h3 class="font-bold text-lg text-gray-800">계약 상세 정보</h3>
+                    <button class="close-detail p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="p-5 overflow-y-auto custom-scrollbar flex-grow">
+                    <div class="bg-gray-50/50 rounded-xl p-4 border border-gray-100/50 space-y-1 mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                             <div class="font-bold text-gray-900 text-xl">${data['계약자']}</div>
+                             <span class="px-2 py-1 text-[11px] font-bold rounded-md ${String(data['계약상태']).includes('실효') ? 'bg-red-50 text-red-600' : 'bg-gray-200 text-gray-700'}">${data['계약상태']}</span>
+                        </div>
+                        <div class="text-sm font-medium text-gray-700 leading-snug">${data['상품명']}</div>
+                        <div class="text-[11px] font-mono text-gray-400 mt-1">${data['증권번호']} · ${data['보험사']}</div>
+                    </div>
+                    
+                    <div class="px-1 text-sm text-gray-800 mb-6">
+                         <div class="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">납입 및 담당 정보</div>
+                         ${detailRow('계속보험료', formatMoney(data['계속보험료']), true)}
+                         ${detailRow('최종납입월', data['최종납입월'])}
+                         ${detailRow('납입회차', data['납입회차'])}
+                         ${detailRow('계약일', data['계약일'])}
+                         ${detailRow('수금인명 (담당)', `<span class="font-bold">${data['수금인명']}</span>`)}
+                         ${detailRow('모집인명', data['모집인명'])}
+                         ${detailRow('데이터기준일', `<span class="text-xs text-gray-400">${data['데이터기준일']}</span>`)}
+                    </div>
+                </div>
+                <div class="p-4 bg-white border-t border-gray-100 safe-area-pb">
+                    <button class="close-detail w-full py-3.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-gray-200 transition text-base">확인</button>
+                </div>
+            </div>`;
+
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                const sheet = modal.querySelector('.slide-up');
+                if (sheet) sheet.classList.remove('translate-y-full'); // for potential CSS slide-up animation
+            }, 10);
+
+            modal.querySelectorAll('.close-detail').forEach(b => b.onclick = () => {
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.remove(), 200);
+            });
+        };
 
         function createDashboardView() {
             const div = document.createElement('div');
