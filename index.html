@@ -399,8 +399,8 @@
                 <div class="mb-12">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <!-- 1. 유지율 카드 -->
-                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="navigate('lapse', 'lapsed')">
-                            <div class="flex items-center gap-2 mb-6 w-full">
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
                                 <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' ? '(' + displayMonth + ' 기준)' : ''}</p>
                             </div>
@@ -408,21 +408,21 @@
                         </div>
                         
                         <!-- 2. 당월 실효 건수 카드 -->
-                        <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-8 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="navigate('lapse', 'lapsed')">
-                            <div class="flex items-center gap-2 mb-6 w-full">
+                        <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-6 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월실효 건수</p>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수</p>
                             </div>
-                            <p class="text-4xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300" id="home-lapsed-count">로딩중</p>
+                            <p class="text-2xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300" id="home-lapsed-count">로딩중</p>
                         </div>
 
                         <!-- 3. 당월 연체 건수 카드 -->
-                        <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-8 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="navigate('lapse', 'arrears')">
-                            <div class="flex items-center gap-2 mb-6 w-full">
+                        <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-6 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="state.lapseCurrentTab='arrears'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월연체 건수</p>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수</p>
                             </div>
-                            <p class="text-4xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300" id="home-arrears-count">로딩중</p>
+                            <p class="text-2xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300" id="home-arrears-count">로딩중</p>
                         </div>
                     </div>
                 </div>
