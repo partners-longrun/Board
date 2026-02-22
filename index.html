@@ -395,16 +395,16 @@
                 </div>
                 
                 <div class="mb-12">
-                    <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col justify-center">
+                    <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col justify-center cursor-pointer hover:shadow-md transition group" onclick="fetchAndShowLapsedContracts()">
                         <div class="flex items-center gap-2 mb-6 w-full">
                             <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                            <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' ? '(' + displayMonth + ' 기준)' : ''}</p>
+                            <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-primary transition">나의 13회차 통산유지율 ${displayMonth !== '-' ? '(' + displayMonth + ' 기준)' : ''}</p>
                         </div>
-                        <p class="text-4xl font-extrabold ${rateClass} tracking-tight drop-shadow-sm text-center">${retentionDisplay}</p>
+                        <p class="text-4xl font-extrabold ${rateClass} tracking-tight drop-shadow-sm text-center group-hover:scale-105 transition-transform duration-300">${retentionDisplay}</p>
                     </div>
                     <div class="flex items-center gap-1.5 mt-3 ml-2 text-gray-400">
                         <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <p class="text-xs font-medium">Tip : 유지율 클릭시 직전 1년내 실효계약 조회 가능</p>
+                        <p class="text-xs font-medium">Tip : 유지율 클릭시 실효계약 리스트 조회 가능</p>
                     </div>
                 </div>
 
@@ -1153,6 +1153,75 @@
                 </div>
             `;
 
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => modal.remove());
+        };
+
+        window.fetchAndShowLapsedContracts = async function () {
+            showLoading(true);
+            const res = await callApi('getLapsedContracts', state.user.staffId);
+            showLoading(false);
+
+            if (res.error || !res.success) {
+                alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
+            } else {
+                showLapsedContractsModal(res.list || []);
+            }
+        };
+
+        window.showLapsedContractsModal = function (data) {
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            const rows = data.length > 0 ? data.map(x => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-center">
+                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}">${x['계약상태']}</span>
+               </td>
+               <td class="p-3 text-center text-gray-700">${x['모집인명']}<br><span class="text-[10px] text-gray-400">모집</span></td>
+               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-center text-xs bg-gray-50 text-gray-600">${x['납입회차']}</td>
+               <td class="p-3 text-center text-xs text-gray-500 font-mono">${x['최종납입월']}</td>
+               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+             </tr>`).join('') : '<tr><td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td></tr>';
+
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-red-500 rounded-full block shadow-sm"></span>
+                        <span>실효계약 상세리스트 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="overflow-auto flex-grow bg-white custom-scrollbar">
+                    <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
+                            <th class="p-3 font-semibold text-center">상태</th>
+                            <th class="p-3 font-semibold text-center">모집인</th>
+                            <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                            <th class="p-3 font-semibold">보험사</th>
+                            <th class="p-3 font-semibold">증권번호</th>
+                            <th class="p-3 font-semibold">상품명</th>
+                            <th class="p-3 text-right font-semibold">계속보험료</th>
+                            <th class="p-3 font-semibold">계약일</th>
+                            <th class="p-3 text-center font-semibold">납입회차</th>
+                            <th class="p-3 text-center font-semibold">최종납입월</th>
+                            <th class="p-3 text-center font-semibold">계약자</th>
+                            <th class="p-3 text-center font-semibold">데이터기준일</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => modal.remove());
         };
