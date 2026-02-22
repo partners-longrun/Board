@@ -99,7 +99,7 @@
         .mobile-fab-container {
             position: fixed;
             right: 16px;
-            bottom: 80px;
+            bottom: 24px;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -652,8 +652,7 @@
                 <!-- Mobile FAB -->
                 <div class="mobile-fab-container">
                     <button type="button" class="fab-btn" onclick="navigate('home')">
-                        <span class="fab-icon">↑</span>
-                        <span class="fab-text">홈</span>
+                        <span class="fab-text" style="font-size: 13px; font-weight: bold;">홈</span>
                     </button>
                     <button type="button" class="fab-btn" onclick="history.back()">
                         <span class="fab-icon">←</span>
@@ -748,7 +747,7 @@
             div.innerHTML = `
              <div class="mb-8">
                 <h2 class="text-xl font-bold text-gray-800 tracking-tight">${state.user.name}님의 시상금 (${state.currentMonth})</h2>
-                <p class="text-gray-500 text-sm mt-1">월별 시상금 지급 및 환수 현황입니다.</p>
+                <p class="text-gray-500 text-sm mt-1">해당 월의 시상금 지급 및 환수 현황입니다.</p>
              </div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                  <div class="col-span-2 md:col-span-1">${card('실지급 총액 (세전)', net, 'border-primary', false, true)}</div>
