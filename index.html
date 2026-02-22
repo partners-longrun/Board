@@ -11,7 +11,7 @@
     <!-- [필수 설정] 구글 앱스 스크립트 웹앱 URL 입력 -->
     <!-- ========================================== -->
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec'; // [TODO] 여기에 웹앱 URL을 붙여넣으세요
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec';
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -225,7 +225,7 @@
                 state.currentView = e.state.view;
                 render();
             } else {
-                if (state.user) navigate(state.user.role === '지사대표' ? 'branch' : 'dashboard', false);
+                if (state.user) navigate('home', false);
                 else navigate('login', false);
             }
         };
@@ -272,7 +272,7 @@
                         state.months = sess.months;
                         state.currentMonth = sess.currentMonth;
                         const hash = location.hash.replace('#/', '');
-                        state.currentView = (hash && hash !== 'login') ? hash : (state.user.role === '지사대표' ? 'branch' : 'dashboard');
+                        state.currentView = (hash && hash !== 'login') ? hash : 'home';
                         resetSessionTimer();
                         return true;
                     }
@@ -300,6 +300,86 @@
         }
 
         // --- 5. Views ---
+
+        function createHomeView() {
+            const div = document.createElement('div');
+
+            // 보유 데이터 확인
+            const hd = state.data.homeData || { retentionRate: '-', baseMonth: '-' };
+            let rateClass = 'text-primary';
+            if (hd.retentionRate !== '-' && hd.retentionRate !== '데이터 없음') {
+                const num = parseFloat(hd.retentionRate);
+                if (num >= 90) rateClass = 'text-blue-500';
+                else if (num < 80) rateClass = 'text-red-500';
+            }
+
+            const formatUserType = () => {
+                if (state.user.role === '지사대표') return '지사대표';
+                if (state.user.role === '관리자') return '관리자';
+                return state.user.organization || '파트너스';
+            };
+
+            div.innerHTML = `
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">안녕하세요, ${state.user.name}님 👋</h2>
+                    <p class="text-gray-500 text-sm mt-2 font-medium bg-gray-100 inline-block px-3 py-1 rounded-full">${formatUserType()} / 무엇을 도와드릴까요?</p>
+                </div>
+                
+                <div class="mb-10">
+                    <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율</p>
+                            </div>
+                            <div class="flex items-baseline gap-3">
+                                <p class="text-4xl font-extrabold ${rateClass} tracking-tight">${hd.retentionRate}</p>
+                                <span class="text-sm text-gray-400 font-medium">${hd.baseMonth !== '-' ? '(' + hd.baseMonth + ' 기준)' : ''}</span>
+                            </div>
+                        </div>
+                        <div class="hidden sm:flex w-16 h-16 rounded-2xl bg-orange-50 items-center justify-center text-primary shadow-inner">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div onclick="navigate('dashboard')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-blue-100 transition-all duration-300 rounded-2xl p-6 border border-gray-100 flex flex-col items-center justify-center text-center group">
+                        <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg">시상금 조회</h3>
+                        <p class="text-xs text-gray-400 mt-1">월별 시상금 상세 내역</p>
+                    </div>
+                    ${state.user.isRecruiter ? `
+                    <div onclick="navigate('recruitment')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-green-100 transition-all duration-300 rounded-2xl p-6 border border-gray-100 flex flex-col items-center justify-center text-center group">
+                        <div class="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-green-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg">증원수당 조회</h3>
+                        <p class="text-xs text-gray-400 mt-1">산하 인원별 수당 현황</p>
+                    </div>` : ''}
+                    ${state.user.role === '지사대표' ? `
+                    <div onclick="navigate('branch')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-purple-100 transition-all duration-300 rounded-2xl p-6 border border-gray-100 flex flex-col items-center justify-center text-center group">
+                        <div class="w-16 h-16 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg">지사대표</h3>
+                        <p class="text-xs text-gray-400 mt-1">법인 시상 및 인센티브</p>
+                    </div>` : ''}
+                    ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `
+                    <div onclick="navigate('admin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-6 border border-gray-100 flex flex-col items-center justify-center text-center group">
+                        <div class="w-16 h-16 bg-gray-50 text-gray-600 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-gray-700 group-hover:text-white transition-colors duration-300 shadow-sm">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg">관리자 대시보드</h3>
+                        <p class="text-xs text-gray-400 mt-1">사원별 종합 실적 현황</p>
+                    </div>` : ''}
+                </div>
+            `;
+            return div;
+        }
 
         function createLoginView() {
             const container = document.createElement('div');
@@ -433,11 +513,12 @@
                         <div class="flex justify-between h-16 relative">
                             <div class="flex">
                                 <div class="absolute inset-x-0 h-16 flex items-center justify-center pointer-events-none md:static md:h-auto md:justify-start z-10">
-                                    <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate(state.user.role === '지사대표' ? 'branch' : 'dashboard')">
+                                    <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate('home')">
                                         ${LOGO_TEXT}
                                     </div>
                                 </div>
                                 <div class="hidden md:ml-10 md:flex md:space-x-8">
+                                    ${navLink('home', '홈')}
                                     ${navLink('dashboard', '시상금 조회')}
                                     ${state.user.isRecruiter ? navLink('recruitment', '증원수당 조회') : ''}
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
@@ -484,6 +565,7 @@
                             </div>
                          </div>
                          <div class="px-2 pt-2 pb-3 space-y-1">
+                            <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
                             <a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금 조회</a>
                             ${state.user.isRecruiter ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당 조회</a>` : ''}
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
@@ -506,7 +588,8 @@
 
             const main = container.querySelector('#main-view');
             // Logic reuse
-            if (state.currentView === 'dashboard') main.appendChild(createDashboardView());
+            if (state.currentView === 'home') main.appendChild(createHomeView());
+            else if (state.currentView === 'dashboard') main.appendChild(createDashboardView());
             else if (state.currentView === 'recruitment') main.appendChild(createRecruitmentView());
             else if (state.currentView === 'branch') main.appendChild(createBranchView());
             else if (state.currentView === 'admin') main.appendChild(createAdminView());
@@ -695,7 +778,10 @@
             }
 
             div.innerHTML = `
-             <div class="mb-6"><h2 class="text-xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2></div>
+             <div class="mb-6">
+                <h2 class="text-xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2>
+                <p class="text-gray-500 text-sm mt-1">증원수당 및 차수별 산하인원 현황입니다.</p>
+             </div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div class="col-span-2 md:col-span-1">${card('나의 증원수당 (세전)', agg.net, 'border-primary', false, true)}</div>
                 <div class="col-span-1 md:col-span-1">${card('총 지급액', agg.pay, 'border-blue-500')}</div>
@@ -1009,7 +1095,7 @@
                     openChangePasswordModal(false);
                 } else {
                     saveSession();
-                    navigate(state.user.role === '지사대표' ? 'branch' : 'dashboard');
+                    navigate('home');
                 }
             } else {
                 alert(r.message || '로그인 실패');
@@ -1029,6 +1115,7 @@
             const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
 
             // 1. Check Memory State
+            if (state.currentView === 'home' && state.data.homeData) { render(); return; }
             if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
@@ -1039,7 +1126,8 @@
                 try {
                     const parsed = JSON.parse(cached);
                     // Update State
-                    if (state.currentView === 'dashboard' || state.currentView === 'branch') state.data.rewardData = parsed;
+                    if (state.currentView === 'home') state.data.homeData = parsed;
+                    else if (state.currentView === 'dashboard' || state.currentView === 'branch') state.data.rewardData = parsed;
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
                     else if (state.currentView === 'admin') state.data.adminSummary = parsed;
 
@@ -1050,9 +1138,25 @@
                 }
             }
 
-            if (state.currentView === 'dashboard' || state.currentView === 'branch') fetchReward(cacheKey);
+            if (state.currentView === 'home') fetchHome(cacheKey);
+            else if (state.currentView === 'dashboard' || state.currentView === 'branch') fetchReward(cacheKey);
             else if (state.currentView === 'recruitment') fetchRec(cacheKey);
             else if (state.currentView === 'admin') fetchAdmin(cacheKey);
+        }
+
+        async function fetchHome(key) {
+            showLoading(true);
+            const d = await callApi('getHomeData', state.user.staffId);
+            showLoading(false);
+
+            if (!d.error && d.success) {
+                state.data.homeData = d;
+                sessionStorage.setItem(key, JSON.stringify(d));
+                render();
+            } else {
+                state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+                render();
+            }
         }
 
         async function fetchReward(key) {
