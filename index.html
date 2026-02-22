@@ -273,12 +273,14 @@
             render();
             // Data refresh on nav if needed
             if (view !== 'login') refresh();
+            window.scrollTo(0, 0);
         }
 
         window.onpopstate = function (e) {
             if (e.state && e.state.view) {
                 state.currentView = e.state.view;
                 render();
+                window.scrollTo(0, 0);
             } else {
                 if (state.user) navigate('home', false);
                 else navigate('login', false);
