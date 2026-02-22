@@ -94,6 +94,61 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #9ca3af;
         }
+
+        /* Mobile FAB (Floating Action Button) */
+        .mobile-fab-container {
+            position: fixed;
+            right: 16px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .fab-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #F37321;
+            color: #FFFFFF;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .fab-btn:hover {
+            background-color: #d96316;
+            transform: translateY(-2px);
+        }
+
+        .fab-btn:active {
+            background-color: #d96316;
+            transform: translateY(0);
+        }
+
+        .fab-icon {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+
+        .fab-text {
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        @media (min-width: 769px) {
+            .mobile-fab-container {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 
@@ -593,6 +648,18 @@
                 <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
                      <div id="main-view"></div>
                 </main>
+
+                <!-- Mobile FAB -->
+                <div class="mobile-fab-container">
+                    <button type="button" class="fab-btn" onclick="navigate('home')">
+                        <span class="fab-icon">↑</span>
+                        <span class="fab-text">홈</span>
+                    </button>
+                    <button type="button" class="fab-btn" onclick="history.back()">
+                        <span class="fab-icon">←</span>
+                        <span class="fab-text">이전</span>
+                    </button>
+                </div>
             `;
 
             const main = container.querySelector('#main-view');
