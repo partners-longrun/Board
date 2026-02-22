@@ -195,7 +195,7 @@
         };
 
         const LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
-            <span class="text-xl font-bold text-gray-800 tracking-tight">파트너스 <span class="text-primary">영업지원</span></span>
+            <span class="text-2xl font-bold text-gray-800 tracking-tight">파트너스 <span class="text-primary">영업지원</span></span>
         </div>`;
         const LOGO_BIG = `<div class="flex flex-col items-center justify-center gap-5 text-white select-none">
             <h1 class="text-3xl font-bold tracking-widest drop-shadow-md">파트너스<span class="font-light">본부</span></h1>
@@ -430,10 +430,12 @@
             container.innerHTML = `
                 <header class="bg-white shadow-sm sticky top-0 z-40 transition-shadow duration-300">
                     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex justify-between h-16">
+                        <div class="flex justify-between h-16 relative">
                             <div class="flex">
-                                <div class="flex-shrink-0 flex items-center cursor-pointer" onclick="navigate(state.user.role === '지사대표' ? 'branch' : 'dashboard')">
-                                    ${LOGO_TEXT}
+                                <div class="absolute inset-x-0 h-16 flex items-center justify-center pointer-events-none md:static md:h-auto md:justify-start z-10">
+                                    <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate(state.user.role === '지사대표' ? 'branch' : 'dashboard')">
+                                        ${LOGO_TEXT}
+                                    </div>
                                 </div>
                                 <div class="hidden md:ml-10 md:flex md:space-x-8">
                                     ${navLink('dashboard', '시상금 조회')}
@@ -561,7 +563,7 @@
             const card = (label, val, color, isRed = false, big = false) => `
               <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border-l-[6px] ${color} h-full flex flex-col justify-center items-center text-center group">
                  <p class="text-gray-400 text-xs font-bold uppercase tracking-wider group-hover:text-gray-600 transition-colors mb-2">${label}</p>
-                 <p class="${big ? 'text-3xl' : 'text-2xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} tracking-tight">${formatMoney(val)}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} tracking-tight">${formatMoney(val)}</p>
               </div>`;
 
             const detailCard = (title, key) => {
@@ -586,7 +588,7 @@
 
             div.innerHTML = `
              <div class="mb-8">
-                <h2 class="text-2xl font-bold text-gray-800 tracking-tight">${state.user.name}님의 시상금 (${state.currentMonth})</h2>
+                <h2 class="text-xl font-bold text-gray-800 tracking-tight">${state.user.name}님의 시상금 (${state.currentMonth})</h2>
                 <p class="text-gray-500 text-sm mt-1">월별 시상금 지급 및 환수 현황입니다.</p>
              </div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
@@ -616,7 +618,7 @@
             const card = (label, val, color, isRed = false, big = false) => `
               <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center">
                  <p class="text-gray-400 text-xs w-full text-center font-bold uppercase">${label}</p>
-                 <p class="${big ? 'text-3xl' : 'text-2xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-3 px-2">${formatMoney(val)}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-3 px-2">${formatMoney(val)}</p>
               </div>`;
 
             const detailCard = (title, key) => {
@@ -634,7 +636,7 @@
             };
 
             div.innerHTML = `
-            <div class="mb-6"><h2 class="text-2xl font-bold text-gray-800">지사대표의 시상금 (${state.currentMonth})</h2><p class="text-sm text-gray-500">법인 시상 및 인센티브 현황</p></div>
+            <div class="mb-6"><h2 class="text-xl font-bold text-gray-800">지사대표의 시상금 (${state.currentMonth})</h2><p class="text-sm text-gray-500">법인 시상 및 인센티브 현황</p></div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div class="col-span-2 md:col-span-1">${card('실지급 총액', net, 'border-primary', false, true)}</div>
                 <div class="col-span-1">${card('총 지급액', totalPay, 'border-blue-500')}</div>
@@ -665,7 +667,7 @@
             const card = (label, val, color, isRed = false, big = false) => `
               <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center">
                  <p class="text-gray-400 text-xs w-full text-center font-bold uppercase">${label}</p>
-                 <p class="${big ? 'text-3xl' : 'text-2xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-2">${formatMoney(val)}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-2">${formatMoney(val)}</p>
               </div>`;
 
             let listHtml = '';
@@ -693,7 +695,7 @@
             }
 
             div.innerHTML = `
-             <div class="mb-6"><h2 class="text-2xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2></div>
+             <div class="mb-6"><h2 class="text-xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2></div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div class="col-span-2 md:col-span-1">${card('나의 증원수당 (세전)', agg.net, 'border-primary', false, true)}</div>
                 <div class="col-span-1 md:col-span-1">${card('총 지급액', agg.pay, 'border-blue-500')}</div>
@@ -732,7 +734,7 @@
 
             div.innerHTML = `
             <div class="flex flex-col sm:flex-row justify-between mb-6 items-center gap-4">
-                <h2 class="text-xl font-bold text-gray-800 self-start sm:self-center">관리자 대시보드</h2>
+                <h2 class="text-xl font-bold text-gray-800 self-start sm:self-center">관리자 대시보드 (${state.currentMonth})</h2>
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
                     <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">시상금</button>
                     ${state.user.role !== '관리자' ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원수당</button>` : ''}
