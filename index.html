@@ -310,7 +310,13 @@
             if (hd.retentionRate !== '-' && hd.retentionRate !== '데이터 없음') {
                 const num = parseFloat(hd.retentionRate);
                 if (num >= 90) rateClass = 'text-blue-500';
-                else if (num < 80) rateClass = 'text-red-500';
+                else rateClass = 'text-red-500'; // 90% 미만 시 빨간색
+            }
+
+            // 기존에 접속했던 사용자의 브라우저 캐시에 '2026년 1월' 형태로 남아있을 경우를 대비하여 JS에서 한번 더 포맷팅
+            let displayMonth = hd.baseMonth;
+            if (displayMonth && displayMonth.startsWith('20')) {
+                displayMonth = displayMonth.replace(/^20(\d{2}년)/, '$1');
             }
 
             const formatUserType = () => {
@@ -329,7 +335,7 @@
                     <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col justify-center">
                         <div class="flex items-center gap-2 mb-6 w-full">
                             <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                            <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${hd.baseMonth !== '-' ? '(' + hd.baseMonth + ' 기준)' : ''}</p>
+                            <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' ? '(' + displayMonth + ' 기준)' : ''}</p>
                         </div>
                         <p class="text-4xl font-extrabold ${rateClass} tracking-tight drop-shadow-sm text-center">${hd.retentionRate}</p>
                     </div>
