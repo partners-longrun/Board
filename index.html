@@ -76,6 +76,11 @@
             text-overflow: ellipsis;
         }
 
+        /* 숫자 자릿수 고정 폭 (흔들림 방지, 고급스러움) */
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
@@ -261,7 +266,7 @@
         </div>`;
 
         function showLoading(show) { document.getElementById('loading').classList.toggle('hidden', !show); }
-        function formatMoney(n) { return Number(n || 0).toLocaleString(); }
+        function formatMoney(n) { return `<span class="tabular-nums">${Number(n || 0).toLocaleString()}</span>`; }
         function formatRate(r) {
             if (r === '' || r === null || r === undefined) return '';
             const n = Number(r);
@@ -455,47 +460,47 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
                     <!-- 1. 실효관리 -->
-                    <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-red-100 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-red-50 text-red-400 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-red-400 group-hover:text-white transition-colors duration-300 shadow-sm">
+                    <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base">실효관리</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효관리</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">당월 실효 및 연체계약 관리</p>
                         </div>
                     </div>
 
                     <!-- 2. 시상금 조회 -->
-                    <div onclick="navigate('dashboard')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-blue-100 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-blue-50 text-blue-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                    <div onclick="navigate('dashboard')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base">시상금 조회</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">시상금 조회</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">월별 시상금 상세 내역</p>
                         </div>
                     </div>
 
                     <!-- 3. 증원수당 조회 -->
                     ${state.user.isRecruiter ? `
-                    <div onclick="navigate('recruitment')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-green-100 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-green-50 text-green-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-green-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                    <div onclick="navigate('recruitment')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base">증원수당 조회</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">증원수당 조회</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">산하 인원 및 증원수당 현황</p>
                         </div>
                     </div>` : ''}
 
                     <!-- 4. 지사대표 대시보드 -->
                     ${state.user.role === '지사대표' ? `
-                    <div onclick="navigate('branch')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-purple-100 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-purple-50 text-purple-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors duration-300 shadow-sm">
+                    <div onclick="navigate('branch')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base">지사대표 대시보드</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">지사대표 대시보드</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">법인 시상 및 인센티브</p>
                         </div>
                     </div>` : ''}
@@ -503,11 +508,11 @@
                     <!-- 5. 관리자 대시보드 -->
                     ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `
                     <div onclick="navigate('admin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-gray-50 text-gray-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-gray-700 group-hover:text-white transition-colors duration-300 shadow-sm">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base">관리자 대시보드</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">관리자 대시보드</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">소속 파트너별 시상금 현황</p>
                         </div>
                     </div>` : ''}
