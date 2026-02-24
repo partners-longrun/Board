@@ -563,6 +563,15 @@
                     <div class="space-y-6 w-full max-w-sm text-left">
                         <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
                             <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base">강력한 영업 지원</h3>
+                                <p class="text-xs text-gray-400">영업 활동에 필요한 다양한 정보 제공</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
                                 <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                             </div>
                             <div>
@@ -577,15 +586,6 @@
                             <div>
                                 <h3 class="font-bold text-base">체계적인 증원 관리</h3>
                                 <p class="text-xs text-gray-400">증원수당 및 산하 파트너 현황 확인</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
-                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
-                                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-base">강력한 영업 지원</h3>
-                                <p class="text-xs text-gray-400">영업 활동에 필요한 다양한 정보 제공</p>
                             </div>
                         </div>
                     </div>
@@ -1578,9 +1578,23 @@
 
         // --- 8. Logic Interactions ---
         async function doLogin(id, pw) {
-            showLoading(true);
+            // [OPTIMIZATION] Inline spinner on login button to prevent screen freezing
+            const btn = document.querySelector('#loginForm button[type="submit"]');
+            let originalText = "로그인";
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div>인증 중...`;
+                btn.disabled = true;
+                btn.classList.add('opacity-80', 'cursor-not-allowed');
+            }
+
             const r = await callApi('loginUser', id, pw);
-            showLoading(false);
+
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            }
 
             if (r.success) {
                 state.user = r.user;
@@ -1597,6 +1611,7 @@
                     openChangePasswordModal(false);
                 } else {
                     saveSession();
+                    state.isLoading = true; // [OPTIMIZATION] Eagerly trigger Skeleton UI on home transition for speed
                     navigate('home');
                 }
             } else {
