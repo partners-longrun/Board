@@ -154,6 +154,10 @@
                 display: none !important;
             }
         }
+
+        body.modal-open .mobile-fab-container {
+            display: none !important;
+        }
     </style>
 </head>
 
@@ -276,6 +280,14 @@
         }
 
         // --- 2. Navigation & History ---
+        window.handleFabBack = function () {
+            if (state.currentView === 'home') {
+                alert('현재 첫 화면(홈)입니다.');
+            } else {
+                history.back();
+            }
+        };
+
         function navigate(view, push = true) {
             state.currentView = view;
             if (push) history.pushState({ view: view }, '', '#/' + view);
@@ -747,7 +759,7 @@
                     <button type="button" class="fab-btn" onclick="navigate('home')">
                         <span class="fab-text" style="font-size: 13px; font-weight: bold;">홈</span>
                     </button>
-                    <button type="button" class="fab-btn" onclick="history.back()">
+                    <button type="button" class="fab-btn" onclick="handleFabBack()">
                         <span class="fab-icon">←</span>
                         <span class="fab-text">이전</span>
                     </button>
@@ -989,6 +1001,8 @@
             const data = dataList[idx];
             if (!data) return;
 
+            document.body.classList.add('modal-open');
+
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 fade-in";
 
@@ -1041,6 +1055,7 @@
 
             modal.querySelectorAll('.close-detail').forEach(b => b.onclick = () => {
                 modal.classList.add('opacity-0');
+                document.body.classList.remove('modal-open');
                 setTimeout(() => modal.remove(), 200);
             });
         };
@@ -1309,6 +1324,7 @@
                 d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
             }
 
+            document.body.classList.add('modal-open');
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
@@ -1362,7 +1378,10 @@
                 </div>
             </div>`;
             document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => modal.remove());
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
         }
 
         window.fetchAndShowAdminDetail = async function (id, name, category, type) {
@@ -1394,6 +1413,7 @@
         };
 
         window.showOrgTreeModal = function (data, targetName) {
+            document.body.classList.add('modal-open');
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
@@ -1488,7 +1508,10 @@
             `;
 
             document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => modal.remove());
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
         };
 
         window.fetchAndShowLapsedContracts = async function () {
@@ -1504,6 +1527,7 @@
         };
 
         window.showLapsedContractsModal = function (data) {
+            document.body.classList.add('modal-open');
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
@@ -1557,7 +1581,10 @@
                 </div>
             </div>`;
             document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => modal.remove());
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
         };
 
         // --- 8. Logic Interactions ---
@@ -1757,6 +1784,7 @@
 
         // --- 9. Password Change ---
         function openChangePasswordModal(canCancel) {
+            document.body.classList.add('modal-open');
             const m = document.getElementById('pw-modal');
             m.classList.remove('hidden');
             const cancelBtn = document.getElementById('pwCancelBtn');
@@ -1765,7 +1793,10 @@
             if (cancelBtn) cancelBtn.style.display = canCancel ? 'block' : 'none';
         }
 
-        function closePwModal() { document.getElementById('pw-modal').classList.add('hidden'); }
+        function closePwModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('pw-modal').classList.add('hidden');
+        }
 
         document.getElementById('pwForm').addEventListener('submit', async function (e) {
             e.preventDefault();
