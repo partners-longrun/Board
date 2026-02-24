@@ -1648,6 +1648,7 @@
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
                     else if (state.currentView === 'admin') state.data.adminSummary = parsed;
 
+                    state.isLoading = false; // [FIX] Reset loading state when using cache
                     render();
                     return; // Skip fetch
                 } catch (e) {
