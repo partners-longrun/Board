@@ -244,11 +244,13 @@
             data: {},
             lapseData: { lapsed: [], arrears: [] },
             lapseCurrentTab: 'lapsed', // 'lapsed' or 'arrears'
+            lapseLimit: 20,
             adminTab: 'reward',
             adminSubTab: 'active',
             adminPage: 1,
             pageSize: 20,
-            mobileMenuOpen: false
+            mobileMenuOpen: false,
+            isLoading: false
         };
 
         const LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
@@ -360,7 +362,23 @@
 
         // --- 5. Views ---
 
+        function getSkeletonUI() {
+            const div = document.createElement('div');
+            div.innerHTML = `
+            <div class="animate-pulse flex flex-col gap-6 w-full fade-in pt-4">
+                <div class="h-8 bg-gray-200 rounded-lg w-1/3 mb-2"></div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50 hidden md:block"></div>
+                </div>
+                <div class="h-64 bg-gray-100 rounded-2xl w-full mt-4 border border-gray-50"></div>
+            </div>`;
+            return div;
+        }
+
         function createHomeView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
 
             // 보유 데이터 확인
@@ -804,6 +822,7 @@
 
         window.switchLapseTab = function (tab) {
             state.lapseCurrentTab = tab;
+            state.lapseLimit = 20; // reset pagination limit
             const container = document.getElementById('lapse-container');
             const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
             renderLapseContents(container, data);
@@ -821,6 +840,7 @@
         };
 
         function createLapseView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
 
             div.innerHTML = `
@@ -846,9 +866,8 @@
                 const container = div.querySelector('#lapse-container');
 
                 if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length)) {
-                    showLoading(true);
+                    container.innerHTML = getSkeletonUI().innerHTML;
                     const res = await callApi('getLapseManagementData', state.user.staffId);
-                    showLoading(false);
 
                     if (res.error || !res.success) {
                         container.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
@@ -874,8 +893,12 @@
                 return;
             }
 
+            const limit = state.lapseLimit || 20;
+            const limitedData = data.slice(0, limit);
+            const hasMore = data.length > limit;
+
             // Desktop Table Layout
-            const desktopRows = data.map((x, idx) => `
+            const desktopRows = limitedData.map((x, idx) => `
              <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
                <td class="p-3 text-center">
                    <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
@@ -924,7 +947,7 @@
             `;
 
             // Mobile Card Layout
-            const mobileCards = data.map((x, idx) => `
+            const mobileCards = limitedData.map((x, idx) => `
                 <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
                     <div class="flex justify-between items-center mb-3">
                         <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
@@ -944,7 +967,7 @@
             `).join('');
 
             const mobileContainer = `
-                <div class="md:hidden flex flex-col gap-3 pb-8">
+                <div class="md:hidden flex flex-col gap-3 pb-4">
                      <div class="flex items-center justify-between px-1 mb-1">
                         <span class="text-sm font-bold text-gray-600">총 <span class="text-${colorClass}-500">${data.length}</span>건</span>
                      </div>
@@ -952,8 +975,25 @@
                 </div>
             `;
 
-            container.innerHTML = desktopTable + mobileContainer;
+            let loadMoreHtml = '';
+            if (hasMore) {
+                loadMoreHtml = `<div class="mt-2 mb-8 flex justify-center w-full">
+                    <button onclick="loadMoreLapse()" class="w-full max-w-sm px-6 py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all flex justify-center items-center gap-2">
+                        <span>더보기 (${limitedData.length} / ${data.length})</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                </div>`;
+            }
+
+            container.innerHTML = desktopTable + mobileContainer + loadMoreHtml;
         }
+
+        window.loadMoreLapse = function () {
+            state.lapseLimit += 20;
+            const container = document.getElementById('lapse-container');
+            const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            renderLapseContents(container, data);
+        };
 
         window.openMobileLapseDetail = function (idx) {
             const dataList = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
@@ -1017,6 +1057,7 @@
         };
 
         function createDashboardView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const d = state.data.rewardData?.summary || {};
             const keys = ['손보 시상금', '생보 시상금', '본부 시상금'];
@@ -1074,6 +1115,7 @@
         }
 
         function createBranchView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const d = state.data.rewardData?.summary || {};
             // 백엔드의 getRewardData 함수 정의에 맞춰 다시 롤백
@@ -1118,6 +1160,7 @@
         }
 
         function createRecruitmentView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const d = state.data.recData || { myStats: {}, downlines: [] };
             const groups = { 1: [], 2: [], 3: [], 4: [] };
@@ -1188,6 +1231,7 @@
         }
 
         function createAdminView() {
+            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const dd = state.data.adminSummary || {};
             if (dd.error) { div.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">데이터 로드 실패: ${dd.message}</div>`; return div; }
@@ -1598,9 +1642,9 @@
         }
 
         async function fetchHome(key) {
-            showLoading(true);
+            state.isLoading = true; render();
             const d = await callApi('getHomeData', state.user.staffId);
-            showLoading(false);
+            state.isLoading = false;
 
             if (!d.error && d.success) {
                 state.data.homeData = d;
@@ -1613,9 +1657,9 @@
         }
 
         async function fetchReward(key) {
-            showLoading(true);
+            state.isLoading = true; render();
             const d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
-            showLoading(false);
+            state.isLoading = false;
 
             if (!d.error) {
                 d.month = state.currentMonth;
@@ -1624,12 +1668,13 @@
                 render();
             } else {
                 alert('데이터 로드 실패: ' + d.message);
+                render();
             }
         }
         async function fetchRec(key) {
-            showLoading(true);
+            state.isLoading = true; render();
             const d = await callApi('getRecruitmentData', state.user.staffId, state.currentMonth);
-            showLoading(false);
+            state.isLoading = false;
 
             if (!d.error) {
                 d.month = state.currentMonth;
@@ -1638,12 +1683,13 @@
                 render();
             } else {
                 alert('데이터 로드 실패: ' + d.message);
+                render();
             }
         }
         async function fetchAdmin(key) {
-            showLoading(true);
+            state.isLoading = true; render();
             const d = await callApi('getAdminSummary', state.currentMonth, state.user.staffId);
-            showLoading(false);
+            state.isLoading = false;
 
             let parsed = d;
             // Handle double JSON parsing if necessary (sometimes GAS returns stringified JSON)
