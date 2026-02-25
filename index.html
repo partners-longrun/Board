@@ -1064,7 +1064,7 @@
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const d = state.data.rewardData?.summary || {};
-            const keys = ['손보 시상금', '생보 시상금', '본부 시상금'];
+            const keys = ['손보 시상금', '생보 시상금', '본부 시상금', '손보법인 시상금(개인)', '생보법인 시상금(개인)'];
             let totalPay = 0, totalRef = 0;
             keys.forEach(k => {
                 const obj = d[k] || { pay: 0, refund: 0 };
@@ -1112,6 +1112,8 @@
                 ${detailCard('손보 시상금', '손보 시상금')}
                 ${detailCard('생보 시상금', '생보 시상금')}
                 ${detailCard('본부 시상금', '본부 시상금')}
+                ${((d['손보법인 시상금(개인)']?.pay || 0) + (d['손보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('손보법인 시상금', '손보법인 시상금(개인)') : ''}
+                ${((d['생보법인 시상금(개인)']?.pay || 0) + (d['생보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('생보법인 시상금', '생보법인 시상금(개인)') : ''}
              </div>
              <div class="mt-8 text-center"><div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">💡 Tip: 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.</div></div>
              `;
@@ -1221,7 +1223,8 @@
              ${listHtml}
              <div class="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-600 leading-relaxed shadow-inner">
                 <p class="font-bold mb-2 text-gray-800">※ 증원수당 관련 안내</p>
-                <p class="mb-4">증원수당은 관리자수당(오버라이드)이 아닙니다.<br>
+                <p class="mb-4">증원수당은 관리자수당이 아닙니다.<br>
+                산하인원의 해당월 실적이 10만원 미만인 경우에는 산하실적에 포함되지 않습니다.<br>
                 증원수당은 산하인원의 실적과 연계되어 정확하게 계산되고 있음을 안내드립니다.<br>
                 증원수당과 관련하여 궁금하신 부분이 있으시면 언제든 박용수 본부장에게 연락주시기 바랍니다.</p>
                 
