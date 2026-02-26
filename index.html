@@ -1371,23 +1371,23 @@
                 }
 
                 container.innerHTML = filtered.map(item => `
-                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 border border-gray-100 flex flex-col group">
-                         <div class="flex justify-between items-start mb-4 border-b border-gray-50 pb-3">
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group">
+                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2.5">
                              <div>
                                  <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
-                                     <div class="w-8 h-8 bg-orange-50 text-primary rounded-lg flex items-center justify-center text-sm font-bold">${item.name.charAt(0)}</div>
+                                     <div class="w-1.5 h-1.5 rounded-full bg-primary/70"></div>
                                      ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
                                  </h3>
                              </div>
                          </div>
                          <div class="grid grid-cols-2 gap-3 text-center">
-                            <div class="cursor-pointer hover:bg-red-50 p-3 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
+                            <div class="cursor-pointer hover:bg-red-50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
                                 <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 실효</p>
-                                <p class="text-2xl font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-sm font-medium ml-0.5">건</span></p>
+                                <p class="text-xl font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-sm font-medium ml-0.5">건</span></p>
                             </div>
-                            <div class="cursor-pointer hover:bg-orange-50 p-3 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
+                            <div class="cursor-pointer hover:bg-orange-50 p-2.5 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
                                 <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 연체</p>
-                                <p class="text-2xl font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-sm font-medium ml-0.5">건</span></p>
+                                <p class="text-xl font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-sm font-medium ml-0.5">건</span></p>
                             </div>
                          </div>
                     </div>
@@ -1402,7 +1402,7 @@
                         return;
                     }
                     state.data.lapseAdminSummary = res.list || [];
-                    state.data.lapseAdminSummary.sort((a, b) => (b.lapsed + b.arrears) - (a.lapsed + a.arrears));
+                    state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                 }
 
                 renderCards(state.data.lapseAdminSummary);
