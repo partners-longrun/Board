@@ -251,6 +251,7 @@
             currentMonth: '',
             months: [],
             data: {},
+            homeLoaded: false,
             lapseData: { lapsed: [], arrears: [] },
             lapseCurrentTab: 'lapsed', // 'lapsed' or 'arrears'
             lapseLimit: 20,
@@ -397,22 +398,24 @@
         }
 
         function createHomeView() {
-            if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
 
             // 보유 데이터 확인
             const hd = state.data.homeData || { retentionRate: '-', baseMonth: '-' };
             let rateClass = 'text-primary';
             let retentionDisplay = hd.retentionRate;
-            if (hd.retentionRate !== '-' && hd.retentionRate !== '데이터 없음' && hd.retentionRate !== '') {
-                const num = parseFloat(hd.retentionRate);
-                if (!isNaN(num)) {
-                    if (num >= 90) rateClass = 'text-blue-500';
-                    else rateClass = 'text-red-500'; // 90% 미만 시 빨간색
+
+            if (state.homeLoaded) {
+                if (hd.retentionRate !== '-' && hd.retentionRate !== '데이터 없음' && hd.retentionRate !== '') {
+                    const num = parseFloat(hd.retentionRate);
+                    if (!isNaN(num)) {
+                        if (num >= 90) rateClass = 'text-blue-500';
+                        else rateClass = 'text-red-500'; // 90% 미만 시 빨간색
+                    }
+                } else {
+                    rateClass = 'text-gray-400 text-lg font-medium'; // 흐린 글씨, 크기 조정
+                    retentionDisplay = '(해당 기간 실적 없음)';
                 }
-            } else {
-                rateClass = 'text-gray-400 text-lg font-medium'; // 흐린 글씨, 크기 조정
-                retentionDisplay = '(해당 기간 실적 없음)';
             }
 
             // 기존에 접속했던 사용자의 브라우저 캐시에 '2026년 1월' 형태로 남아있을 경우를 대비하여 JS에서 한번 더 포맷팅
@@ -439,9 +442,11 @@
                         <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="fetchAndShowLapsedContracts()">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' ? '(' + displayMonth + ' 기준)' : ''}</p>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' && displayMonth !== undefined ? '(' + displayMonth + ' 기준)' : ''}</p>
                             </div>
-                            <p class="text-4xl font-extrabold ${rateClass} tracking-tight drop-shadow-sm text-center">${retentionDisplay}</p>
+                            <div class="text-4xl font-extrabold ${state.homeLoaded ? rateClass : 'text-primary'} tracking-tight drop-shadow-sm text-center w-full flex justify-center items-center h-10">
+                                ${state.homeLoaded ? retentionDisplay : '<svg class="animate-spin w-8 h-8 text-primary/40" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
                         </div>
                         
                         <!-- 2. 당월 실효 건수 카드 -->
@@ -1625,7 +1630,6 @@
                     openChangePasswordModal(false);
                 } else {
                     saveSession();
-                    state.isLoading = true; // [OPTIMIZATION] Eagerly trigger Skeleton UI on home transition for speed
                     navigate('home');
                     setTimeout(prefetchAllBackground, 500); // Trigger background prefetch
                 }
@@ -1636,6 +1640,7 @@
 
         function logout() {
             state.user = null;
+            state.homeLoaded = false;
             clearSession();
             navigate('login');
         }
@@ -1658,7 +1663,10 @@
                 try {
                     const parsed = JSON.parse(cached);
                     // Update State
-                    if (state.currentView === 'home') state.data.homeData = parsed;
+                    if (state.currentView === 'home') {
+                        state.data.homeData = parsed;
+                        state.homeLoaded = true;
+                    }
                     else if (state.currentView === 'dashboard' || state.currentView === 'branch') state.data.rewardData = parsed;
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
                     else if (state.currentView === 'admin') state.data.adminSummary = parsed;
@@ -1678,17 +1686,18 @@
         }
 
         async function fetchHome(key) {
-            state.isLoading = true; render();
+            state.homeLoaded = false;
+            render();
             const d = await callApi('getHomeData', state.user.staffId);
-            state.isLoading = false;
+            state.homeLoaded = true;
 
             if (!d.error && d.success) {
                 state.data.homeData = d;
                 sessionStorage.setItem(key, JSON.stringify(d));
-                render();
+                if (state.currentView === 'home') render();
             } else {
                 state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
-                render();
+                if (state.currentView === 'home') render();
             }
         }
 
