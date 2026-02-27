@@ -1352,11 +1352,18 @@
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             state.lapseAdminTab = state.lapseAdminTab || 'active';
+            state.lapseBaseType = state.lapseBaseType || 'recruiter';
 
             div.innerHTML = `
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리</h2>
-                    <p class="text-gray-500 text-sm mt-1">수금인별 당월 실효 및 연체계약 현황을 조회합니다.</p>
+                <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리</h2>
+                        <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
+                    </div>
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
+                        <button onclick="setLapseBaseType('recruiter')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
+                        <button onclick="setLapseBaseType('collector')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'collector' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">수금인 기준</button>
+                    </div>
                 </div>
                 
                 <div class="mb-4 border-b border-gray-200">
@@ -1370,7 +1377,7 @@
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                     </div>
-                    <input type="text" id="lapseAdminSearch" placeholder="수금인 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                    <input type="text" id="lapseAdminSearch" placeholder="${state.lapseBaseType === 'recruiter' ? '모집인' : '수금인'} 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
                 </div>
 
                 <div id="lapseAdminList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -1455,6 +1462,14 @@
             }, 10);
 
             return div;
+        }
+
+        function setLapseBaseType(type) {
+            if (state.lapseBaseType !== type) {
+                state.lapseBaseType = type;
+                state.data.lapseAdminSummary = null; // force clear to refresh cache
+                render();
+            }
         }
 
         function setRetentionAT(t) { state.retentionAdminTab = t; render(); }
@@ -1615,7 +1630,7 @@
 
         window.fetchAndShowLapseAdminDetail = async function (staffId, staffName, type) {
             showLoading(true);
-            const res = await callApi('getLapseManagementData', staffId);
+            const res = await callApi('getLapseManagementData', staffId, state.lapseBaseType);
             showLoading(false);
 
             if (res.error || !res.success) {
