@@ -550,6 +550,16 @@
                             <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체관리</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">수금인별 실효/연체 현황</p>
                         </div>
+                    </div>
+                    
+                    <div onclick="navigate('retentionAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">유지율</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">통산 13회, 25회 유지율</p>
+                        </div>
                     </div>` : ''}
                 </div>
             `;
@@ -709,6 +719,7 @@
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '관리자') ? navLink('admin', '관리자') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('retentionAdmin', '유지율') : ''}
                                 </div>
                             </div>
                             <div class="hidden md:flex items-center space-x-6">
@@ -758,6 +769,7 @@
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
                          </div>
                          <div class="p-4 border-t border-gray-100 bg-gray-50/50">
                              <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">마감월 선택</label>
@@ -794,6 +806,7 @@
             else if (state.currentView === 'branch') main.appendChild(createBranchView());
             else if (state.currentView === 'admin') main.appendChild(createAdminView());
             else if (state.currentView === 'lapseAdmin') main.appendChild(createLapseAdminView());
+            else if (state.currentView === 'retentionAdmin') main.appendChild(createRetentionAdminView());
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -1444,6 +1457,155 @@
             return div;
         }
 
+        function setRetentionAT(t) { state.retentionAdminTab = t; render(); }
+
+        function createRetentionAdminView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            state.retentionAdminTab = state.retentionAdminTab || 'active';
+            state.retentionSortOrder = state.retentionSortOrder || 'id'; // 'id', 'highest', 'lowest'
+
+            div.innerHTML = `
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">유지율 조회</h2>
+                    <p class="text-gray-500 text-sm mt-1">모집인별 통산 일반 유지율 현황을 조회합니다.</p>
+                </div>
+                
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-6">
+                        <button onclick="setRetentionAT('active')" class="${state.retentionAdminTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 <span id="retentionActiveCount"></span></button>
+                        <button onclick="setRetentionAT('resigned')" class="${state.retentionAdminTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 <span id="retentionResignedCount"></span></button>
+                    </nav>
+                </div>
+
+                <div class="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                    <div class="relative w-full md:max-w-md flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                        </div>
+                        <input type="text" id="retentionAdminSearch" placeholder="모집인 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                    </div>
+                    
+                    <div class="relative w-full md:w-auto mt-2 md:mt-0">
+                        <select id="retentionAdminSort" class="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                            <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
+                            <option value="highest" ${state.retentionSortOrder === 'highest' ? 'selected' : ''}>13회유지율 최고순</option>
+                            <option value="lowest" ${state.retentionSortOrder === 'lowest' ? 'selected' : ''}>13회유지율 최저순</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="retentionAdminList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div class="col-span-full flex items-center justify-center h-40">
+                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            `;
+
+            const renderCards = (list, filterText = '', sortOrder = 'id') => {
+                const container = div.querySelector('#retentionAdminList');
+                if (!list) return;
+
+                const activeList = list.filter(x => !x.isResigned);
+                const resignedList = list.filter(x => x.isResigned);
+
+                const countActive = div.querySelector('#retentionActiveCount');
+                if (countActive) countActive.innerText = '(' + activeList.length + ')';
+                const countResigned = div.querySelector('#retentionResignedCount');
+                if (countResigned) countResigned.innerText = '(' + resignedList.length + ')';
+
+                let currentList = state.retentionAdminTab === 'active' ? activeList.slice() : resignedList.slice();
+
+                if (sortOrder === 'highest') {
+                    currentList.sort((a, b) => b.retention13Raw - a.retention13Raw);
+                } else if (sortOrder === 'lowest') {
+                    currentList.sort((a, b) => a.retention13Raw - b.retention13Raw);
+                } else {
+                    currentList.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                }
+
+                const fText = filterText.toLowerCase();
+                const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">조회된 유지율 내역이 없습니다.</div>`;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(item => `
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group cursor-pointer" onclick="fetchAndShowLapsedContractsByRecruiter('${item.id}', '${item.name}')">
+                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-3">
+                             <div>
+                                 <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                     <div class="w-1.5 h-1.5 rounded-full bg-indigo-500/70"></div>
+                                     ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
+                                 </h3>
+                             </div>
+                             <div class="text-indigo-400 group-hover:text-indigo-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                             </div>
+                         </div>
+                         <div class="grid grid-cols-2 gap-3 text-center">
+                            <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">13회차 유지율</p>
+                                <p class="text-2xl font-extrabold ${item.retention13Raw >= 90 ? 'text-indigo-600' : 'text-gray-800'}">${item.retention13}</p>
+                            </div>
+                            <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">25회차 유지율</p>
+                                <p class="text-2xl font-extrabold ${item.retention25Raw >= 80 ? 'text-indigo-600' : 'text-gray-800'}">${item.retention25}</p>
+                            </div>
+                         </div>
+                    </div>
+                `).join('');
+            };
+
+            setTimeout(async () => {
+                if (!state.data.retentionAdminSummary) {
+                    const res = await callApi('getAdminRetentionSummary', state.user.staffId);
+                    if (res.error || !res.success) {
+                        div.querySelector('#retentionAdminList').innerHTML = `<div class="col-span-full p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
+                        return;
+                    }
+                    state.data.retentionAdminSummary = res.list || [];
+                }
+
+                const searchInput = div.querySelector('#retentionAdminSearch');
+                const sortSelect = div.querySelector('#retentionAdminSort');
+
+                const updateView = () => {
+                    renderCards(state.data.retentionAdminSummary, searchInput.value.trim(), sortSelect.value);
+                };
+
+                searchInput.addEventListener('input', updateView);
+                sortSelect.addEventListener('change', (e) => {
+                    state.retentionSortOrder = e.target.value;
+                    updateView();
+                });
+
+                updateView();
+            }, 10);
+
+            return div;
+        }
+
+        window.fetchAndShowLapsedContractsByRecruiter = async function (staffId, staffName) {
+            showLoading(true);
+            const res = await callApi('getLapsedContractsByRecruiter', state.user.staffId, staffId);
+            showLoading(false);
+
+            if (res.error || !res.success) {
+                alert('상세 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
+                return;
+            }
+
+            // Using the existing modal template, but providing staff name as title context
+            const titleContext = `[${staffName}] `;
+            showLapsedContractsModal(res.list, titleContext);
+        };
+
         window.fetchAndShowLapseAdminDetail = async function (staffId, staffName, type) {
             showLoading(true);
             const res = await callApi('getLapseManagementData', staffId);
@@ -1734,11 +1896,11 @@
             if (res.error || !res.success) {
                 alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
             } else {
-                showLapsedContractsModal(res.list || []);
+                showLapsedContractsModal(res.list || [], "나의 ");
             }
         };
 
-        window.showLapsedContractsModal = function (data) {
+        window.showLapsedContractsModal = function (data, prefix = "") {
             document.body.classList.add('modal-open');
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
@@ -1765,7 +1927,7 @@
                 <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
                         <span class="w-1.5 h-6 bg-red-500 rounded-full block shadow-sm"></span>
-                        <span>실효계약 리스트 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
+                        <span>${prefix}실효계약 리스트 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
                     </h3>
                     <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
                 </div>
