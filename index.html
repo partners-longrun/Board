@@ -482,13 +482,13 @@
                 <div class="mb-5 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
-                    <!-- 1. 실효관리 -->
+                    <!-- 1. 실효연체 -->
                     <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효관리</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">당월 실효 및 연체계약 관리</p>
                         </div>
                     </div>
@@ -703,7 +703,7 @@
                                 </div>
                                 <div class="hidden md:ml-10 md:flex md:space-x-8">
                                     ${navLink('home', '홈')}
-                                    ${navLink('lapse', '실효관리')}
+                                    ${navLink('lapse', '실효연체')}
                                     ${navLink('dashboard', '시상금')}
                                     ${state.user.isRecruiter ? navLink('recruitment', '증원수당') : ''}
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
@@ -752,7 +752,7 @@
                          </div>
                          <div class="px-2 pt-2 pb-3 space-y-1">
                             <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
-                            <a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효관리</a>
+                            <a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>
                             <a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>
                             ${state.user.isRecruiter ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
@@ -866,7 +866,7 @@
 
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효관리</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체</h2>
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
