@@ -541,7 +541,7 @@
                     </div>` : ''}
                     
                     <!-- 6. 실효연체관리 (Admin) -->
-                    ${(state.user.role === '지사대표' || state.user.role === '실효관리자') ? `
+                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `
                     <div onclick="navigate('lapseAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -708,7 +708,7 @@
                                     ${state.user.isRecruiter ? navLink('recruitment', '증원수당') : ''}
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '관리자') ? navLink('admin', '관리자') : ''}
-                                    ${(state.user.role === '지사대표' || state.user.role === '실효관리자') ? navLink('lapseAdmin', '실효연체관리') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
                                 </div>
                             </div>
                             <div class="hidden md:flex items-center space-x-6">
@@ -757,7 +757,7 @@
                             ${state.user.isRecruiter ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실효관리자') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
                          </div>
                          <div class="p-4 border-t border-gray-100 bg-gray-50/50">
                              <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">마감월 선택</label>
@@ -1333,10 +1333,12 @@
         function setAT(t) { state.adminTab = t; state.adminPage = 1; render(); }
         function setST(t) { state.adminSubTab = t; state.adminPage = 1; render(); }
         function setPage(d) { state.adminPage += d; render(); }
+        function setLapseAT(t) { state.lapseAdminTab = t; render(); }
 
         function createLapseAdminView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
+            state.lapseAdminTab = state.lapseAdminTab || 'active';
 
             div.innerHTML = `
                 <div class="mb-4">
@@ -1344,6 +1346,13 @@
                     <p class="text-gray-500 text-sm mt-1">수금인별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                 </div>
                 
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-6">
+                        <button onclick="setLapseAT('active')" class="${state.lapseAdminTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 <span id="lapseActiveCount"></span></button>
+                        <button onclick="setLapseAT('resigned')" class="${state.lapseAdminTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 <span id="lapseResignedCount"></span></button>
+                    </nav>
+                </div>
+
                 <div class="mb-6 relative max-w-md">
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
@@ -1362,8 +1371,18 @@
                 const container = div.querySelector('#lapseAdminList');
                 if (!list) return;
 
+                const activeList = list.filter(x => !x.isResigned);
+                const resignedList = list.filter(x => x.isResigned);
+
+                const countActive = div.querySelector('#lapseActiveCount');
+                if (countActive) countActive.innerText = '(' + activeList.length + ')';
+                const countResigned = div.querySelector('#lapseResignedCount');
+                if (countResigned) countResigned.innerText = '(' + resignedList.length + ')';
+
+                const currentList = state.lapseAdminTab === 'active' ? activeList : resignedList;
+
                 const fText = filterText.toLowerCase();
-                const filtered = list.filter(x => x.name.toLowerCase().includes(fText) || x.id.includes(fText));
+                const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
 
                 if (filtered.length === 0) {
                     container.innerHTML = `<div class="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">조회된 내역이 없습니다.</div>`;
