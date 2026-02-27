@@ -1443,14 +1443,2249 @@
             };
 
             setTimeout(async () => {
-                if (!state.data.lapseAdminSummary) {
-                    const res = await callApi('getAdminLapseArrearsSummary', state.user.staffId);
+                if (!state.data.lapseAdminSummary || state.data.lapseAdminSummaryType !== state.lapseBaseType) {
+                    const res = await callApi('getAdminLapseArrearsSummary', state.user.staffId, state.lapseBaseType);
                     if (res.error || !res.success) {
                         div.querySelector('#lapseAdminList').innerHTML = `<div class="col-span-full p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
                         return;
                     }
                     state.data.lapseAdminSummary = res.list || [];
                     state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    state.data.lapseAdminSummaryType = state.lapseBaseType;
+                }
+
+                renderCards(state.data.lapseAdminSummary);
+
+                const searchInput = div.querySelector('#lapseAdminSearch');
+                searchInput.addEventListener('input', (e) => {
+                    renderCards(state.data.lapseAdminSummary, e.target.value.trim());
+                });
+            }, 10);
+
+            return div;
+        }
+
+        function setLapseBaseType(type) {
+            if (state.lapseBaseType !== type) {
+                state.lapseBaseType = type;
+                state.data.lapseAdminSummary = null; // force clear to refresh cache
+                render();
+            }
+        }
+
+        function setRetentionAT(t) { state.retentionAdminTab = t; render(); }
+
+        function createRetentionAdminView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            state.retentionAdminTab = state.retentionAdminTab || 'active';
+            state.retentionSortOrder = state.retentionSortOrder || 'id'; // 'id', 'highest', 'lowest'
+
+            div.innerHTML = `
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">유지율 조회</h2>
+                    <p class="text-gray-500 text-sm mt-1">모집인별 통산 일반 유지율 현황을 조회합니다.</p>
+                </div>
+                
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-6">
+                        <button onclick="setRetentionAT('active')" class="${state.retentionAdminTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 <span id="retentionActiveCount"></span></button>
+                        <button onclick="setRetentionAT('resigned')" class="${state.retentionAdminTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 <span id="retentionResignedCount"></span></button>
+                    </nav>
+                </div>
+
+                <div class="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                    <div class="relative w-full md:max-w-md flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                        </div>
+                        <input type="text" id="retentionAdminSearch" placeholder="모집인 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                    </div>
+                    
+                    <div class="relative w-full md:w-auto mt-2 md:mt-0">
+                        <select id="retentionAdminSort" class="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                            <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
+                            <option value="highest13" ${state.retentionSortOrder === 'highest13' ? 'selected' : ''}>13회유지율 최고순</option>
+                            <option value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'selected' : ''}>13회유지율 최저순</option>
+                            <option value="highest25" ${state.retentionSortOrder === 'highest25' ? 'selected' : ''}>25회유지율 최고순</option>
+                            <option value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'selected' : ''}>25회유지율 최저순</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="retentionAdminList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div class="col-span-full flex items-center justify-center h-40">
+                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            `;
+
+            const renderCards = (list, filterText = '', sortOrder = 'id') => {
+                const container = div.querySelector('#retentionAdminList');
+                if (!list) return;
+
+                const activeList = list.filter(x => !x.isResigned);
+                const resignedList = list.filter(x => x.isResigned);
+
+                const countActive = div.querySelector('#retentionActiveCount');
+                if (countActive) countActive.innerText = '(' + activeList.length + ')';
+                const countResigned = div.querySelector('#retentionResignedCount');
+                if (countResigned) countResigned.innerText = '(' + resignedList.length + ')';
+
+                let currentList = state.retentionAdminTab === 'active' ? activeList.slice() : resignedList.slice();
+
+                if (sortOrder === 'highest13') {
+                    currentList.sort((a, b) => b.retention13Raw - a.retention13Raw);
+                } else if (sortOrder === 'lowest13') {
+                    currentList.sort((a, b) => a.retention13Raw - b.retention13Raw);
+                } else if (sortOrder === 'highest25') {
+                    currentList.sort((a, b) => b.retention25Raw - a.retention25Raw);
+                } else if (sortOrder === 'lowest25') {
+                    currentList.sort((a, b) => a.retention25Raw - b.retention25Raw);
+                } else {
+                    currentList.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                }
+
+                const fText = filterText.toLowerCase();
+                const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">조회된 유지율 내역이 없습니다.</div>`;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(item => `
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group cursor-pointer relative" onclick="fetchAndShowLapsedContractsByRecruiter('${item.id}', '${item.name}')">
+                         <div class="absolute top-4 right-4 bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-100 flex items-center gap-1 shadow-sm opacity-90 group-hover:opacity-100 transition-opacity">
+                             <span>실효</span>
+                             <span>${item.lapsedCount || 0}</span>
+                         </div>
+                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-3 pr-16 mt-1">
+                             <div>
+                                 <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                     <div class="w-1.5 h-1.5 rounded-full bg-indigo-500/70"></div>
+                                     ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
+                                 </h3>
+                             </div>
+                         </div>
+                         <div class="grid grid-cols-2 gap-3 text-center">
+                            <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">13회차</p>
+                                <p class="text-xl font-extrabold ${item.retention13Raw < 90 ? 'text-red-500' : 'text-gray-800'}">${item.retention13}</p>
+                            </div>
+                            <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">25회차</p>
+                                <p class="text-xl font-extrabold ${item.retention25Raw < 80 ? 'text-red-500' : 'text-gray-800'}">${item.retention25}</p>
+                            </div>
+                         </div>
+                    </div>
+                `).join('');
+            };
+
+            setTimeout(async () => {
+                if (!state.data.retentionAdminSummary) {
+                    const res = await callApi('getAdminRetentionSummary', state.user.staffId);
+                    if (res.error || !res.success) {
+                        div.querySelector('#retentionAdminList').innerHTML = `<div class="col-span-full p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
+                        return;
+                    }
+                    state.data.retentionAdminSummary = res.list || [];
+                }
+
+                const searchInput = div.querySelector('#retentionAdminSearch');
+                const sortSelect = div.querySelector('#retentionAdminSort');
+
+                const updateView = () => {
+                    renderCards(state.data.retentionAdminSummary, searchInput.value.trim(), sortSelect.value);
+                };
+
+                searchInput.addEventListener('input', updateView);
+                sortSelect.addEventListener('change', (e) => {
+                    state.retentionSortOrder = e.target.value;
+                    updateView();
+                });
+
+                updateView();
+            }, 10);
+
+            return div;
+        }
+
+        window.fetchAndShowLapsedContractsByRecruiter = async function (staffId, staffName) {
+            showLoading(true);
+            const res = await callApi('getLapsedContractsByRecruiter', state.user.staffId, staffId);
+            showLoading(false);
+
+            if (res.error || !res.success) {
+                alert('상세 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
+                return;
+            }
+
+            // Using the existing modal template, but providing staff name as title context
+            const titleContext = `[${staffName}] `;
+            showLapsedContractsModal(res.list, titleContext);
+        };
+
+        window.fetchAndShowLapseAdminDetail = async function (staffId, staffName, type) {
+            showLoading(true);
+            const res = await callApi('getLapseManagementData', staffId, state.lapseBaseType);
+            showLoading(false);
+
+            if (res.error || !res.success) {
+                alert('상세 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
+                return;
+            }
+
+            const dataToRender = type === 'lapsed' ? res.lapsed : res.arrears;
+            openLapseAdminDetailModal(dataToRender, staffName, type);
+        };
+
+        window.openLapseAdminDetailModal = function (data, staffName, type) {
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            const isArrears = type === 'arrears';
+            const colorClass = isArrears ? 'orange' : 'red';
+            const titleText = isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트';
+
+            const rows = data.length ? data.map(x => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-center">
+                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+               </td>
+               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+             </tr>`).join('') : `<tr><td colspan="12" class="p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</td></tr>`;
+
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95%] xl:max-w-[1280px] flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
+                        <span>[${staffName}] ${titleText} <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-${colorClass}-500 font-bold">${data.length}</span>건)</span></span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="overflow-x-auto flex-grow bg-white p-0">
+                    <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600 border-b border-gray-200">
+                            <th class="p-3 font-semibold text-center">상태</th>
+                            <th class="p-3 font-semibold text-center">모집인</th>
+                            <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                            <th class="p-3 font-semibold">보험사</th>
+                            <th class="p-3 font-semibold">증권번호</th>
+                            <th class="p-3 font-semibold">상품명</th>
+                            <th class="p-3 text-right font-semibold">계속보험료</th>
+                            <th class="p-3 font-semibold">계약일</th>
+                            <th class="p-3 text-center font-semibold">납입회차</th>
+                            <th class="p-3 text-center font-semibold">최종납입월</th>
+                            <th class="p-3 text-center font-semibold">계약자</th>
+                            <th class="p-3 text-center font-semibold">데이터기준일</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+        };
+
+
+        // --- 7. Modals & Popups ---
+        // --- 7. Modals & Popups ---
+        window.openDetail = function (k, t, customDetails = null, customTitle = null) {
+            let d = [];
+            if (customDetails) {
+                // If custom details provided (e.g. from Admin view), filter it if needed or use as is
+                // The backend returns 'details' array for that user, so we filter by category and type just like normal
+                d = customDetails.filter(x => x.category === k && x.type === t);
+            } else {
+                d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
+            }
+
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            // Rate Calculation: (Amount / Premium) * 100
+            const calcRate = (amt, prem) => {
+                if (!prem || prem == 0) return '0%';
+                return ((amt / prem) * 100).toFixed(1) + '%';
+            };
+
+            const rows = d.length ? d.map(x => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-gray-700">${x.company}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x.product}">${x.product}</div></td>
+               <td class="p-3 text-xs text-gray-500">${x.date}</td>
+               <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
+               <td class="p-3 text-center text-gray-700">${x.customer}</td>
+               <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</td>
+               <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</td>
+               <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
+             </tr>`).join('') : '<tr><td colspan="9" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
+
+            const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
+
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
+                        <span>${titlePrefix}${k} <span class="${t === 'pay' ? 'text-blue-600' : 'text-red-500'}">${t === 'pay' ? '지급' : '환수'}</span> 상세내역</span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="overflow-auto flex-grow bg-white">
+                    <table class="w-full text-sm whitespace-nowrap">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
+                            <th class="p-3 font-semibold">보험사</th>
+                            <th class="p-3 font-semibold">증권번호</th>
+                            <th class="p-3 font-semibold">상품명</th>
+                            <th class="p-3 font-semibold">계약일</th>
+                            <th class="p-3 text-right font-semibold">보험료</th>
+                            <th class="p-3 text-center font-semibold">계약자</th>
+                            <th class="p-3 text-right font-semibold">보험사시상</th>
+                            <th class="p-3 text-right font-semibold">시상율(%)</th>
+                            <th class="p-3 font-semibold">시상내용</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+        }
+
+        window.fetchAndShowAdminDetail = async function (id, name, category, type) {
+            showLoading(true);
+            const d = await callApi('getRewardData', id, state.currentMonth);
+            showLoading(false);
+
+            if (d && !d.error) {
+                if (d.details) {
+                    openDetail(category, type, d.details, name);
+                } else {
+                    alert('상세 내역을 불러올 수 없습니다.');
+                }
+            } else {
+                alert('오류 발생: ' + (d.message || 'Unknown Error'));
+            }
+        };
+
+        window.fetchAndShowOrgTree = async function (targetId, targetName) {
+            showLoading(true);
+            const res = await callApi('getOrgTree', state.user.staffId, targetId, state.currentMonth);
+            showLoading(false);
+
+            if (res.error) {
+                alert('오류: ' + res.message);
+            } else {
+                showOrgTreeModal(res.data, targetName);
+            }
+        };
+
+        window.showOrgTreeModal = function (data, targetName) {
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            // Build Tree Logic
+            const list = data.downlines || [];
+            // Sort to ensure hierarchy (this does not guarantee full tree order but helps if sorted by levels)
+            // Better approach: Reconstruct tree
+
+            const buildTree = () => {
+                const nodeMap = {};
+                list.forEach(n => nodeMap[String(n['사번'])] = { ...n, children: [] });
+
+                const hierarchy = [];
+
+                list.forEach(n => {
+                    if (n.level === 1) {
+                        hierarchy.push(nodeMap[String(n['사번'])]);
+                    } else {
+                        // For levels > 1, parent is always the direct upline (상위1차)
+                        const parentId = String(n['상위1차']);
+
+                        if (nodeMap[parentId]) {
+                            nodeMap[parentId].children.push(nodeMap[String(n['사번'])]);
+                        } else {
+                            // Orphaned node (parent missing from list)?
+                            // Add to root level to ensure visibility
+                            hierarchy.push(nodeMap[String(n['사번'])]);
+                        }
+                    }
+                });
+                return hierarchy;
+            };
+
+            const tree = buildTree();
+
+            // Render Function
+            const renderNode = (node) => {
+                const pay = (Number(node['손보월발생분'] || 0) + Number(node['생보월발생분'] || 0));
+                const ref = (Number(node['손보월환수분'] || 0) + Number(node['생보월환수분'] || 0));
+                const net = pay + ref;
+                const netClass = net >= 0 ? 'text-blue-600' : 'text-red-500';
+
+                let html = `
+                <div class="mb-2">
+                    <div class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition border border-gray-100/50">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">${node.level}차</div>
+                        </div>
+                        <div class="flex-grow min-w-0">
+                            <p class="text-sm font-bold text-gray-800 truncate">${node['이름']} <span class="text-gray-400 font-normal text-xs">(${node['사번']})</span></p>
+                            <p class="text-xs text-gray-500 truncate">${node['소속'] || ''} | ${node['직책'] || ''} | ${node['위촉월'] || ''}</p>
+                        </div>
+                        <div class="flex-shrink-0 text-right ml-3">
+                            <p class="text-sm font-bold ${netClass}">${formatMoney(net)}</p>
+                            <p class="text-[10px] text-gray-400">지급 ${formatMoney(pay)} / 환수 ${formatMoney(ref)}</p>
+                        </div>
+                    </div>
+                `;
+
+                if (node.children && node.children.length > 0) {
+                    html += `<div class="ml-6 pl-4 border-l-2 border-gray-100 mt-2 space-y-2">`;
+                    node.children.forEach(child => {
+                        html += renderNode(child);
+                    });
+                    html += `</div>`;
+                }
+
+                html += `</div>`;
+                return html;
+            };
+
+            let contentHtml = '';
+            if (tree.length === 0) contentHtml = '<div class="text-center py-10 text-gray-400">산하 조직이 없습니다.</div>';
+            else tree.forEach(node => contentHtml += renderNode(node));
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                            <span class="p-1.5 bg-blue-100 text-blue-600 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg></span>
+                            <span>${targetName} <span class="text-gray-400 font-normal text-sm">산하 조직도</span></span>
+                        </h3>
+                        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    </div>
+                    <div class="p-6 overflow-y-auto bg-white custom-scrollbar">
+                        ${contentHtml}
+                    </div>
+                     <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                        <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+        };
+
+        window.fetchAndShowLapsedContracts = async function () {
+            showLoading(true);
+            const res = await callApi('getLapsedContracts', state.user.staffId);
+            showLoading(false);
+
+            if (res.error || !res.success) {
+                alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
+            } else {
+                showLapsedContractsModal(res.list || [], "나의 ");
+            }
+        };
+
+        window.showLapsedContractsModal = function (data, prefix = "") {
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            const rows = data.length > 0 ? data.map(x => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-center">
+                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-100 text-gray-600'}">${x['계약상태']}</span>
+               </td>
+               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+             </tr>`).join('') : '<tr><td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td></tr>';
+
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[85vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-red-500 rounded-full block shadow-sm"></span>
+                        <span>${prefix}실효계약 리스트 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="overflow-auto flex-grow bg-white custom-scrollbar">
+                    <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
+                            <th class="p-3 font-semibold text-center">상태</th>
+                            <th class="p-3 font-semibold text-center">모집인</th>
+                            <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                            <th class="p-3 font-semibold">보험사</th>
+                            <th class="p-3 font-semibold">증권번호</th>
+                            <th class="p-3 font-semibold">상품명</th>
+                            <th class="p-3 text-right font-semibold">계속보험료</th>
+                            <th class="p-3 font-semibold">계약일</th>
+                            <th class="p-3 text-center font-semibold">납입회차</th>
+                            <th class="p-3 text-center font-semibold">최종납입월</th>
+                            <th class="p-3 text-center font-semibold">계약자</th>
+                            <th class="p-3 text-center font-semibold">데이터기준일</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+        };
+
+        // --- 8. Logic Interactions ---
+        async function doLogin(id, pw) {
+            // [OPTIMIZATION] Inline spinner on login button to prevent screen freezing
+            const btn = document.querySelector('#loginForm button[type="submit"]');
+            let originalText = "로그인";
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div>인증 중...`;
+                btn.disabled = true;
+                btn.classList.add('opacity-80', 'cursor-not-allowed');
+            }
+
+            const r = await callApi('loginUser', id, pw);
+
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            }
+
+            if (r.success) {
+                state.user = r.user;
+                if (r.months && r.months.length > 0) {
+                    state.months = r.months;
+                    state.currentMonth = r.currentMonth || r.months[0];
+                } else {
+                    const now = new Date(); state.months = [String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0')];
+                    state.currentMonth = state.months[0];
+                }
+                if (r.dashboardData) state.data.rewardData = r.dashboardData;
+
+                if (state.user.isFirstLogin) {
+                    openChangePasswordModal(false);
+                } else {
+                    saveSession();
+                    navigate('home');
+                    setTimeout(prefetchAllBackground, 500); // Trigger background prefetch
+                }
+            } else {
+                alert(r.message || '로그인 실패');
+            }
+        }
+
+        function logout() {
+            state.user = null;
+            state.homeLoaded = false;
+            clearSession();
+            navigate('login');
+        }
+
+        function refresh() {
+            if (!state.user) return;
+
+            // [OPTIMIZATION] Client-side caching
+            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
+
+            // 1. Check Memory State
+            if (state.currentView === 'home' && state.data.homeData) { render(); return; }
+            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
+
+            // 2. Check Session Storage
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    // Update State
+                    if (state.currentView === 'home') {
+                        state.data.homeData = parsed;
+                        state.homeLoaded = true;
+                    }
+                    else if (state.currentView === 'dashboard' || state.currentView === 'branch') state.data.rewardData = parsed;
+                    else if (state.currentView === 'recruitment') state.data.recData = parsed;
+                    else if (state.currentView === 'admin') state.data.adminSummary = parsed;
+
+                    state.isLoading = false; // [FIX] Reset loading state when using cache
+                    render();
+                    return; // Skip fetch
+                } catch (e) {
+                    sessionStorage.removeItem(cacheKey);
+                }
+            }
+
+            if (state.currentView === 'home') fetchHome(cacheKey);
+            else if (state.currentView === 'dashboard' || state.currentView === 'branch') fetchReward(cacheKey);
+            else if (state.currentView === 'recruitment') fetchRec(cacheKey);
+            else if (state.currentView === 'admin') fetchAdmin(cacheKey);
+        }
+
+        async function fetchHome(key) {
+            state.homeLoaded = false;
+            render();
+            const d = await callApi('getHomeData', state.user.staffId);
+            state.homeLoaded = true;
+
+            if (!d.error && d.success) {
+                state.data.homeData = d;
+                sessionStorage.setItem(key, JSON.stringify(d));
+                if (state.currentView === 'home') render();
+            } else {
+                state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+                if (state.currentView === 'home') render();
+            }
+        }
+
+        async function fetchReward(key) {
+            state.isLoading = true; render();
+            const d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
+            state.isLoading = false;
+
+            if (!d.error) {
+                d.month = state.currentMonth;
+                state.data.rewardData = d;
+                sessionStorage.setItem(key, JSON.stringify(d));
+                render();
+            } else {
+                alert('데이터 로드 실패: ' + d.message);
+                render();
+            }
+        }
+        async function fetchRec(key) {
+            state.isLoading = true; render();
+            const d = await callApi('getRecruitmentData', state.user.staffId, state.currentMonth);
+            state.isLoading = false;
+
+            if (!d.error) {
+                d.month = state.currentMonth;
+                state.data.recData = d;
+                sessionStorage.setItem(key, JSON.stringify(d));
+                render();
+            } else {
+                alert('데이터 로드 실패: ' + d.message);
+                render();
+            }
+        }
+        async function fetchAdmin(key) {
+            state.isLoading = true; render();
+            const d = await callApi('getAdminSummary', state.currentMonth, state.user.staffId);
+            state.isLoading = false;
+
+            let parsed = d;
+            // Handle double JSON parsing if necessary (sometimes GAS returns stringified JSON)
+            if (typeof d === 'string') {
+                try { parsed = JSON.parse(d); } catch (e) { parsed = { error: true, message: 'JSON Parse Error' }; }
+            }
+
+            state.data.adminSummary = parsed;
+            if (!parsed.error && key) sessionStorage.setItem(key, JSON.stringify(parsed));
+            render();
+        }
+
+        // --- 8.5 Background Pre-fetcher ---
+        function prefetchAllBackground() {
+            if (!state.user || !state.currentMonth) return;
+
+            // 1. Reward Data
+            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
+                callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
+                    if (!d.error) {
+                        d.month = state.currentMonth;
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
+                    }
+                });
+            }
+
+            // 2. Recruitment Data
+            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
+                callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
+                    if (!d.error) {
+                        d.month = state.currentMonth;
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
+                    }
+                });
+            }
+
+            // 3. Admin Summary
+            if ((state.user.role === '지사대표' || state.user.role === '관리자') && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
+                callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
+                    let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
+                    if (!parsed.error) {
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
+                    }
+                });
+            }
+
+            // 4. Lapse Data
+            if (!state.lapseLoaded) {
+                callApi('getLapseManagementData', state.user.staffId).then(res => {
+                    if (res.success) {
+                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
+                        state.lapseLoaded = true;
+                        updateHomeLapseCounts(); // Refresh UI specifically
+                    }
+                });
+            }
+        }
+
+        // --- 9. Password Change ---
+        function openChangePasswordModal(canCancel) {
+            document.body.classList.add('modal-open');
+            const m = document.getElementById('pw-modal');
+            m.classList.remove('hidden');
+            const cancelBtn = document.getElementById('pwCancelBtn');
+            // Show/Hide cancel button (it's the first button in the div usually, or select by ID)
+            if (cancelBtn) cancelBtn.style.visibility = canCancel ? 'visible' : 'hidden'; // Don't remove from layout to keep alignment? Or display none.
+            if (cancelBtn) cancelBtn.style.display = canCancel ? 'block' : 'none';
+        }
+
+        function closePwModal() {
+            document.body.classList.remove('modal-open');
+            document.getElementById('pw-modal').classList.add('hidden');
+        }
+
+        document.getElementById('pwForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const p1 = document.getElementById('newPw').value;
+            const p2 = document.getElementById('confirmPw').value;
+            if (p1 !== p2) { alert('비밀번호가 일치하지 않습니다.'); return; }
+            if (p1.length < 4) { alert('비밀번호는 4자리 이상이어야 합니다.'); return; }
+
+            showLoading(true);
+            const res = await callApi('changePassword', state.user.staffId, p1);
+            showLoading(false);
+
+            if (res.success) {
+                alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+                closePwModal();
+                logout();
+            } else {
+                alert('실패: ' + (res.message || 'Unknown Error'));
+            }
+        });
+
+        // --- 10. Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if already on a specific route without session
+            if (restoreSession()) {
+                refresh();
+            } else {
+                render(); // shows login
+            }
+        });
+
+    </script>
+</body>
+
+</html><!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>파트너스 보드</title>
+
+    <!-- ========================================== -->
+    <!-- [필수 설정] 구글 앱스 스크립트 웹앱 URL 입력 -->
+    <!-- ========================================== -->
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec';
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#F37321', // Orange
+                        primaryHover: '#d96316',
+                        secondary: '#1e293b', // Dark Blue/Gray
+                        brandNavy: '#1B1F3B', // Deep Navy for Left Panel
+                    },
+                    animation: {
+                        blob: "blob 7s infinite",
+                        fadeIn: "fadeIn 0.5s ease-out forwards",
+                    },
+                    keyframes: {
+                        blob: {
+                            "0%": { transform: "translate(0px, 0px) scale(1)" },
+                            "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                            "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                            "100%": { transform: "translate(0px, 0px) scale(1)" },
+                        },
+                        fadeIn: {
+                            "0%": { opacity: "0", transform: "translateY(10px)" },
+                            "100%": { opacity: "1", transform: "translateY(0)" },
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .loader {
+            border-top-color: #F37321;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .truncate-product {
+            max-width: 140px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 숫자 자릿수 고정 폭 (흔들림 방지, 고급스러움) */
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Mobile FAB (Floating Action Button) */
+        .mobile-fab-container {
+            position: fixed;
+            right: 16px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .fab-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #F37321;
+            color: #FFFFFF;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background-color 0.2s;
+            cursor: pointer;
+        }
+
+        .fab-btn:hover {
+            background-color: #d96316;
+            transform: translateY(-2px);
+        }
+
+        .fab-btn:active {
+            background-color: #d96316;
+            transform: translateY(0);
+        }
+
+        .fab-icon {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 2px;
+            line-height: 1;
+        }
+
+        .fab-text {
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        @media (min-width: 769px) {
+            .mobile-fab-container {
+                display: none !important;
+            }
+        }
+
+        body.modal-open .mobile-fab-container {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans antialiased text-sm md:text-base">
+    <div id="error-log"
+        style="display:none; color: white; padding: 12px; background: #ef4444; z-index:9999; position:fixed; top:0; left:0; width:100%; text-align:center; font-weight:bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading"
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center hidden transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center animate-fadeIn">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-10 w-10 mb-3"></div>
+            <p class="text-gray-500 text-sm font-medium">Loading...</p>
+        </div>
+    </div>
+
+    <div id="app" class="min-h-screen flex flex-col transition-colors duration-500">
+        <div id="content" class="flex-grow flex flex-col w-full h-full"></div>
+    </div>
+
+    <!-- Password Change Modal -->
+    <div id="pw-modal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] hidden flex items-center justify-center p-4">
+        <div
+            class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm transform transition-all scale-100 animate-fadeIn text-center">
+            <div class="text-center mb-6">
+                <div
+                    class="bg-orange-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 text-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900">비밀번호 변경</h3>
+                <p class="text-sm text-gray-500 mt-1">보안을 위해 비밀번호를 변경해주세요.</p>
+            </div>
+
+            <form id="pwForm" class="space-y-4 text-left">
+                <div>
+                    <input type="password" id="newPw" placeholder="새 비밀번호 (4자리 이상)"
+                        class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-2 focus:ring-orange-100 outline-none transition"
+                        required>
+                </div>
+                <div>
+                    <input type="password" id="confirmPw" placeholder="비밀번호 확인"
+                        class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:border-primary focus:ring-2 focus:ring-orange-100 outline-none transition"
+                        required>
+                </div>
+                <div class="flex justify-between gap-3 mt-6">
+                    <button type="button" id="pwCancelBtn" onclick="closePwModal()"
+                        class="flex-1 px-4 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-medium transition">취소</button>
+                    <button type="submit"
+                        class="flex-1 px-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primaryHover shadow-lg shadow-orange-200 transition">변경하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- 0. API Configuration ---
+        async function callApi(action, ...args) {
+            if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
+                alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
+                return { error: true, message: 'API URL Not Configured' };
+            }
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 'text/plain' avoids CORS preflight OPTIONS in some cases with GAS
+                    body: JSON.stringify({ action: action, args: args })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const data = await response.json();
+                return data;
+            } catch (e) {
+                console.error('API Error:', e);
+                return { error: true, message: e.toString() };
+            }
+        }
+
+        // --- 1. State & Utilities ---
+        window.onerror = function (message) { document.getElementById('error-log').style.display = 'block'; document.getElementById('error-log').innerText = '! Error: ' + message; setTimeout(() => document.getElementById('error-log').style.display = 'none', 5000); };
+
+        var state = {
+            user: null,
+            currentView: 'login',
+            currentMonth: '',
+            months: [],
+            data: {},
+            homeLoaded: false,
+            lapseData: { lapsed: [], arrears: [] },
+            lapseCurrentTab: 'lapsed', // 'lapsed' or 'arrears'
+            lapseLimit: 20,
+            lapseLoaded: false,
+            adminTab: 'reward',
+            adminSubTab: 'active',
+            adminPage: 1,
+            pageSize: 20,
+            mobileMenuOpen: false,
+            isLoading: false
+        };
+
+        const LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
+            <span class="text-2xl font-bold text-gray-800 tracking-tight">파트너스 <span class="text-primary">보드</span></span>
+        </div>`;
+        const LOGO_BIG = `<div class="flex flex-col items-center justify-center gap-5 text-white select-none">
+            <h1 class="text-3xl font-bold tracking-widest drop-shadow-md">파트너스<span class="font-light">본부</span></h1>
+        </div>`;
+
+        function showLoading(show) { document.getElementById('loading').classList.toggle('hidden', !show); }
+        function formatMoney(n) { return `<span class="tabular-nums">${Number(n || 0).toLocaleString()}</span>`; }
+        function formatRate(r) {
+            if (r === '' || r === null || r === undefined) return '';
+            const n = Number(r);
+            if (!isNaN(n)) return n.toLocaleString(undefined, { style: 'percent', minimumFractionDigits: 0, maximumFractionDigits: 1 });
+            return r;
+        }
+
+        // --- 2. Navigation & History ---
+        window.handleFabBack = function () {
+            if (state.currentView === 'home') {
+                alert('현재 첫 화면(홈)입니다.');
+            } else {
+                history.back();
+            }
+        };
+
+        function navigate(view, push = true) {
+            state.currentView = view;
+            if (push) history.pushState({ view: view }, '', '#/' + view);
+            state.mobileMenuOpen = false;
+            render();
+            // Data refresh on nav if needed
+            if (view !== 'login') refresh();
+            window.scrollTo(0, 0);
+        }
+
+        window.onpopstate = function (e) {
+            if (e.state && e.state.view) {
+                state.currentView = e.state.view;
+                render();
+                window.scrollTo(0, 0);
+            } else {
+                if (state.user) navigate('home', false);
+                else navigate('login', false);
+            }
+        };
+
+        // --- 3. Persistence & Session ---
+        let sessionTimeoutTimer;
+        const SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
+
+        function resetSessionTimer() {
+            if (!state.user) return;
+            clearTimeout(sessionTimeoutTimer);
+            saveSession(); // Update timestamp
+            sessionTimeoutTimer = setTimeout(() => {
+                alert('30분 동안 움직임이 없어 안전을 위해 로그아웃 되었습니다.');
+                logout();
+            }, SESSION_DURATION);
+        }
+
+        // Add listeners to reset timer on user interaction
+        ['click', 'mousemove', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, resetSessionTimer, true);
+        });
+
+        function saveSession() {
+            if (state.user) {
+                // Use sessionStorage to clear when browser is closed
+                sessionStorage.setItem('partners_session', JSON.stringify({
+                    user: state.user,
+                    months: state.months,
+                    currentMonth: state.currentMonth,
+                    timestamp: new Date().getTime()
+                }));
+            }
+        }
+
+        function restoreSession() {
+            const s = sessionStorage.getItem('partners_session');
+            if (s) {
+                try {
+                    const sess = JSON.parse(s);
+                    // 30 minutes expiration check
+                    if (new Date().getTime() - sess.timestamp < SESSION_DURATION) {
+                        state.user = sess.user;
+                        state.months = sess.months;
+                        state.currentMonth = sess.currentMonth;
+                        const hash = location.hash.replace('#/', '');
+                        state.currentView = (hash && hash !== 'login') ? hash : 'home';
+                        resetSessionTimer();
+                        setTimeout(prefetchAllBackground, 500); // [OPTIMIZATION] Trigger background prefetching immediately
+                        return true;
+                    }
+                } catch (e) { console.error('Restore failed', e); }
+            }
+            return false;
+        }
+
+        function clearSession() {
+            clearTimeout(sessionTimeoutTimer);
+            sessionStorage.removeItem('partners_session');
+            history.pushState(null, '', ' ');
+        }
+
+        // --- 4. Main Render Logic ---
+        window.render = function () {
+            const app = document.getElementById('content');
+            app.innerHTML = '';
+
+            if (!state.user) {
+                app.appendChild(createLoginView());
+            } else {
+                app.appendChild(createLayout());
+            }
+        }
+
+        // --- 5. Views ---
+
+        function getSkeletonUI() {
+            const div = document.createElement('div');
+            div.innerHTML = `
+            <div class="animate-pulse flex flex-col gap-6 w-full fade-in pt-4">
+                <div class="h-8 bg-gray-200 rounded-lg w-1/3 mb-2"></div>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50"></div>
+                    <div class="h-32 bg-gray-100 rounded-2xl border border-gray-50 hidden md:block"></div>
+                </div>
+                <div class="h-64 bg-gray-100 rounded-2xl w-full mt-4 border border-gray-50"></div>
+            </div>`;
+            return div;
+        }
+
+        function createHomeView() {
+            const div = document.createElement('div');
+
+            // 보유 데이터 확인
+            const hd = state.data.homeData || { retentionRate: '-', baseMonth: '-' };
+            let rateClass = 'text-primary';
+            let retentionDisplay = hd.retentionRate;
+
+            if (state.homeLoaded) {
+                if (hd.retentionRate !== '-' && hd.retentionRate !== '데이터 없음' && hd.retentionRate !== '') {
+                    const num = parseFloat(hd.retentionRate);
+                    if (!isNaN(num)) {
+                        if (num >= 90) rateClass = 'text-blue-500';
+                        else rateClass = 'text-red-500'; // 90% 미만 시 빨간색
+                    }
+                } else {
+                    rateClass = 'text-gray-400 text-lg font-medium'; // 흐린 글씨, 크기 조정
+                    retentionDisplay = '(해당 기간 실적 없음)';
+                }
+            }
+
+            // 기존에 접속했던 사용자의 브라우저 캐시에 '2026년 1월' 형태로 남아있을 경우를 대비하여 JS에서 한번 더 포맷팅
+            let displayMonth = hd.baseMonth;
+            if (displayMonth && displayMonth.startsWith('20')) {
+                displayMonth = displayMonth.replace(/^20(\d{2}년)/, '$1');
+            }
+
+            const formatUserType = () => {
+                if (state.user.role === '지사대표') return '지사대표';
+                if (state.user.role === '관리자') return '관리자';
+                return state.user.organization || '파트너스';
+            };
+
+            div.innerHTML = `
+                <div class="mb-8">
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">안녕하세요, ${state.user.name}님 👋</h2>
+                    <p class="text-gray-500 text-sm mt-2 font-medium bg-gray-100 inline-block px-3 py-1 rounded-full">파트너스 보드(Board)에 오신 것을 환영합니다.</p>
+                </div>
+                
+                <div class="mb-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- 1. 유지율 카드 -->
+                        <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="fetchAndShowLapsedContracts()">
+                            <div class="flex items-center gap-2 mb-4 w-full">
+                                <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' && displayMonth !== undefined ? '(' + displayMonth + ' 기준)' : ''}</p>
+                            </div>
+                            <div class="text-4xl font-extrabold ${state.homeLoaded ? rateClass : 'text-primary'} tracking-tight drop-shadow-sm text-center w-full flex justify-center items-center h-10">
+                                ${state.homeLoaded ? retentionDisplay : '<svg class="animate-spin w-8 h-8 text-primary/40" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
+                        </div>
+                        
+                        <!-- 2. 당월 실효 건수 카드 -->
+                        <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-6 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
+                                <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block"></span>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수</p>
+                            </div>
+                            <div class="text-2xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-lapsed-count">
+                                ${state.lapseLoaded ? (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
+                        </div>
+
+                        <!-- 3. 당월 연체 건수 카드 -->
+                        <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-6 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="state.lapseCurrentTab='arrears'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
+                                <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block"></span>
+                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수</p>
+                            </div>
+                            <div class="text-2xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-arrears-count">
+                                ${state.lapseLoaded ? (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-orange-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right mt-3 mb-4">
+                        <p class="text-xs text-gray-500 font-medium inline-flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Tip : 유지율 및 건수 클릭시 상세내역 확인 가능
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-5 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    
+                    <!-- 1. 실효연체 -->
+                    <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">당월 실효 및 연체계약 관리</p>
+                        </div>
+                    </div>
+
+                    <!-- 2. 시상금 조회 -->
+                    <div onclick="navigate('dashboard')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">시상금 조회</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">월별 시상금 상세 내역</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. 증원수당 조회 -->
+                    ${state.user.isRecruiter ? `
+                    <div onclick="navigate('recruitment')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">증원수당 조회</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">산하 인원 및 증원수당 현황</p>
+                        </div>
+                    </div>` : ''}
+
+                    <!-- 4. 지사대표 대시보드 -->
+                    ${state.user.role === '지사대표' ? `
+                    <div onclick="navigate('branch')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">지사대표 대시보드</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">법인 시상 및 인센티브</p>
+                        </div>
+                    </div>` : ''}
+
+                    <!-- 5. 관리자 대시보드 -->
+                    ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `
+                    <div onclick="navigate('admin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">관리자 대시보드</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">소속 파트너별 시상금 현황</p>
+                        </div>
+                    </div>` : ''}
+                    
+                    <!-- 6. 실효연체관리 (Admin) -->
+                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `
+                    <div onclick="navigate('lapseAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체관리</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">수금인별 실효/연체 현황</p>
+                        </div>
+                    </div>
+                    
+                    <div onclick="navigate('retentionAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">유지율</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">통산 13회, 25회 유지율</p>
+                        </div>
+                    </div>` : ''}
+                </div>
+            `;
+
+            return div;
+        }
+
+        function updateHomeLapseCounts() {
+            if (!state.lapseLoaded) return;
+            const lEl = document.getElementById('home-lapsed-count');
+            const aEl = document.getElementById('home-arrears-count');
+            if (lEl) lEl.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            if (aEl) aEl.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+        }
+
+        function createLoginView() {
+            const container = document.createElement('div');
+            container.className = 'min-h-screen flex flex-col md:flex-row w-full font-sans';
+
+            // Left Panel (Desktop Only)
+            const leftPanel = document.createElement('div');
+            leftPanel.className = 'hidden md:flex md:w-1/2 bg-brandNavy flex-col items-center justify-center p-12 text-center relative overflow-hidden text-white';
+            leftPanel.innerHTML = `
+                <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-white/5 rounded-full blur-3xl"></div>
+                <div class="z-10 flex flex-col items-center gap-8 animate-fadeIn">
+                    <div class="space-y-4 mb-8">
+                        <h1 class="text-4xl font-bold tracking-wider">파트너스본부</h1>
+                        <p class="text-gray-300 text-lg font-light leading-relaxed">
+                            성공적인 영업을 위한 지원 플랫폼<br>
+                            언제 어디서나 쉽고 빠르게 조회하세요
+                        </p>
+                    </div>
+
+                    <div class="space-y-6 w-full max-w-sm text-left">
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base">강력한 영업 지원</h3>
+                                <p class="text-xs text-gray-400">영업 활동에 필요한 다양한 정보 제공</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base">투명한 시상금 조회</h3>
+                                <p class="text-xs text-gray-400">정확한 데이터 기반의 시상금 내역 확인</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-sm">
+                            <div class="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base">체계적인 증원 관리</h3>
+                                <p class="text-xs text-gray-400">증원수당 및 산하 파트너 현황 확인</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Right Panel
+            const rightPanel = document.createElement('div');
+            rightPanel.className = 'w-full md:w-1/2 bg-white flex flex-col h-screen md:h-auto overflow-y-auto';
+            rightPanel.innerHTML = `
+                <div class="flex-grow flex items-center justify-center p-6 sm:p-12">
+                     <div class="w-[85%] md:w-full max-w-sm space-y-10 animate-fadeIn mx-auto">
+                        
+                        <!-- Mobile Header Logo -->
+                        <div class="md:hidden text-center mb-10 mt-16">
+                            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">파트너스본부</h1>
+                        </div>
+
+                        <!-- Main Title -->
+                        <div class="text-center space-y-2">
+                             <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">PARTNERS <span class="text-primary">BOARD</span></h2>
+                             <p class="text-gray-400 text-sm">계정 정보를 입력해 주세요</p>
+                        </div>
+                        
+                        <form id="loginForm" class="space-y-6">
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 text-left">사번</label>
+                                <input type="text" id="staffId" placeholder="사번을 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400 text-center" required>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-gray-700 text-left">비밀번호</label>
+                                <input type="password" id="password" placeholder="비밀번호를 입력하세요" class="w-full px-4 py-3.5 rounded-lg border border-gray-200 bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition duration-200 placeholder-gray-400 text-center" required>
+                            </div>
+                            <button type="submit" class="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primaryHover hover:shadow-lg transition duration-200 text-lg">로그인</button>
+                        </form>
+                        
+                        <div class="pt-4 text-center">
+                            <p class="text-xs text-gray-400 mb-2">도움이 필요하신가요?</p>
+                            <p class="text-xs text-gray-400">로그인에 문제가 있으시면 관리자에게 문의하세요</p>
+                            <p class="text-xs text-gray-300 mt-8 font-light">© 2024 파트너스본부. All rights reserved.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(leftPanel);
+            container.appendChild(rightPanel);
+
+            setTimeout(() => {
+                const form = container.querySelector('#loginForm');
+                if (form) form.addEventListener('submit', e => {
+                    e.preventDefault();
+                    doLogin(container.querySelector('#staffId').value, container.querySelector('#password').value);
+                });
+            }, 0);
+            return container;
+        }
+
+        function createLayout() {
+            const container = document.createElement('div');
+            container.className = 'flex flex-col min-h-screen bg-[#f8fafc]';
+
+            const monthOptions = state.months.map(m => `<option value="${m}" ${m === state.currentMonth ? 'selected' : ''}>${m}</option>`).join('');
+
+            // Desktop Selector
+            const monthSel = `<div class="relative"><select id="commonMonthSelect" class="appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg shadow-sm hover:border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary block pl-3 pr-8 py-2 cursor-pointer transition">
+                ${monthOptions}
+            </select><div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div></div>`;
+
+            // Mobile Selector
+            const mobileMonthSel = `<div class="relative w-full"><select id="mobileMonthSelect" class="appearance-none w-full bg-white border border-gray-200 text-gray-900 text-base rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary block pl-4 pr-10 py-3 cursor-pointer transition">
+                ${monthOptions}
+            </select><div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div></div>`;
+
+            const navLink = (v, l) => `
+                <a href="#" data-nav="${v}" class="${state.currentView === v
+                    ? 'text-primary border-b-2 border-primary font-bold'
+                    : 'text-gray-500 hover:text-gray-800 hover:border-b-2 hover:border-gray-300 font-medium'}
+                    px-1 py-5 text-sm transition-all duration-200 select-none">
+                    ${l}
+                </a>`;
+
+            container.innerHTML = `
+                <header class="bg-white shadow-sm sticky top-0 z-40 transition-shadow duration-300">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-between h-16 relative">
+                            <div class="flex">
+                                <div class="absolute inset-x-0 h-16 flex items-center justify-center pointer-events-none md:static md:h-auto md:justify-start z-10">
+                                    <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate('home')">
+                                        ${LOGO_TEXT}
+                                    </div>
+                                </div>
+                                <div class="hidden md:ml-10 md:flex md:space-x-8">
+                                    ${navLink('home', '홈')}
+                                    ${navLink('lapse', '실효연체')}
+                                    ${navLink('dashboard', '시상금')}
+                                    ${state.user.isRecruiter ? navLink('recruitment', '증원수당') : ''}
+                                    ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '관리자') ? navLink('admin', '관리자') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('retentionAdmin', '유지율') : ''}
+                                </div>
+                            </div>
+                            <div class="hidden md:flex items-center space-x-6">
+                                <div class="flex items-center">
+                                    <span class="text-sm font-bold text-gray-700 mr-2">마감월:</span>
+                                    ${monthSel}
+                                </div>
+                                <div class="flex items-center space-x-3 pl-3 border-l">
+                                   <div class="text-right leading-tight">
+                                       <div class="text-sm font-bold text-gray-900">${state.user.name}<span class="font-normal text-gray-500">님</span></div>
+                                       <div class="text-[11px] text-gray-400">${state.user.organization || '소속'}</div>
+                                   </div>
+                                   <div class="flex space-x-1">
+                                       <button id="changePwBtn" class="p-2 rounded-full text-gray-400 hover:text-primary hover:bg-orange-50 transition tooltip" title="비밀번호 변경">
+                                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                                       </button>
+                                       <button id="logout" class="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition" title="로그아웃">
+                                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                       </button>
+                                   </div>
+                                </div>
+                            </div>
+                            <div class="-mr-2 flex items-center md:hidden">
+                                <button id="mb-btn" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none transition">
+                                    <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="mobile-menu" class="md:hidden bg-white border-b border-gray-100 overflow-hidden transition-all duration-300 ease-in-out h-0 relative z-30">
+                         <div class="px-4 py-4 bg-gray-50 flex items-center justify-between">
+                            <div>
+                                <div class="font-bold text-gray-900">${state.user.name}님</div>
+                                <div class="text-xs text-gray-500">${state.user.organization || '소속 미지정'}</div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="openChangePasswordModal(true)" class="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 shadow-sm">PW변경</button>
+                                <button id="logoutM" class="text-xs bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg text-red-600 shadow-sm">로그아웃</button>
+                            </div>
+                         </div>
+                         <div class="px-2 pt-2 pb-3 space-y-1">
+                            <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
+                            <a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>
+                            <a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>
+                            ${state.user.isRecruiter ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
+                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '관리자') ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
+                         </div>
+                         <div class="p-4 border-t border-gray-100 bg-gray-50/50">
+                             <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">마감월 선택</label>
+                             ${mobileMonthSel}
+                         </div>
+                    </div>
+                    
+                    <!-- Mobile Backdrop -->
+                    <div id="mobile-backdrop" class="fixed inset-0 bg-black/50 z-20 hidden transition-opacity duration-300 md:hidden"></div>
+                </header>
+
+                <main class="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+                     <div id="main-view"></div>
+                </main>
+
+                <!-- Mobile FAB -->
+                <div class="mobile-fab-container">
+                    <button type="button" class="fab-btn" onclick="navigate('home')">
+                        <span class="fab-text" style="font-size: 13px; font-weight: bold;">홈</span>
+                    </button>
+                    <button type="button" class="fab-btn" onclick="handleFabBack()">
+                        <span class="fab-icon">←</span>
+                        <span class="fab-text">이전</span>
+                    </button>
+                </div>
+            `;
+
+            const main = container.querySelector('#main-view');
+            // Logic reuse
+            if (state.currentView === 'home') main.appendChild(createHomeView());
+            else if (state.currentView === 'lapse') main.appendChild(createLapseView());
+            else if (state.currentView === 'dashboard') main.appendChild(createDashboardView());
+            else if (state.currentView === 'recruitment') main.appendChild(createRecruitmentView());
+            else if (state.currentView === 'branch') main.appendChild(createBranchView());
+            else if (state.currentView === 'admin') main.appendChild(createAdminView());
+            else if (state.currentView === 'lapseAdmin') main.appendChild(createLapseAdminView());
+            else if (state.currentView === 'retentionAdmin') main.appendChild(createRetentionAdminView());
+
+            setTimeout(() => {
+                container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
+                    state.currentMonth = ev.target.value;
+                    saveSession();
+                    refresh();
+                }));
+                // Using event delegation for nav items to handle dynamic content safety
+                container.querySelectorAll('[data-nav]').forEach(e => e.addEventListener('click', ev => {
+                    ev.preventDefault();
+                    navigate(ev.target.getAttribute('data-nav'));
+                }));
+
+                const mbBtn = container.querySelector('#mb-btn');
+                const mMenu = container.querySelector('#mobile-menu');
+                const backdrop = container.querySelector('#mobile-backdrop');
+
+                const toggleMenu = () => {
+                    const isOpen = mMenu.style.height === 'auto';
+                    mMenu.style.height = isOpen ? '0' : 'auto';
+                    if (isOpen) {
+                        mMenu.classList.remove('shadow-xl', 'border-b-2', 'border-primary/10');
+                        backdrop.classList.add('hidden');
+                    } else {
+                        mMenu.classList.add('shadow-xl', 'border-b-2', 'border-primary/10');
+                        backdrop.classList.remove('hidden');
+                    }
+                };
+
+                if (mbBtn) mbBtn.onclick = toggleMenu;
+                if (backdrop) backdrop.onclick = toggleMenu;
+
+                container.querySelector('#logout')?.addEventListener('click', () => logout());
+                container.querySelector('#logoutM')?.addEventListener('click', () => logout());
+                container.querySelector('#changePwBtn')?.addEventListener('click', () => openChangePasswordModal(true));
+
+                // Always try to ensure Lapse data is synced visually if loaded
+                if (state.lapseLoaded) {
+                    const lCount = container.querySelector('#home-lapsed-count');
+                    const aCount = container.querySelector('#home-arrears-count');
+                    if (lCount) lCount.innerHTML = state.lapseData.lapsed.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    if (aCount) aCount.innerHTML = state.lapseData.arrears.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                }
+            }, 0);
+            return container;
+        }
+
+        window.switchLapseTab = function (tab) {
+            state.lapseCurrentTab = tab;
+            state.lapseLimit = 20; // reset pagination limit
+            const container = document.getElementById('lapse-container');
+            const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            renderLapseContents(container, data);
+
+            // Update Tab UI
+            const btnLapsed = document.getElementById('tab-btn-lapsed');
+            const btnArrears = document.getElementById('tab-btn-arrears');
+            if (tab === 'lapsed') {
+                btnLapsed.className = 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition';
+                btnArrears.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
+            } else {
+                btnLapsed.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
+                btnArrears.className = 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition';
+            }
+        };
+
+        function createLapseView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+
+            div.innerHTML = `
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체</h2>
+                    <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
+                </div>
+                
+                <div class="bg-gray-100 p-1.5 rounded-2xl flex mb-6 max-w-sm mx-auto md:mx-0">
+                    <button id="tab-btn-lapsed" onclick="switchLapseTab('lapsed')" class="${state.lapseCurrentTab === 'lapsed' ? 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 실효계약</button>
+                    <button id="tab-btn-arrears" onclick="switchLapseTab('arrears')" class="${state.lapseCurrentTab === 'arrears' ? 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 연체계약</button>
+                </div>
+                
+                <div id="lapse-container" class="min-h-[400px]">
+                     <div class="flex items-center justify-center h-40">
+                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                     </div>
+                </div>
+            `;
+
+            // Fetch data and render
+            setTimeout(async () => {
+                const container = div.querySelector('#lapse-container');
+
+                if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length)) {
+                    container.innerHTML = getSkeletonUI().innerHTML;
+                    const res = await callApi('getLapseManagementData', state.user.staffId);
+
+                    if (res.error || !res.success) {
+                        container.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
+                        return;
+                    }
+                    state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
+                }
+
+                const dataToRender = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+                renderLapseContents(container, dataToRender);
+            }, 10);
+
+            return div;
+        }
+
+        function renderLapseContents(container, data) {
+            const isArrears = state.lapseCurrentTab === 'arrears';
+            const colorClass = isArrears ? 'orange' : 'red';
+            const titleText = isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트';
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</div>`;
+                return;
+            }
+
+            const limit = state.lapseLimit || 20;
+            const limitedData = data.slice(0, limit);
+            const hasMore = data.length > limit;
+
+            // Desktop Table Layout
+            const desktopRows = limitedData.map((x, idx) => `
+             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+               <td class="p-3 text-center">
+                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+               </td>
+               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+             </tr>`).join('');
+
+            const desktopTable = `
+                <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="font-bold text-gray-800 flex items-center gap-3">
+                            <span class="w-1.5 h-5 bg-${colorClass}-400 rounded-full block text-sm"></span>
+                            <span>${titleText} <span class="text-xs font-normal text-gray-500 ml-2">(총 <span class="text-${colorClass}-500 font-bold">${data.length}</span>건)</span></span>
+                        </h3>
+                    </div>
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                            <thead class="bg-gray-50 border-b border-gray-100"><tr class="text-left text-gray-600">
+                                <th class="p-3 font-semibold text-center">상태</th>
+                                <th class="p-3 font-semibold text-center">모집인</th>
+                                <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                                <th class="p-3 font-semibold">보험사</th>
+                                <th class="p-3 font-semibold">증권번호</th>
+                                <th class="p-3 font-semibold">상품명</th>
+                                <th class="p-3 text-right font-semibold">계속보험료</th>
+                                <th class="p-3 font-semibold">계약일</th>
+                                <th class="p-3 text-center font-semibold">납입회차</th>
+                                <th class="p-3 text-center font-semibold">최종납입월</th>
+                                <th class="p-3 text-center font-semibold">계약자</th>
+                                <th class="p-3 text-center font-semibold">데이터기준일</th>
+                            </tr></thead>
+                            <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            // Mobile Card Layout
+            const mobileCards = limitedData.map((x, idx) => `
+                <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+                        <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
+                    </div>
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex-grow pr-3">
+                            <h4 class="font-bold text-gray-800 text-lg mb-0.5">${x['계약자']} <span class="text-xs font-normal text-gray-500 ml-1">고객님</span></h4>
+                            <p class="text-sm text-gray-600 truncate-product leading-snug w-full max-w-[200px]" title="${x['상품명']}">${x['상품명']}</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-gray-50 mt-1">
+                         <div class="text-xs text-gray-400">최종납: <span class="font-mono">${x['최종납입월']}</span></div>
+                         <div class="font-bold text-blue-600 text-[15px]">${formatMoney(x['계속보험료'])}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            const mobileContainer = `
+                <div class="md:hidden flex flex-col gap-3 pb-4">
+                     <div class="flex items-center justify-between px-1 mb-1">
+                        <span class="text-sm font-bold text-gray-600">총 <span class="text-${colorClass}-500">${data.length}</span>건</span>
+                     </div>
+                     ${mobileCards}
+                </div>
+            `;
+
+            let loadMoreHtml = '';
+            if (hasMore) {
+                loadMoreHtml = `<div class="mt-2 mb-8 flex justify-center w-full">
+                    <button onclick="loadMoreLapse()" class="w-full max-w-sm px-6 py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-50 hover:border-gray-300 transition-all flex justify-center items-center gap-2">
+                        <span>더보기 (${limitedData.length} / ${data.length})</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                </div>`;
+            }
+
+            container.innerHTML = desktopTable + mobileContainer + loadMoreHtml;
+        }
+
+        window.loadMoreLapse = function () {
+            state.lapseLimit += 20;
+            const container = document.getElementById('lapse-container');
+            const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            renderLapseContents(container, data);
+        };
+
+        window.openMobileLapseDetail = function (idx) {
+            const dataList = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            const data = dataList[idx];
+            if (!data) return;
+
+            document.body.classList.add('modal-open');
+
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 fade-in";
+
+            const detailRow = (label, val, highlight = false) => `
+                <div class="flex justify-between items-center py-2.5 border-b border-gray-50 last:border-0">
+                    <span class="text-sm text-gray-500 font-medium">${label}</span>
+                    <span class="text-sm text-gray-900 ${highlight ? 'font-bold text-blue-600' : ''} text-right break-words max-w-[65%]">${val}</span>
+                </div>
+            `;
+
+            const badgeClass = String(data['계약상태']).includes('실효') ? 'bg-red-50 text-red-600' : (String(data['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600' : 'bg-gray-200 text-gray-700');
+
+            modal.innerHTML = `
+            <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transform transition-transform translate-y-0 slide-up">
+                <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur z-10">
+                    <h3 class="font-bold text-lg text-gray-800">계약 상세 정보</h3>
+                    <button class="close-detail p-2 -mr-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="p-5 overflow-y-auto custom-scrollbar flex-grow">
+                    <div class="bg-gray-50/50 rounded-xl p-4 border border-gray-100/50 space-y-1 mb-4">
+                        <div class="flex justify-between items-start mb-2">
+                             <div class="font-bold text-gray-900 text-xl">${data['계약자']}</div>
+                             <span class="px-2 py-1 text-[11px] font-bold rounded-md ${badgeClass}">${data['계약상태']}</span>
+                        </div>
+                        <div class="text-sm font-medium text-gray-700 leading-snug">${data['상품명']}</div>
+                        <div class="text-[11px] font-mono text-gray-400 mt-1">${data['증권번호']} · ${data['보험사']}</div>
+                    </div>
+                    
+                    <div class="px-1 text-sm text-gray-800 mb-6">
+                         <div class="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">납입 및 담당 정보</div>
+                         ${detailRow('계속보험료', formatMoney(data['계속보험료']), true)}
+                         ${detailRow('최종납입월', data['최종납입월'])}
+                         ${detailRow('납입회차', data['납입회차'])}
+                         ${detailRow('계약일', data['계약일'])}
+                         ${detailRow('수금인명 (담당)', `<span class="font-bold">${data['수금인명']}</span>`)}
+                         ${detailRow('모집인명', data['모집인명'])}
+                         ${detailRow('데이터기준일', `<span class="text-xs text-gray-400">${data['데이터기준일']}</span>`)}
+                    </div>
+                </div>
+                <div class="p-4 bg-white border-t border-gray-100 safe-area-pb">
+                    <button class="close-detail w-full py-3.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl shadow-lg shadow-gray-200 transition text-base">확인</button>
+                </div>
+            </div>`;
+
+            document.body.appendChild(modal);
+            setTimeout(() => {
+                const sheet = modal.querySelector('.slide-up');
+                if (sheet) sheet.classList.remove('translate-y-full'); // for potential CSS slide-up animation
+            }, 10);
+
+            modal.querySelectorAll('.close-detail').forEach(b => b.onclick = () => {
+                modal.classList.add('opacity-0');
+                document.body.classList.remove('modal-open');
+                setTimeout(() => modal.remove(), 200);
+            });
+        };
+
+        function createDashboardView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            const d = state.data.rewardData?.summary || {};
+            const keys = ['손보 시상금', '생보 시상금', '본부 시상금', '손보법인 시상금(개인)', '생보법인 시상금(개인)'];
+            let totalPay = 0, totalRef = 0;
+            keys.forEach(k => {
+                const obj = d[k] || { pay: 0, refund: 0 };
+                totalPay += obj.pay; totalRef += obj.refund;
+            });
+            const net = totalPay + totalRef;
+
+            const card = (label, val, color, isRed = false, big = false) => `
+              <div class="bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border-l-[6px] ${color} h-full flex flex-col justify-center items-center text-center group">
+                 <p class="text-gray-400 text-xs font-bold uppercase tracking-wider group-hover:text-gray-600 transition-colors mb-2">${label}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} tracking-tight">${formatMoney(val)}</p>
+              </div>`;
+
+            const detailCard = (title, key) => {
+                const obj = d[key] || { pay: 0, refund: 0 };
+                const subTotal = obj.pay + obj.refund;
+                return `<div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 border border-gray-100">
+                 <div class="flex justify-between mb-4 border-b border-gray-50 pb-3 items-center">
+                     <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div>${title}</h3>
+                     <span class="text-lg font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${formatMoney(subTotal)}</span>
+                 </div>
+                 <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="cursor-pointer hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-blue-100 group" onclick="openDetail('${key}','pay')">
+                        <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">지급</p>
+                        <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${formatMoney(obj.pay)}</p>
+                    </div>
+                    <div class="cursor-pointer hover:bg-red-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100 group" onclick="openDetail('${key}','refund')">
+                        <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">환수</p>
+                        <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${formatMoney(obj.refund)}</p>
+                    </div>
+                 </div></div>`;
+            };
+
+            div.innerHTML = `
+             <div class="mb-8">
+                <h2 class="text-xl font-bold text-gray-800 tracking-tight">${state.user.name}님의 시상금 (${state.currentMonth})</h2>
+                <p class="text-gray-500 text-sm mt-1">해당 월의 시상금 지급 및 환수 현황입니다.</p>
+             </div>
+             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                 <div class="col-span-2 md:col-span-1">${card('실지급 총액 (세전)', net, 'border-primary', false, true)}</div>
+                 <div class="col-span-1">${card('총 지급액', totalPay, 'border-blue-500')}</div>
+                 <div class="col-span-1">${card('총 환수액', totalRef, 'border-red-500', true)}</div>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${detailCard('손보 시상금', '손보 시상금')}
+                ${detailCard('생보 시상금', '생보 시상금')}
+                ${detailCard('본부 시상금', '본부 시상금')}
+                ${((d['손보법인 시상금(개인)']?.pay || 0) + (d['손보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('손보법인 시상금', '손보법인 시상금(개인)') : ''}
+                ${((d['생보법인 시상금(개인)']?.pay || 0) + (d['생보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('생보법인 시상금', '생보법인 시상금(개인)') : ''}
+             </div>
+             <div class="mt-8 text-center"><div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">💡 Tip: 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.</div></div>
+             `;
+            return div;
+        }
+
+        function createBranchView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            const d = state.data.rewardData?.summary || {};
+            // 백엔드의 getRewardData 함수 정의에 맞춰 다시 롤백
+            const keys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브'];
+            let totalPay = 0, totalRef = 0;
+            keys.forEach(k => { const obj = d[k] || { pay: 0, refund: 0 }; totalPay += obj.pay; totalRef += obj.refund; });
+            const net = totalPay + totalRef;
+
+            const card = (label, val, color, isRed = false, big = false) => `
+              <div class="bg-white rounded-2xl shadow-sm p-6 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center">
+                 <p class="text-gray-400 text-xs w-full text-center font-bold uppercase">${label}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-3 px-2">${formatMoney(val)}</p>
+              </div>`;
+
+            const detailCard = (title, key) => {
+                const obj = d[key] || { pay: 0, refund: 0 };
+                const subTotal = obj.pay + obj.refund;
+                return `<div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+                 <div class="flex justify-between mb-4 border-b border-gray-50 pb-2 items-center">
+                     <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div>${title}</h3>
+                     <span class="text-lg font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${formatMoney(subTotal)}</span>
+                 </div>
+                 <div class="grid grid-cols-2 gap-4 text-center">
+                    <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-xl transition" onclick="openDetail('${key}','pay')"><p class="text-[10px] text-gray-400 font-bold uppercase">지급</p><p class="text-lg font-bold text-blue-600">${formatMoney(obj.pay)}</p></div>
+                    <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-xl transition" onclick="openDetail('${key}','refund')"><p class="text-[10px] text-gray-400 font-bold uppercase">환수</p><p class="text-lg font-bold text-red-500">${formatMoney(obj.refund)}</p></div>
+                 </div></div>`;
+            };
+
+            div.innerHTML = `
+            <div class="mb-6"><h2 class="text-xl font-bold text-gray-800">지사대표의 시상금 (${state.currentMonth})</h2><p class="text-sm text-gray-500">법인 시상 및 인센티브 현황</p></div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                <div class="col-span-2 md:col-span-1">${card('실지급 총액', net, 'border-primary', false, true)}</div>
+                <div class="col-span-1">${card('총 지급액', totalPay, 'border-blue-500')}</div>
+                <div class="col-span-1">${card('총 환수액', totalRef, 'border-red-500', true)}</div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               ${detailCard('손보 법인', '손보 법인시상금')}
+               ${detailCard('생보 법인', '생보 법인시상금')}
+               ${detailCard('2차년 인센티브', '2차년 인센티브')}
+            </div>`;
+            return div;
+        }
+
+        function createRecruitmentView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            const d = state.data.recData || { myStats: {}, downlines: [] };
+            const groups = { 1: [], 2: [], 3: [], 4: [] };
+            (d.downlines || []).forEach(x => { if (groups[x.level]) groups[x.level].push(x); });
+
+            const calcItem = (item) => {
+                const np = Number(item['손보월발생분'] || 0); const lp = Number(item['생보월발생분'] || 0);
+                const nr = Number(item['손보월환수분'] || 0); const lr = Number(item['생보월환수분'] || 0);
+                return { pay: np + lp, refund: nr + lr, net: np + lp + nr + lr };
+            };
+            let agg = { pay: 0, refund: 0, net: 0 };
+            (d.downlines || []).forEach(item => { const res = calcItem(item); agg.pay += res.pay; agg.refund += res.refund; agg.net += res.net; });
+
+            const card = (label, val, color, isRed = false, big = false) => `
+              <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center">
+                 <p class="text-gray-400 text-xs w-full text-center font-bold uppercase">${label}</p>
+                 <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-2">${formatMoney(val)}</p>
+              </div>`;
+
+            let listHtml = '';
+            for (let i = 1; i <= 4; i++) {
+                if (groups[i].length === 0) continue;
+                const cards = groups[i].map(x => {
+                    const s = calcItem(x);
+                    return `<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3 hover:shadow-md transition duration-200">
+                    <div class="flex justify-between mb-3 items-center">
+                        <div class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div><span class="font-bold text-gray-900 text-lg">${x['이름']}</span></div>
+                        <span class="font-bold text-gray-900 bg-gray-50 px-2 py-1 rounded text-lg">${formatMoney(s.net)}</span>
+                    </div>
+                    <div class="flex justify-between text-xs bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                       <div class="flex-1 text-center border-r border-gray-200">
+                          <span class="text-gray-400 block mb-1 font-medium">지급</span>
+                          <span class="text-blue-600 font-bold text-base">${formatMoney(s.pay)}</span>
+                       </div>
+                       <div class="flex-1 text-center">
+                          <span class="text-gray-400 block mb-1 font-medium">환수</span>
+                          <span class="text-red-500 font-bold text-base">${formatMoney(s.refund)}</span>
+                       </div>
+                    </div></div>`;
+                }).join('');
+                listHtml += `<div class="mb-8"><h4 class="font-bold text-gray-600 mb-3 text-sm bg-gray-100/80 px-3 py-2 rounded-lg inline-block">${i}차 산하 <span class="text-primary ml-1">${groups[i].length}명</span></h4><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${cards}</div></div>`;
+            }
+
+            div.innerHTML = `
+             <div class="mb-6">
+                <h2 class="text-xl font-bold text-gray-800">${state.user.name}님의 증원수당 (${state.currentMonth})</h2>
+                <p class="text-gray-500 text-sm mt-1">증원수당 및 차수별 산하인원 현황입니다.</p>
+             </div>
+             <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                <div class="col-span-2 md:col-span-1">${card('나의 증원수당 (세전)', agg.net, 'border-primary', false, true)}</div>
+                <div class="col-span-1 md:col-span-1">${card('총 지급액', agg.pay, 'border-blue-500')}</div>
+                <div class="col-span-1 md:col-span-1">${card('총 환수액', agg.refund, 'border-red-500', true)}</div>
+             </div>
+             ${listHtml}
+             <div class="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-600 leading-relaxed shadow-inner">
+                <p class="font-bold mb-2 text-gray-800">※ 증원수당 관련 안내</p>
+                <p class="mb-4">증원수당은 관리자수당이 아닙니다.<br>
+                산하인원의 해당월 실적이 10만원 미만인 경우에는 산하실적에 포함되지 않습니다.<br>
+                증원수당은 산하인원의 실적과 연계되어 정확하게 계산되고 있음을 안내드립니다.<br>
+                증원수당과 관련하여 궁금하신 부분이 있으시면 언제든 박용수 본부장에게 연락주시기 바랍니다.</p>
+                
+                <p class="font-bold mb-2 text-gray-800">※ 증원수당 계산식</p>
+                <ul class="list-disc list-inside space-y-1 ml-1 text-gray-600">
+                    <li><span class="font-semibold text-gray-700">손해보험</span> : 신계약보험료 X 30%</li>
+                    <li><span class="font-semibold text-gray-700">생명보험</span> : 지급수수료 X 2.25% (유지수수료 포함)</li>
+                </ul>
+             </div>`;
+            return div;
+        }
+
+        function createAdminView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            const dd = state.data.adminSummary || {};
+            if (dd.error) { div.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">데이터 로드 실패: ${dd.message}</div>`; return div; }
+            let list = [];
+            if (state.adminTab === 'reward') list = state.adminSubTab === 'active' ? (dd.reward?.active || []) : (dd.reward?.resigned || []);
+            else list = dd.recruitment || [];
+
+            const totalPages = Math.ceil(list.length / state.pageSize);
+            const start = (state.adminPage - 1) * state.pageSize;
+            const pageList = list.slice(start, start + state.pageSize);
+            const th = (t) => `<th class="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">${t}</th>`;
+            // Updated td to accept onClick string
+            const td = (v, c = '', onClickStr = '') => `<td class="px-3 py-3 text-right ${c} font-medium text-sm tabular-nums ${onClickStr ? 'cursor-pointer hover:bg-gray-100 underline decoration-dotted decoration-gray-300 underline-offset-4' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatMoney(v)}</td>`;
+
+            div.innerHTML = `
+            <div class="flex flex-col sm:flex-row justify-between mb-6 items-center gap-4">
+                <h2 class="text-xl font-bold text-gray-800 self-start sm:self-center">관리자 대시보드 (${state.currentMonth})</h2>
+                <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
+                    <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">시상금</button>
+                    ${state.user.role !== '관리자' ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원수당</button>` : ''}
+                </div>
+            </div>
+            ${state.adminTab === 'reward' ? `
+            <div class="mb-4 border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6">
+                    <button onclick="setST('active')" class="${state.adminSubTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 (${dd.reward?.active?.length || 0})</button>
+                    ${state.user.role !== '관리자' ? `<button onclick="setST('resigned')" class="${state.adminSubTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 (${dd.reward?.resigned?.length || 0})</button>` : ''}
+                </nav>
+            </div>` : ''}
+            <div class="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 whitespace-nowrap">
+                   <thead class="bg-gray-50"><tr>
+                      <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">이름</th>
+                      ${state.adminTab === 'reward' ? th('손보(지급)') + th('손보(환수)') + th('생보(지급)') + th('생보(환수)') + th('본부(지급)') + th('본부(환수)') : th('손보증원(지급)') + th('손보증원(환수)') + th('생보증원(지급)') + th('생보증원(환수)')}
+                      <th class="px-4 py-3 text-right font-bold text-gray-800 bg-gray-100/50">합계</th>
+                   </tr></thead>
+                   <tbody class="divide-y divide-gray-200 bg-white">
+                      ${pageList.map(u => {
+                let total = 0;
+                if (state.adminTab === 'reward') total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0) + (u.hqPay || 0) + (u.hqRef || 0);
+                else total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0);
+
+                const cols = state.adminTab === 'reward'
+                    ? td(u.nlPay, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'pay')`)
+                    + td(u.nlRef, 'text-red-500', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'refund')`)
+                    + td(u.lPay, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보 시상금', 'pay')`)
+                    + td(u.lRef, 'text-red-500', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보 시상금', 'refund')`)
+                    + td(u.hqPay, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'pay')`)
+                    + td(u.hqRef, 'text-red-500', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'refund')`)
+                    : td(u.nlPay, 'text-blue-600') + td(u.nlRef, 'text-red-500') + td(u.lPay, 'text-blue-600') + td(u.lRef, 'text-red-500');
+
+                const nameContent = `${u.name} <span class="text-xs text-gray-400 font-normal">(${u.id})</span>`;
+                const nameCell = state.adminTab === 'recruitment'
+                    ? `<td class="px-4 py-3 font-semibold text-blue-600 text-center cursor-pointer hover:underline decoration-blue-300 underline-offset-4" onclick="fetchAndShowOrgTree('${u.id}', '${u.name}')">${nameContent}</td>`
+                    : `<td class="px-4 py-3 font-semibold text-gray-900 text-center">${nameContent}</td>`;
+
+                return `<tr class="hover:bg-gray-50 transition">${nameCell}${cols}<td class="px-4 py-3 text-right font-bold ${total < 0 ? 'text-red-500' : 'text-gray-900'} bg-gray-50/30">${formatMoney(total)}</td></tr>`;
+            }).join('')}
+                   </tbody>
+                </table>
+                </div>
+                ${pageList.length === 0 ? '<div class="p-12 text-center text-gray-400">데이터가 없습니다.</div>' : ''}
+            </div>
+            <div class="flex justify-center items-center mt-6 space-x-2">
+                 <button ${state.adminPage === 1 ? 'disabled' : ''} onclick="setPage(-1)" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                 <span class="px-4 py-2 text-sm text-gray-600 font-medium bg-gray-100 rounded-lg">${state.adminPage} / ${totalPages || 1}</span>
+                 <button ${state.adminPage >= totalPages ? 'disabled' : ''} onclick="setPage(1)" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+             </div>`;
+            return div;
+        };
+        function setAT(t) { state.adminTab = t; state.adminPage = 1; render(); }
+        function setST(t) { state.adminSubTab = t; state.adminPage = 1; render(); }
+        function setPage(d) { state.adminPage += d; render(); }
+        function setLapseAT(t) { state.lapseAdminTab = t; render(); }
+
+        function createLapseAdminView() {
+            if (state.isLoading) return getSkeletonUI();
+            const div = document.createElement('div');
+            state.lapseAdminTab = state.lapseAdminTab || 'active';
+            state.lapseBaseType = state.lapseBaseType || 'recruiter';
+
+            div.innerHTML = `
+                <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리</h2>
+                        <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
+                    </div>
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
+                        <button onclick="setLapseBaseType('recruiter')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
+                        <button onclick="setLapseBaseType('collector')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'collector' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">수금인 기준</button>
+                    </div>
+                </div>
+                
+                <div class="mb-4 border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-6">
+                        <button onclick="setLapseAT('active')" class="${state.lapseAdminTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 <span id="lapseActiveCount"></span></button>
+                        <button onclick="setLapseAT('resigned')" class="${state.lapseAdminTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 <span id="lapseResignedCount"></span></button>
+                    </nav>
+                </div>
+
+                <div class="mb-6 relative max-w-md">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                    </div>
+                    <input type="text" id="lapseAdminSearch" placeholder="${state.lapseBaseType === 'recruiter' ? '모집인' : '수금인'} 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                </div>
+
+                <div id="lapseAdminList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div class="col-span-full flex items-center justify-center h-40">
+                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>
+            `;
+
+            const renderCards = (list, filterText = '') => {
+                const container = div.querySelector('#lapseAdminList');
+                if (!list) return;
+
+                const activeList = list.filter(x => !x.isResigned);
+                const resignedList = list.filter(x => x.isResigned);
+
+                const countActive = div.querySelector('#lapseActiveCount');
+                if (countActive) countActive.innerText = '(' + activeList.length + ')';
+                const countResigned = div.querySelector('#lapseResignedCount');
+                if (countResigned) countResigned.innerText = '(' + resignedList.length + ')';
+
+                const currentList = state.lapseAdminTab === 'active' ? activeList : resignedList;
+
+                const fText = filterText.toLowerCase();
+                const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `<div class="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">조회된 내역이 없습니다.</div>`;
+                    return;
+                }
+
+                container.innerHTML = filtered.map(item => `
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group">
+                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-2.5">
+                             <div>
+                                 <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                     <div class="w-1.5 h-1.5 rounded-full bg-primary/70"></div>
+                                     ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
+                                 </h3>
+                             </div>
+                             <div class="text-right flex flex-col items-end justify-center">
+                                 <p class="text-[10px] text-gray-400 font-bold mb-0.5">13회차유지율</p>
+                                 <span class="text-sm font-extrabold ${(item.retentionRate && item.retentionRate !== '데이터 없음' && item.retentionRate !== '-')
+                        ? (parseFloat(item.retentionRate) >= 90 ? 'text-blue-500' : 'text-red-500')
+                        : 'text-gray-400 text-xs'
+                    }">
+                                     ${item.retentionRate || '-'}
+                                 </span>
+                             </div>
+                         </div>
+                         <div class="grid grid-cols-2 gap-3 text-center">
+                            <div class="cursor-pointer hover:bg-red-50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
+                                <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 실효</p>
+                                <p class="text-xl font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-sm font-medium ml-0.5">건</span></p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-orange-50 p-2.5 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
+                                <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 연체</p>
+                                <p class="text-xl font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-sm font-medium ml-0.5">건</span></p>
+                            </div>
+                         </div>
+                    </div>
+                `).join('');
+            };
+
+            setTimeout(async () => {
+                if (!state.data.lapseAdminSummary || state.data.lapseAdminSummaryType !== state.lapseBaseType) {
+                    const res = await callApi('getAdminLapseArrearsSummary', state.user.staffId, state.lapseBaseType);
+                    if (res.error || !res.success) {
+                        div.querySelector('#lapseAdminList').innerHTML = `<div class="col-span-full p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
+                        return;
+                    }
+                    state.data.lapseAdminSummary = res.list || [];
+                    state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                    state.data.lapseAdminSummaryType = state.lapseBaseType;
                 }
 
                 renderCards(state.data.lapseAdminSummary);
