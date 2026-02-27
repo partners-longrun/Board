@@ -1489,8 +1489,10 @@
                     <div class="relative w-full md:w-auto mt-2 md:mt-0">
                         <select id="retentionAdminSort" class="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
                             <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
-                            <option value="highest" ${state.retentionSortOrder === 'highest' ? 'selected' : ''}>13회유지율 최고순</option>
-                            <option value="lowest" ${state.retentionSortOrder === 'lowest' ? 'selected' : ''}>13회유지율 최저순</option>
+                            <option value="highest13" ${state.retentionSortOrder === 'highest13' ? 'selected' : ''}>13회유지율 최고순</option>
+                            <option value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'selected' : ''}>13회유지율 최저순</option>
+                            <option value="highest25" ${state.retentionSortOrder === 'highest25' ? 'selected' : ''}>25회유지율 최고순</option>
+                            <option value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'selected' : ''}>25회유지율 최저순</option>
                         </select>
                         <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
                             <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -1519,10 +1521,14 @@
 
                 let currentList = state.retentionAdminTab === 'active' ? activeList.slice() : resignedList.slice();
 
-                if (sortOrder === 'highest') {
+                if (sortOrder === 'highest13') {
                     currentList.sort((a, b) => b.retention13Raw - a.retention13Raw);
-                } else if (sortOrder === 'lowest') {
+                } else if (sortOrder === 'lowest13') {
                     currentList.sort((a, b) => a.retention13Raw - b.retention13Raw);
+                } else if (sortOrder === 'highest25') {
+                    currentList.sort((a, b) => b.retention25Raw - a.retention25Raw);
+                } else if (sortOrder === 'lowest25') {
+                    currentList.sort((a, b) => a.retention25Raw - b.retention25Raw);
                 } else {
                     currentList.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                 }
@@ -1536,26 +1542,27 @@
                 }
 
                 container.innerHTML = filtered.map(item => `
-                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group cursor-pointer" onclick="fetchAndShowLapsedContractsByRecruiter('${item.id}', '${item.name}')">
-                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-3">
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col group cursor-pointer relative" onclick="fetchAndShowLapsedContractsByRecruiter('${item.id}', '${item.name}')">
+                         <div class="absolute top-4 right-4 bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[11px] font-bold border border-red-100 flex items-center gap-1 shadow-sm opacity-90 group-hover:opacity-100 transition-opacity">
+                             <span>실효</span>
+                             <span>${item.lapsedCount || 0}</span>
+                         </div>
+                         <div class="flex justify-between items-center mb-3 border-b border-gray-50 pb-3 pr-16 mt-1">
                              <div>
                                  <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
                                      <div class="w-1.5 h-1.5 rounded-full bg-indigo-500/70"></div>
                                      ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
                                  </h3>
                              </div>
-                             <div class="text-indigo-400 group-hover:text-indigo-600 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
-                             </div>
                          </div>
                          <div class="grid grid-cols-2 gap-3 text-center">
-                            <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
-                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">13회차 유지율</p>
-                                <p class="text-2xl font-extrabold ${item.retention13Raw >= 90 ? 'text-indigo-600' : 'text-gray-800'}">${item.retention13}</p>
+                            <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">13회차</p>
+                                <p class="text-xl font-extrabold ${item.retention13Raw < 90 ? 'text-red-500' : 'text-gray-800'}">${item.retention13}</p>
                             </div>
-                            <div class="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
-                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">25회차 유지율</p>
-                                <p class="text-2xl font-extrabold ${item.retention25Raw >= 80 ? 'text-indigo-600' : 'text-gray-800'}">${item.retention25}</p>
+                            <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
+                                <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">25회차</p>
+                                <p class="text-xl font-extrabold ${item.retention25Raw < 80 ? 'text-red-500' : 'text-gray-800'}">${item.retention25}</p>
                             </div>
                          </div>
                     </div>
