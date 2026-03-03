@@ -2161,11 +2161,10 @@
             if (state.currentView === 'home' && state.data.homeData) { render(); return; }
             if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
-            // branch: 수수료데이터(세션 미공유) 아직 로드 안된 경우 항상 fetchBranch 호출
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth && state.data.branchCommData?.month === state.currentMonth) { render(); return; }
 
-            // 2. Check Session Storage (수수료 데이터가 없는 branch 뷰는 세션 캐시 사용 안 함)
-            const cached = state.currentView !== 'branch' ? sessionStorage.getItem(cacheKey) : null;
+            // 2. Check Session Storage
+            const cached = sessionStorage.getItem(cacheKey);
             if (cached) {
                 try {
                     const parsed = JSON.parse(cached);
@@ -2173,6 +2172,25 @@
                     if (state.currentView === 'home') {
                         state.data.homeData = parsed;
                         state.homeLoaded = true;
+                    }
+                    else if (state.currentView === 'branch') {
+                        // branch 뷰: rewardData는 세션 캐시 복원, branchCommData는 별도 fetch
+                        state.data.rewardData = parsed;
+                        state.isLoading = false;
+                        render();
+                        if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
+                            callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
+                                if (!commRes.error && commRes.success) {
+                                    commRes.month = state.currentMonth;
+                                    state.data.branchCommData = commRes;
+                                } else {
+                                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+                                    if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
+                                }
+                                if (state.currentView === 'branch') render();
+                            });
+                        }
+                        return;
                     }
                     else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
@@ -2237,9 +2255,9 @@
             if (!rewardRes.error) {
                 rewardRes.month = state.currentMonth;
                 state.data.rewardData = rewardRes;
-                // branch 뷰의 시상금 캐시는 dashboard와 공유 (수수료는 세션에 저장 안 함)
+                // branch 뷰의 시상금 캐시는 dashboard와 공유
                 sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(rewardRes));
-                // branch 키는 저장 안 함 → 항상 fetchBranch가 수수료도 함께 처리하도록
+                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(rewardRes));
             }
 
             if (!commRes.error && commRes.success) {
@@ -2288,29 +2306,25 @@
         function prefetchAllBackground() {
             if (!state.user || !state.currentMonth) return;
 
-            // 1. Reward Data (dashboard 전용 세션 저장 - branch는 fetchBranch가 직접 처리)
+            // 1. Reward Data
             if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
                 callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error) {
                         d.month = state.currentMonth;
                         sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
-                        // branch 키는 저장 안 함 → branch 뷰 진입 시 fetchBranch가 수수료도 함께 로드
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
                     }
                 });
             }
 
-            // 1-2. Branch Commission Data (지사대표 전용 프리패치)
+            // 1-2. Branch Commission Data (for 지사대표)
             if (state.user.role === '지사대표' && !state.data.branchCommData) {
                 callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error && d.success) {
                         d.month = state.currentMonth;
                         state.data.branchCommData = d;
-                    } else {
-                        // 실패해도 빈 값으로 세팅 (render 시 spinner 방지)
-                        state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                        if (d.error) console.warn('수수료 prefetch 실패:', d.message);
+                        if (state.currentView === 'branch') render();
                     }
-                    if (state.currentView === 'branch') render();
                 });
             }
 
