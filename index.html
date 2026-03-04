@@ -1195,11 +1195,11 @@
                     <div class="mt-auto pt-3 border-t border-gray-50 grid grid-cols-2 gap-2 text-center">
                         <div>
                             <p class="text-[10px] text-gray-400 font-semibold mb-0.5">${sub1Label}</p>
-                            <p class="text-sm font-bold ${Number(sub1Amt) < 0 ? 'text-red-500' : 'text-gray-700'}">${loaded ? formatMoney(sub1Amt) : spinner}</p>
+                            <p class="text-base font-bold ${Number(sub1Amt) < 0 ? 'text-red-500' : 'text-gray-700'}">${loaded ? formatMoney(sub1Amt) : spinner}</p>
                         </div>
                         <div>
                             <p class="text-[10px] text-gray-400 font-semibold mb-0.5">${sub2Label}</p>
-                            <p class="text-sm font-bold ${Number(sub2Amt) < 0 ? 'text-red-500' : 'text-gray-700'}">${loaded ? formatMoney(sub2Amt) : spinner}</p>
+                            <p class="text-base font-bold ${Number(sub2Amt) < 0 ? 'text-red-500' : 'text-gray-700'}">${loaded ? formatMoney(sub2Amt) : spinner}</p>
                         </div>
                     </div>
                 </div>`;
@@ -1473,7 +1473,7 @@
                         total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0);
                         cols = td(u.nlPay || 0, 'text-blue-600') + td(u.nlRef || 0, 'text-red-500') + td(u.lPay || 0, 'text-blue-600') + td(u.lRef || 0, 'text-red-500');
                     }
-                    const nameContent = `${u.name} <span class="text-xs text-gray-400 font-normal">(${u.id})</span>`;
+                    const nameContent = `${u.name}`;
                     const nameCell = state.adminTab === 'recruitment'
                         ? `<td class="px-4 py-3 font-semibold text-blue-600 text-center cursor-pointer hover:underline decoration-blue-300 underline-offset-4" onclick="fetchAndShowOrgTree('${u.id}', '${u.name}')">${nameContent}</td>`
                         : `<td class="px-4 py-3 font-semibold text-gray-900 text-center">${nameContent}</td>`;
@@ -1529,8 +1529,10 @@
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
                         <div class="flex justify-between items-center mb-3">
                             <div>
-                                <p class="font-bold text-gray-900">${u.name}</p>
-                                <p class="text-xs text-gray-400">${u.id}</p>
+                                <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-primary/70"></div>
+                                    ${u.name}
+                                </h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs text-gray-400 mb-0.5">총액</p>
