@@ -1400,8 +1400,9 @@
             const start = (state.adminPage - 1) * state.pageSize;
             const pageList = list.slice(start, start + state.pageSize);
             const isBranch = state.user.role === '지사대표';
-            const th = (t, extra = '') => `<th class="px-3 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider ${extra}">${t}</th>`;
-            const td = (v, c = '', onClickStr = '') => `<td class="px-3 py-3 text-right ${c} font-medium text-sm tabular-nums ${onClickStr ? 'cursor-pointer hover:bg-gray-100 underline decoration-dotted decoration-gray-300 underline-offset-4' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatMoney(v)}</td>`;
+            // isComm: 수수료 열은 은은한 슬레이트 배경색 적용
+            const th = (t, extra = '', isComm = false) => `<th class="w-24 px-2 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider ${isComm ? 'bg-slate-50/80' : ''} ${extra}">${t}</th>`;
+            const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="w-24 px-2 py-3 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60 underline decoration-dotted decoration-gray-300 underline-offset-4' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatMoney(v)}</td>`;
 
             const rows = pageList.map(u => {
                 let total = 0;
@@ -1411,12 +1412,12 @@
                     const commTotal = isBranch ? ((u.nlCommPay || 0) + (u.nlCommRef || 0) + (u.lCommPay || 0) + (u.lCommRef || 0) + (u.mgrCommPay || 0) + (u.mgrCommRef || 0)) : 0;
                     total = rewardTotal + commTotal;
                     if (isBranch) {
-                        cols += td(u.nlCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','pay')`);
-                        cols += td(u.nlCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','refund')`);
-                        cols += td(u.lCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','pay')`);
-                        cols += td(u.lCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','refund')`);
-                        cols += td(u.mgrCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','pay')`);
-                        cols += td(u.mgrCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`);
+                        cols += td(u.nlCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','pay')`, true);
+                        cols += td(u.nlCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','refund')`, true);
+                        cols += td(u.lCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','pay')`, true);
+                        cols += td(u.lCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','refund')`, true);
+                        cols += td(u.mgrCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','pay')`, true);
+                        cols += td(u.mgrCommRef || 0, 'text-red-500', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`, true);
                     }
                     cols += td(u.nlPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'pay')`);
                     cols += td(u.nlRef || 0, 'text-red-500', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'refund')`);
@@ -1438,24 +1439,24 @@
             let headerCols = '';
             if (state.adminTab === 'reward') {
                 if (isBranch) {
-                    headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-blue-700 bg-blue-50 border-b border-blue-200">손보수수료</th>`;
-                    headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-indigo-700 bg-indigo-50 border-b border-indigo-200">생보수수료</th>`;
-                    headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-purple-700 bg-purple-50 border-b border-purple-200">관리수수료</th>`;
+                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">손보수수료</th>`;
+                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">생보수수료</th>`;
+                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200 border-r-2 border-r-gray-300">관리수수료</th>`;
                 }
-                headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보시상</th>`;
-                headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보시상</th>`;
-                headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">본부시상</th>`;
+                headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보시상</th>`;
+                headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보시상</th>`;
+                headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">본부시상</th>`;
             } else {
-                headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보증원</th>`;
-                headerCols += `<th colspan="2" class="px-3 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보증원</th>`;
+                headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보증원</th>`;
+                headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보증원</th>`;
             }
 
             let subHeaderCols = '';
             if (state.adminTab === 'reward') {
                 if (isBranch) {
-                    subHeaderCols += th('지급', 'text-blue-600 bg-blue-50/50') + th('환수', 'text-red-500 bg-blue-50/50');
-                    subHeaderCols += th('지급', 'text-blue-600 bg-indigo-50/50') + th('환수', 'text-red-500 bg-indigo-50/50');
-                    subHeaderCols += th('지급', 'text-blue-600 bg-purple-50/50') + th('환수', 'text-red-500 bg-purple-50/50');
+                    subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
+                    subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
+                    subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r-2 border-gray-300', true);
                 }
                 subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500');
                 subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500');
