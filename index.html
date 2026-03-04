@@ -259,6 +259,7 @@
             adminTab: 'reward',
             adminSubTab: 'active',
             adminPage: 1,
+            adminSearch: '',
             pageSize: 20,
             mobileMenuOpen: false,
             isLoading: false
@@ -1396,6 +1397,12 @@
             if (state.adminTab === 'reward') list = state.adminSubTab === 'active' ? (dd.reward?.active || []) : (dd.reward?.resigned || []);
             else list = dd.recruitment || [];
 
+            // 검색 필터 적용
+            const searchTerm = (state.adminSearch || '').trim().toLowerCase();
+            if (searchTerm) {
+                list = list.filter(u => u.name.toLowerCase().includes(searchTerm) || String(u.id).includes(searchTerm));
+            }
+
             const totalPages = Math.ceil(list.length / state.pageSize);
             const start = (state.adminPage - 1) * state.pageSize;
             const pageList = list.slice(start, start + state.pageSize);
@@ -1529,12 +1536,19 @@
              </div>`;
 
             div.innerHTML = `
-            <div class="flex flex-col sm:flex-row justify-between mb-6 items-center gap-4">
+            <div class="flex flex-col sm:flex-row justify-between mb-4 items-center gap-4">
                 <h2 class="text-xl font-bold text-gray-800 self-start sm:self-center">관리자 대시보드 (${state.currentMonth})</h2>
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
                     <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">시상금</button>
                     ${state.user.role !== '관리자' ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원수당</button>` : ''}
                 </div>
+            </div>
+
+            <div class="mb-4 relative max-w-sm">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                </div>
+                <input type="text" id="adminSearch" value="${state.adminSearch || ''}" placeholder="이름 또는 사번 검색" class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
             </div>
             ${state.adminTab === 'reward' ? `
             <div class="mb-4 border-b border-gray-200">
@@ -1572,9 +1586,23 @@
             </div>
 
             ${pagination}`;
+
+            // 검색상자 이벤트 리스너 등록
+            setTimeout(() => {
+                const searchInput = div.querySelector('#adminSearch');
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        state.adminSearch = e.target.value;
+                        state.adminPage = 1;
+                        // 전체 render 대신 테이블만 다시 그림 (search placeholder 유지)
+                        render();
+                    });
+                }
+            }, 0);
+
             return div;
         };
-        function setAT(t) { state.adminTab = t; state.adminPage = 1; render(); }
+        function setAT(t) { state.adminTab = t; state.adminPage = 1; state.adminSearch = ''; render(); }
         function setST(t) { state.adminSubTab = t; state.adminPage = 1; render(); }
         function setPage(d) { state.adminPage += d; render(); }
         function setLapseAT(t) { state.lapseAdminTab = t; render(); }
@@ -1941,12 +1969,9 @@
 
 
         // --- 7. Modals & Popups ---
-        // --- 7. Modals & Popups ---
         window.openDetail = function (k, t, customDetails = null, customTitle = null) {
             let d = [];
             if (customDetails) {
-                // If custom details provided (e.g. from Admin view), filter it if needed or use as is
-                // The backend returns 'details' array for that user, so we filter by category and type just like normal
                 d = customDetails.filter(x => x.category === k && x.type === t);
             } else {
                 d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
@@ -1956,11 +1981,14 @@
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
-            // Rate Calculation: (Amount / Premium) * 100
             const calcRate = (amt, prem) => {
                 if (!prem || prem == 0) return '0%';
                 return ((amt / prem) * 100).toFixed(1) + '%';
             };
+
+            // 합계 계산
+            const totalAmt = d.reduce((sum, x) => sum + (x.amount || 0), 0);
+            const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
 
             const rows = d.length ? d.map(x => `
              <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -1983,7 +2011,13 @@
                         <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
                         <span>${titlePrefix}${k} <span class="${t === 'pay' ? 'text-blue-600' : 'text-red-500'}">${t === 'pay' ? '지급' : '환수'}</span> 상세내역</span>
                     </h3>
-                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    <div class="flex items-center gap-3">
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400 font-medium">합계 (수수료+시상금)</div>
+                            <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
+                        </div>
+                        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                    </div>
                 </div>
                 <div class="overflow-auto flex-grow bg-white">
                     <table class="w-full text-sm whitespace-nowrap">
@@ -2012,24 +2046,132 @@
             });
         }
 
+        // 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
+        window.fetchAndShowAdminDetail = async function (id, name, category, type) {
+            // 1. 팝업 즉시 표시 + 로딩 스피너
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+            const payLabel = type === 'pay' ? '지급' : '환수';
+            const payColor = type === 'pay' ? 'text-blue-600' : 'text-red-500';
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
+                        <span><span class="text-gray-500 mr-2">[${name}]</span>${category} <span class="${payColor}">${payLabel}</span> 상세내역</span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div id="admin-detail-body" class="flex-grow flex items-center justify-center h-48">
+                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+
+            // 2. 데이터 로드
+            const d = await callApi('getRewardData', id, state.currentMonth);
+            const body = modal.querySelector('#admin-detail-body');
+            if (!body) return;
+
+            if (d && !d.error && d.details) {
+                const details = d.details.filter(x => x.category === category && x.type === type);
+                const totalAmt = details.reduce((sum, x) => sum + (x.amount || 0), 0);
+                const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+
+                // 타이틀에 합계 추가
+                const titleEl = modal.querySelector('h3');
+                if (titleEl) {
+                    titleEl.insertAdjacentHTML('afterend', `<div class="text-right"><div class="text-xs text-gray-400 font-medium">합계</div><div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div></div>`);
+                    titleEl.closest('div').classList.add('justify-between');
+                }
+
+                const calcRate = (amt, prem) => (!prem || prem == 0) ? '0%' : ((amt / prem) * 100).toFixed(1) + '%';
+                const rows = details.length ? details.map(x => `
+                 <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                   <td class="p-3 text-gray-700">${x.company}</td>
+                   <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+                   <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x.product}">${x.product}</div></td>
+                   <td class="p-3 text-xs text-gray-500">${x.date}</td>
+                   <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
+                   <td class="p-3 text-center text-gray-700">${x.customer}</td>
+                   <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</td>
+                   <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</td>
+                   <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
+                 </tr>`).join('') : '<tr><td colspan="9" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
+
+                body.outerHTML = `<div class="overflow-auto flex-grow bg-white">
+                    <table class="w-full text-sm whitespace-nowrap">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
+                            <th class="p-3 font-semibold">보험사</th><th class="p-3 font-semibold">증권번호</th><th class="p-3 font-semibold">상품명</th><th class="p-3 font-semibold">계약일</th><th class="p-3 text-right font-semibold">보험료</th><th class="p-3 text-center font-semibold">계약자</th><th class="p-3 text-right font-semibold">보험사시상</th><th class="p-3 text-right font-semibold">시상율(%)</th><th class="p-3 font-semibold">시상내용</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+                </div>`;
+            } else {
+                body.innerHTML = `<div class="p-8 text-center text-red-500">오류: ${(d && d.message) || '데이터를 불러올 수 없습니다.'}</div>`;
+            }
+        };
+
+        // 수수료 판업 즉시 표시 후 데이터 로딩 (UX 개선)
         window.fetchAndShowCommissionAdminDetail = async function (targetId, targetName, commType, payType) {
-            showLoading(true);
+            // 1. 팝업 즉시 표시 + 로딩 스피너
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+            const typeLabel = commType === 'nl' ? '손보수수료' : commType === 'l' ? '생보수수료' : '관리수수료';
+            const payLabel = payType === 'pay' ? '지급' : '환수';
+            const colorClass = payType === 'pay' ? 'blue' : 'red';
+            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
+                        <span>[${targetName}] ${typeLabel} <span class="text-${colorClass === 'blue' ? 'blue-600' : 'red-500'}">${payLabel}</span> 상세내역</span>
+                    </h3>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div id="comm-detail-body" class="flex-grow flex items-center justify-center h-48">
+                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+
+            // 2. 데이터 로드
             const res = await callApi('getBranchMemberCommissionDetails', state.user.staffId, targetId, state.currentMonth, commType, payType);
-            showLoading(false);
+            const body = modal.querySelector('#comm-detail-body');
+            if (!body) return;
 
             if (res.error || !res.success) {
-                alert('수수료 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
+                body.innerHTML = `<div class="p-8 text-center text-red-500">수수료 내역을 불러오지 못했습니다: ${res.message || '알 수 없는 오류'}</div>`;
                 return;
             }
 
             const list = res.list || [];
-            const typeLabel = commType === 'nl' ? '손보수수료' : commType === 'l' ? '생보수수료' : '관리수수료';
-            const payLabel = payType === 'pay' ? '지급' : '환수';
-            const colorClass = payType === 'pay' ? 'blue' : 'red';
+            const totalAmt = list.reduce((sum, x) => sum + (x.amount || 0), 0);
+            const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
 
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+            // 타이틀에 합계 및 건수 추가
+            const headerDiv = modal.querySelector('.justify-between') || modal.querySelector('.flex.justify-between');
+            if (headerDiv) {
+                const btn = headerDiv.querySelector('.close');
+                const summaryHtml = `<div class="flex items-center gap-4 mr-2">
+                    <div class="text-right"><div class="text-xs text-gray-400 font-medium">합계 (${list.length}건)</div><div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div></div>
+                </div>`;
+                btn.insertAdjacentHTML('beforebegin', summaryHtml);
+            }
 
             const rows = list.length ? list.map(x => `
              <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -2043,54 +2185,14 @@
                <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.sheetName}</td>
              </tr>`).join('') : '<tr><td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
 
-            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
-                        <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
-                        <span>[${targetName}] ${typeLabel} <span class="text-${colorClass === 'blue' ? 'blue-600' : 'red-500'}">${payLabel}</span> 상세내역 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-${colorClass}-500 font-bold">${list.length}</span>건)</span></span>
-                    </h3>
-                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </div>
-                <div class="overflow-auto flex-grow bg-white">
-                    <table class="w-full text-sm whitespace-nowrap">
-                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
-                            <th class="p-3 font-semibold">보험사</th>
-                            <th class="p-3 font-semibold">증권번호</th>
-                            <th class="p-3 font-semibold">상품명</th>
-                            <th class="p-3 font-semibold">계약일</th>
-                            <th class="p-3 text-right font-semibold">보험료</th>
-                            <th class="p-3 text-center font-semibold">계약자</th>
-                            <th class="p-3 text-right font-semibold">수수료</th>
-                            <th class="p-3 font-semibold">구분</th>
-                        </tr></thead>
-                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
-                    </table>
-                </div>
-                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
-                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                </div>
+            body.outerHTML = `<div class="overflow-auto flex-grow bg-white">
+                <table class="w-full text-sm whitespace-nowrap">
+                    <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
+                        <th class="p-3 font-semibold">보험사</th><th class="p-3 font-semibold">증권번호</th><th class="p-3 font-semibold">상품명</th><th class="p-3 font-semibold">계약일</th><th class="p-3 text-right font-semibold">보험료</th><th class="p-3 text-center font-semibold">계약자</th><th class="p-3 text-right font-semibold">수수료</th><th class="p-3 font-semibold">구분</th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                </table>
             </div>`;
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-        };
-
-        window.fetchAndShowAdminDetail = async function (id, name, category, type) {
-            showLoading(true);
-            const d = await callApi('getRewardData', id, state.currentMonth);
-            showLoading(false);
-
-            if (d && !d.error) {
-                if (d.details) {
-                    openDetail(category, type, d.details, name);
-                } else {
-                    alert('상세 내역을 불러올 수 없습니다.');
-                }
-            } else {
-                alert('오류 발생: ' + (d.message || 'Unknown Error'));
-            }
         };
 
         window.fetchAndShowOrgTree = async function (targetId, targetName) {
