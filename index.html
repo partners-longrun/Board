@@ -1453,13 +1453,13 @@
 
                 // Header Definitions
                 const th = (t, extra = '', isComm = false) => `<th class="w-24 px-2 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider ${isComm ? 'bg-slate-50/80' : ''} ${extra}">${t}</th>`;
-                const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="w-24 px-2 py-3 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatAdminMoney(v)}</td>`;
+                const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="w-24 px-2 py-2 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatAdminMoney(v)}</td>`;
 
                 const rows = pageList.map(u => {
                     let total = 0;
                     let cols = '';
                     if (state.adminTab === 'reward') {
-                        const rewardTotal = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0) + (u.hqPay || 0) + (u.hqRef || 0);
+                        const rewardTotal = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0) + (u.hqPay || 0) + (u.hqRef || 0) + (u.nlCorpPay || 0) + (u.nlCorpRef || 0) + (u.lCorpPay || 0) + (u.lCorpRef || 0);
                         const commTotal = isBranch ? ((u.nlCommPay || 0) + (u.nlCommRef || 0) + (u.lCommPay || 0) + (u.lCommRef || 0) + (u.mgrCommPay || 0) + (u.mgrCommRef || 0)) : 0;
                         total = rewardTotal + commTotal;
                         if (isBranch) {
@@ -1468,7 +1468,7 @@
                             cols += td(u.lCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','pay')`, true);
                             cols += td(u.lCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','refund')`, true);
                             cols += td(u.mgrCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','pay')`, true);
-                            cols += td(u.mgrCommRef || 0, 'text-red-500 border-r-2 border-gray-300', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`, true);
+                            cols += td(u.mgrCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`, true);
                         }
                         cols += td(u.nlPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'pay')`);
                         cols += td(u.nlRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'refund')`);
@@ -1476,6 +1476,10 @@
                         cols += td(u.lRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보 시상금', 'refund')`);
                         cols += td(u.hqPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'pay')`);
                         cols += td(u.hqRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'refund')`);
+                        cols += td(u.nlCorpPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보법인 시상금(개인)', 'pay')`);
+                        cols += td(u.nlCorpRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보법인 시상금(개인)', 'refund')`);
+                        cols += td(u.lCorpPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'pay')`);
+                        cols += td(u.lCorpRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'refund')`);
                     } else {
                         total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0);
                         cols = td(u.nlPay || 0, 'text-blue-600') + td(u.nlRef || 0, 'text-red-500 border-r border-gray-200') + td(u.lPay || 0, 'text-blue-600') + td(u.lRef || 0, 'text-red-500 border-r border-gray-200');
@@ -1484,8 +1488,8 @@
                     const pcDot = `<div class="inline-block w-1.5 h-1.5 rounded-full ${dotColor} mr-2 align-middle"></div>`;
                     const nameContent = `${pcDot}${u.name}`;
                     const nameCell = state.adminTab === 'recruitment'
-                        ? `<td class="px-4 py-3 font-semibold text-blue-600 text-center cursor-pointer hover:underline decoration-blue-300 underline-offset-4" onclick="fetchAndShowOrgTree('${u.id}', '${u.name}')"><div class="flex items-center justify-center">${nameContent}</div></td>`
-                        : `<td class="px-4 py-3 font-semibold text-gray-900 text-center"><div class="flex items-center justify-center">${nameContent}</div></td>`;
+                        ? `<td class="px-4 py-2 font-semibold text-blue-600 text-center cursor-pointer hover:underline decoration-blue-300 underline-offset-4 sticky left-0 z-10 bg-white group-hover:bg-gray-100 transition shadow-[inset_-1px_0_0_0_#f3f4f6]" onclick="fetchAndShowOrgTree('${u.id}', '${u.name}')"><div class="flex items-center justify-center text-[13px]">${nameContent}</div></td>`
+                        : `<td class="px-4 py-2 font-semibold text-gray-900 text-center sticky left-0 z-10 bg-white group-hover:bg-gray-100 transition shadow-[inset_-1px_0_0_0_#f3f4f6]"><div class="flex items-center justify-center text-[13px]">${nameContent}</div></td>`;
                     return { u, total, cols, nameCell };
                 });
 
@@ -1494,11 +1498,13 @@
                     if (isBranch) {
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">손보수수료</th>`;
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">생보수수료</th>`;
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200 border-r-2 border-r-gray-300">관리수수료</th>`;
+                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200 border-r border-gray-200">관리수수료</th>`;
                     }
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보시상</th>`;
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보시상</th>`;
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">본부시상</th>`;
+                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보법인</th>`;
+                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보법인</th>`;
                 } else {
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보증원</th>`;
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보증원</th>`;
@@ -1509,8 +1515,10 @@
                     if (isBranch) {
                         subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
                         subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
-                        subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r-2 border-gray-300', true);
+                        subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
                     }
+                    subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
+                    subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
                     subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
                     subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
                     subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
@@ -1565,6 +1573,16 @@
                                 <p class="text-[9px] text-gray-500 font-bold mb-0.5">본부시상</p>
                                 <p class="text-xs font-bold ${(u.hqPay || 0) + (u.hqRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.hqPay || 0) + (u.hqRef || 0))}</p>
                             </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1 mt-2 pt-2 border-t border-gray-50">
+                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
+                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">손보법인</p>
+                                <p class="text-xs font-bold ${(u.nlCorpPay || 0) + (u.nlCorpRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.nlCorpPay || 0) + (u.nlCorpRef || 0))}</p>
+                            </div>
+                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
+                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">생보법인</p>
+                                <p class="text-xs font-bold ${(u.lCorpPay || 0) + (u.lCorpRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.lCorpPay || 0) + (u.lCorpRef || 0))}</p>
+                            </div>
                         </div>` : `
                         <div class="grid grid-cols-2 gap-1 mt-2 pt-2 border-t border-gray-50">
                             <div class="text-center p-1.5 bg-gray-50 rounded-lg">
@@ -1599,7 +1617,7 @@
                     <table class="min-w-full divide-y divide-gray-200 whitespace-nowrap">
                        <thead class="bg-gray-50">
                          <tr>
-                           <th rowspan="2" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle border-b border-gray-200">이름</th>
+                           <th rowspan="2" class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle border-b border-gray-200 sticky left-0 z-20 bg-gray-50 shadow-[inset_-1px_0_0_0_#e5e7eb]">이름</th>
                            ${headerCols}
                            <th rowspan="2" class="px-4 py-3 text-right font-bold text-gray-800 bg-gray-100/50 align-middle border-b border-gray-200">합계</th>
                          </tr>
@@ -1607,7 +1625,7 @@
                        </thead>
                        <tbody class="divide-y divide-gray-200 bg-white">
                           ${rows.map(({ cols, nameCell, total }) =>
-                    `<tr class="hover:bg-gray-50 transition">${nameCell}${cols}<td class="px-4 py-3 text-right font-bold ${total < 0 ? 'text-red-500' : 'text-gray-900'} bg-gray-50/30">${formatAdminMoney(total)}</td></tr>`
+                    `<tr class="group hover:bg-gray-100 transition">${nameCell}${cols}<td class="px-4 py-2 text-right font-bold ${total < 0 ? 'text-red-500' : 'text-gray-900'} bg-gray-50/30 text-[13px] group-hover:bg-gray-100/50 transition">${formatAdminMoney(total)}</td></tr>`
                 ).join('')}
                        </tbody>
                     </table>
