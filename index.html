@@ -1452,8 +1452,8 @@
                 const pageList = list.slice(start, start + state.pageSize);
 
                 // Header Definitions
-                const th = (t, extra = '', isComm = false) => `<th class="w-24 px-2 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider ${isComm ? 'bg-slate-50/80' : ''} ${extra}">${t}</th>`;
-                const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="w-24 px-2 py-2 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60' : ''}" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatAdminMoney(v)}</td>`;
+                const th = (t, extra = '', isComm = false) => `<th class="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider ${isComm ? 'bg-slate-50/80' : ''} min-w-[85px] w-[85px] max-w-[85px] ${extra}">${t}</th>`;
+                const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="px-2 py-2 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60' : ''} min-w-[85px] w-[85px] max-w-[85px]" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatAdminMoney(v)}</td>`;
 
                 const rows = pageList.map(u => {
                     let total = 0;
