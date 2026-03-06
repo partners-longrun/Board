@@ -705,8 +705,8 @@
 
             container.innerHTML = `
                 <header class="bg-white shadow-sm sticky top-0 z-40 transition-shadow duration-300">
-                    <div class="${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'max-w-full' : 'max-w-7xl'} mx-auto px-4 sm:px-6 lg:px-8">
-                        <div class="flex justify-between h-16 relative">
+                    <div class="${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'w-max px-4 mx-auto' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}">
+                        <div class="flex justify-between h-16 relative" ${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'style="width: 1595px;"' : ''}>
                             <div class="flex">
                                 <div class="absolute inset-x-0 h-16 flex items-center justify-center pointer-events-none md:static md:h-auto md:justify-start z-10">
                                     <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate('home')">
@@ -783,7 +783,7 @@
                     <div id="mobile-backdrop" class="fixed inset-0 bg-black/50 z-20 hidden transition-opacity duration-300 md:hidden"></div>
                 </header>
 
-                <main class="flex-grow ${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'max-w-full' : 'max-w-7xl'} mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+                <main class="flex-grow ${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'w-max px-4 mx-auto' : 'max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8'} py-8 animate-fadeIn" ${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'style="width: 1595px;"' : ''}>
                      <div id="main-view"></div>
                 </main>
 
