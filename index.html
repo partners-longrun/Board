@@ -2200,31 +2200,51 @@
         }
 
         window.fetchAndShowLapsedContractsByRecruiter = async function (staffId, staffName) {
-            showLoading(true);
-            const res = await callApi('getLapsedContractsByRecruiter', state.user.staffId, staffId);
-            showLoading(false);
+            const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${staffId}`;
+            let cached = sessionStorage.getItem(cacheKey);
+            let res = null;
+            if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
 
-            if (res.error || !res.success) {
+            if (!res) {
+                showLoading(true);
+                res = await callApi('getLapsedContractsByRecruiter', state.user.staffId, staffId);
+                showLoading(false);
+                if (res && !res.error && res.success) {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res));
+                }
+            }
+
+            if (res && (res.error || !res.success)) {
                 alert('상세 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
                 return;
             }
 
             // Using the existing modal template, but providing staff name as title context
             const titleContext = `[${staffName}] `;
-            showLapsedContractsModal(res.list, titleContext);
+            showLapsedContractsModal(res.list || [], titleContext);
         };
 
         window.fetchAndShowLapseAdminDetail = async function (staffId, staffName, type) {
-            showLoading(true);
-            const res = await callApi('getLapseManagementData', staffId, state.lapseBaseType);
-            showLoading(false);
+            const cacheKey = `DATA_LAPSE_DETAIL_${staffId}_${state.lapseBaseType}`;
+            let cached = sessionStorage.getItem(cacheKey);
+            let res = null;
+            if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
 
-            if (res.error || !res.success) {
+            if (!res) {
+                showLoading(true);
+                res = await callApi('getLapseManagementData', staffId, state.lapseBaseType);
+                showLoading(false);
+                if (res && !res.error && res.success) {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(res));
+                }
+            }
+
+            if (res && (res.error || !res.success)) {
                 alert('상세 내역을 불러오지 못했습니다: ' + (res.message || '알 수 없는 오류'));
                 return;
             }
 
-            const dataToRender = type === 'lapsed' ? res.lapsed : res.arrears;
+            const dataToRender = type === 'lapsed' ? (res.lapsed || []) : (res.arrears || []);
             openLapseAdminDetailModal(dataToRender, staffName, type);
         };
 
@@ -3107,6 +3127,19 @@
                         state.data.lapseAdminSummary = res.list || [];
                         state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                         state.data.lapseAdminSummaryType = 'recruiter';
+
+                        // [UX 개선] 실효연체 팝업 미리 캐싱 (Prefetch)
+                        const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
+                        membersToPrefetch.forEach((m, idx) => {
+                            setTimeout(() => {
+                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
+                                if (!sessionStorage.getItem(cacheKey)) {
+                                    callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
+                                        if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
+                                    });
+                                }
+                            }, idx * 1000); // 1초 간격
+                        });
                     }
                 });
             }
@@ -3116,6 +3149,19 @@
                 callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
                     if (!res.error && res.success) {
                         state.data.retentionAdminSummary = res.list || [];
+
+                        // [UX 개선] 통산유지율 팝업 미리 캐싱 (Prefetch)
+                        const membersToPrefetch = state.data.retentionAdminSummary.slice(0, 30);
+                        membersToPrefetch.forEach((m, idx) => {
+                            setTimeout(() => {
+                                const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${m.id}`;
+                                if (!sessionStorage.getItem(cacheKey)) {
+                                    callApi('getLapsedContractsByRecruiter', state.user.staffId, m.id).then(rd => {
+                                        if (rd && !rd.error && rd.success) sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                    });
+                                }
+                            }, 5000 + (idx * 1000)); // 다른 프리페치와 안겹치도록 지연 대기 후 1초 간격 실행
+                        });
                     }
                 });
             }
