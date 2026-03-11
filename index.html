@@ -1403,15 +1403,22 @@
             if (state.branchSubView === 'loginHistory') {
                 // 날짜 계산 유틸
                 const todayD = new Date();
-                const fmtDate = (d) => d.toISOString().slice(0, 10);
+                // 볼지 포맷터: 로켈 날짜 기준 (toISOString 사용시 UTC 오프셋으로 1일 밀롬 발생)
+                const fmtDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 const getMonthRange = (offset) => {
-                    const d = new Date(todayD.getFullYear(), todayD.getMonth() + offset, 1);
-                    const start = new Date(d.getFullYear(), d.getMonth(), 1);
-                    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+                    const y = todayD.getFullYear(), m = todayD.getMonth() + offset;
+                    const start = new Date(y, m, 1);
+                    const end = new Date(y, m + 1, 0);
+                    return { start: fmtDate(start), end: fmtDate(end) };
+                };
+                const getLast30Range = () => {
+                    const end = new Date(todayD);
+                    const start = new Date(todayD);
+                    start.setDate(start.getDate() - 29);
                     return { start: fmtDate(start), end: fmtDate(end) };
                 };
 
-                const defaultRange = getMonthRange(0); // 당월
+                const defaultRange = getLast30Range(); // 디폴트: 최근 30일
 
                 div.innerHTML = `
                 <!-- 제목행 + 탭 버튼 -->
@@ -1434,6 +1441,7 @@
                         <div class="flex flex-col gap-1 min-w-[110px]">
                             <label class="text-xs font-bold text-gray-500">빠른 선택</label>
                             <select id="lh-quick-select" class="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 font-medium cursor-pointer focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                                <option value="last30" selected>최근 30일</option>
                                 <option value="0">당월</option>
                                 <option value="-1">전월</option>
                                 <option value="-2">전전월</option>
@@ -1471,17 +1479,26 @@
                     const fetchBtn = div.querySelector('#lh-fetch-btn');
 
                     const todayLocal = new Date();
-                    const fmtLocal = (d) => d.toISOString().slice(0, 10);
+                    // 로켈 날짜 기준 포맷터 (한국 시간대 UTC+9 오프셋 문제 해결)
+                    const fmtLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     const getMRange = (offset) => {
-                        const s = new Date(todayLocal.getFullYear(), todayLocal.getMonth() + offset, 1);
-                        const e = new Date(todayLocal.getFullYear(), todayLocal.getMonth() + offset + 1, 0);
+                        const y = todayLocal.getFullYear(), m = todayLocal.getMonth() + offset;
+                        const s = new Date(y, m, 1);
+                        const e = new Date(y, m + 1, 0);
+                        return { start: fmtLocal(s), end: fmtLocal(e) };
+                    };
+                    const getLast30 = () => {
+                        const e = new Date(todayLocal);
+                        const s = new Date(todayLocal);
+                        s.setDate(s.getDate() - 29);
                         return { start: fmtLocal(s), end: fmtLocal(e) };
                     };
 
                     // 빠른 선택 콤보박스 변경 시 날짜 입력란 자동 갱신
                     if (quickSel) {
                         quickSel.addEventListener('change', () => {
-                            const range = getMRange(parseInt(quickSel.value));
+                            const v = quickSel.value;
+                            const range = v === 'last30' ? getLast30() : getMRange(parseInt(v));
                             if (startInput) startInput.value = range.start;
                             if (endInput) endInput.value = range.end;
                         });
