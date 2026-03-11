@@ -1227,7 +1227,7 @@
             if (state.branchSubView === 'newContracts') {
                 // === 신계약 리스트 화면 ===
                 div.innerHTML = `
-                <!-- 제목행 + 대시보드/신계약 탭 버튼 (오른쪽 끝) -->
+                <!-- 제목행 + 대시보드/신계약/로그인기록 탭 버튼 (오른쪽 끝) -->
                 <div class="flex flex-col sm:flex-row justify-between mb-4 items-start sm:items-center gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-gray-800 tracking-tight">신계약 리스트 (${state.currentMonth})</h2>
@@ -1236,6 +1236,7 @@
                     <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl self-start sm:self-center">
                         <button onclick="setBranchSubView('dashboard')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">대시보드</button>
                         <button onclick="setBranchSubView('newContracts')" class="px-4 py-2 text-sm rounded-md transition duration-200 bg-white shadow-sm text-primary font-bold">신계약 리스트</button>
+                        <button onclick="setBranchSubView('loginHistory')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">로그인 기록</button>
                     </div>
                 </div>
 
@@ -1398,6 +1399,249 @@
                 return div;
             }
 
+            // === 로그인 기록 화면 ===
+            if (state.branchSubView === 'loginHistory') {
+                // 날짜 계산 유틸
+                const todayD = new Date();
+                const fmtDate = (d) => d.toISOString().slice(0, 10);
+                const getMonthRange = (offset) => {
+                    const d = new Date(todayD.getFullYear(), todayD.getMonth() + offset, 1);
+                    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+                    const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+                    return { start: fmtDate(start), end: fmtDate(end) };
+                };
+
+                const defaultRange = getMonthRange(0); // 당월
+
+                div.innerHTML = `
+                <!-- 제목행 + 탭 버튼 -->
+                <div class="flex flex-col sm:flex-row justify-between mb-6 items-start sm:items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">로그인 기록</h2>
+                        <p class="text-gray-500 text-sm mt-1">Board 시트 기준 사용자 로그인 활동 현황입니다.</p>
+                    </div>
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl self-start sm:self-center">
+                        <button onclick="setBranchSubView('dashboard')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">대시보드</button>
+                        <button onclick="setBranchSubView('newContracts')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">신계약 리스트</button>
+                        <button onclick="setBranchSubView('loginHistory')" class="px-4 py-2 text-sm rounded-md transition duration-200 bg-white shadow-sm text-primary font-bold">로그인 기록</button>
+                    </div>
+                </div>
+
+                <!-- 날짜 필터 UI -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+                    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                        <!-- 빠른 기간 선택 콤보박스 -->
+                        <div class="flex flex-col gap-1 min-w-[110px]">
+                            <label class="text-xs font-bold text-gray-500">빠른 선택</label>
+                            <select id="lh-quick-select" class="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 font-medium cursor-pointer focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                                <option value="0">당월</option>
+                                <option value="-1">전월</option>
+                                <option value="-2">전전월</option>
+                            </select>
+                        </div>
+                        <!-- 시작일 -->
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs font-bold text-gray-500">시작일</label>
+                            <input type="date" id="lh-start" value="${defaultRange.start}" class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                        </div>
+                        <!-- 종료일 -->
+                        <div class="flex flex-col gap-1">
+                            <label class="text-xs font-bold text-gray-500">종료일</label>
+                            <input type="date" id="lh-end" value="${defaultRange.end}" class="border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-gray-50 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                        </div>
+                        <!-- 조회 버튼 -->
+                        <button id="lh-fetch-btn" class="px-5 py-2.5 bg-primary hover:bg-primaryHover text-white text-sm font-bold rounded-xl shadow-sm transition whitespace-nowrap self-end">
+                            조회
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 결과 영역 -->
+                <div id="lh-result">
+                    <div class="flex items-center justify-center h-40">
+                        <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                </div>`;
+
+                setTimeout(async () => {
+                    const resultEl = div.querySelector('#lh-result');
+                    const startInput = div.querySelector('#lh-start');
+                    const endInput = div.querySelector('#lh-end');
+                    const quickSel = div.querySelector('#lh-quick-select');
+                    const fetchBtn = div.querySelector('#lh-fetch-btn');
+
+                    const todayLocal = new Date();
+                    const fmtLocal = (d) => d.toISOString().slice(0, 10);
+                    const getMRange = (offset) => {
+                        const s = new Date(todayLocal.getFullYear(), todayLocal.getMonth() + offset, 1);
+                        const e = new Date(todayLocal.getFullYear(), todayLocal.getMonth() + offset + 1, 0);
+                        return { start: fmtLocal(s), end: fmtLocal(e) };
+                    };
+
+                    // 빠른 선택 콤보박스 변경 시 날짜 입력란 자동 갱신
+                    if (quickSel) {
+                        quickSel.addEventListener('change', () => {
+                            const range = getMRange(parseInt(quickSel.value));
+                            if (startInput) startInput.value = range.start;
+                            if (endInput) endInput.value = range.end;
+                        });
+                    }
+
+                    const renderLoginHistory = (list) => {
+                        if (!list || list.length === 0) {
+                            resultEl.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">해당 기간의 로그인 기록이 없습니다.</div>`;
+                            return;
+                        }
+
+                        // 1. 집계
+                        const totalCount = list.length;
+                        const userMap = {};
+                        list.forEach(r => { userMap[r.staffId] = (userMap[r.staffId] || 0) + 1; });
+                        const uniqueUsers = Object.keys(userMap).length;
+                        const topUser = Object.entries(userMap).sort((a, b) => b[1] - a[1])[0];
+                        const topUserName = topUser ? (list.find(r => r.staffId === topUser[0])?.name || topUser[0]) : '-';
+                        const topUserCount = topUser ? topUser[1] : 0;
+
+                        // 2. 시간대별 분포 (0~23시)
+                        const hourDist = Array(24).fill(0);
+                        list.forEach(r => { if (r.hour >= 0 && r.hour < 24) hourDist[r.hour]++; });
+                        const maxHour = Math.max(...hourDist, 1);
+
+                        // 시간대 차트 HTML (CSS 막대 그래프, 업무시간대 강조)
+                        const barChart = Array.from({ length: 24 }, (_, h) => {
+                            const cnt = hourDist[h];
+                            const pct = Math.round((cnt / maxHour) * 100);
+                            const isWork = h >= 8 && h <= 19;
+                            const barColor = isWork ? 'bg-primary' : 'bg-gray-300';
+                            return `<div class="flex flex-col items-center gap-0.5" style="width: calc(100%/24)">
+                                <span class="text-[9px] text-gray-500 font-medium">${cnt > 0 ? cnt : ''}</span>
+                                <div class="w-full flex flex-col justify-end" style="height:60px">
+                                    <div class="${barColor} rounded-t-sm transition-all duration-300" style="height:${pct}%"></div>
+                                </div>
+                                <span class="text-[9px] text-gray-400">${h}</span>
+                            </div>`;
+                        }).join('');
+
+                        // 3. 날짜별 로그인 카운트 (최근 10일)
+                        const dateMap = {};
+                        list.forEach(r => { if (r.date) dateMap[r.date] = (dateMap[r.date] || 0) + 1; });
+                        const dateEntries = Object.entries(dateMap).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 10);
+                        const maxDate = Math.max(...dateEntries.map(e => e[1]), 1);
+                        const dateBarChart = dateEntries.map(([date, cnt]) => {
+                            const pct = Math.round((cnt / maxDate) * 100);
+                            return `<div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-500 w-24 text-right shrink-0">${date}</span>
+                                <div class="flex-grow bg-gray-100 rounded-full h-4 overflow-hidden">
+                                    <div class="bg-primary h-4 rounded-full transition-all duration-300" style="width:${pct}%"></div>
+                                </div>
+                                <span class="text-xs font-bold text-gray-700 w-6 shrink-0">${cnt}</span>
+                            </div>`;
+                        }).join('');
+
+                        // 4. 상세 테이블
+                        const rows = list.map(r => `
+                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                            <td class="p-3 text-xs text-gray-500 font-mono whitespace-nowrap">${r.datetime}</td>
+                            <td class="p-3 font-semibold text-gray-800 text-center">${r.name}</td>
+                            <td class="p-3 text-sm text-gray-500 text-center font-mono">${r.staffId}</td>
+                            <td class="p-3 text-center">
+                                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600">${r.device}</span>
+                            </td>
+                        </tr>`).join('');
+
+                        // 모바일 카드
+                        const mobileCards = list.slice(0, 50).map(r => `
+                        <div class="bg-white rounded-xl border border-gray-100 p-3.5 flex justify-between items-center shadow-sm">
+                            <div>
+                                <p class="font-bold text-gray-800">${r.name} <span class="text-xs text-gray-400 font-normal ml-1">${r.staffId}</span></p>
+                                <p class="text-xs text-gray-400 mt-0.5 font-mono">${r.datetime}</p>
+                            </div>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-gray-100 text-gray-600 shrink-0 ml-2">${r.device}</span>
+                        </div>`).join('');
+
+                        resultEl.innerHTML = `
+                        <!-- 요약 카드 3개 -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col items-center text-center border-l-[5px] border-l-primary">
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">총 로그인 횟수</p>
+                                <p class="text-3xl font-extrabold text-gray-800">${totalCount}<span class="text-lg ml-1 font-semibold text-gray-400">회</span></p>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col items-center text-center border-l-[5px] border-l-blue-500">
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">고유 사용자 수</p>
+                                <p class="text-3xl font-extrabold text-gray-800">${uniqueUsers}<span class="text-lg ml-1 font-semibold text-gray-400">명</span></p>
+                            </div>
+                            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col items-center text-center border-l-[5px] border-l-orange-400">
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">최다 로그인 사용자</p>
+                                <p class="text-xl font-extrabold text-gray-800">${topUserName}</p>
+                                <p class="text-sm text-gray-400 mt-1">${topUserCount}회 로그인</p>
+                            </div>
+                        </div>
+
+                        <!-- 시간대별 분포 차트 -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="w-1.5 h-5 bg-primary rounded-full"></span>
+                                <h3 class="font-bold text-gray-800">시간대별 로그인 분포</h3>
+                                <span class="text-xs text-gray-400 ml-auto">주황색: 업무시간(08~19시)</span>
+                            </div>
+                            <div class="flex items-end gap-0.5 w-full">${barChart}</div>
+                        </div>
+
+                        <!-- 날짜별 로그인 분포 (최근 10일) -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="w-1.5 h-5 bg-blue-500 rounded-full"></span>
+                                <h3 class="font-bold text-gray-800">날짜별 로그인 현황 <span class="text-xs font-normal text-gray-400">(최근 10일)</span></h3>
+                            </div>
+                            ${dateEntries.length > 0 ? `<div class="flex flex-col gap-2">${dateBarChart}</div>` : '<p class="text-sm text-gray-400">데이터 없음</p>'}
+                        </div>
+
+                        <!-- 상세 테이블 -->
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                    <span class="w-1.5 h-5 bg-gray-400 rounded-full block"></span>
+                                    로그인 상세 내역 <span class="text-xs font-normal text-gray-400 ml-2">(총 <span class="text-primary font-bold">${totalCount}</span>건)</span>
+                                </h3>
+                            </div>
+                            <div class="hidden md:block overflow-x-auto">
+                                <table class="w-full text-sm">
+                                    <thead class="bg-gray-50 border-b border-gray-100">
+                                        <tr class="text-left text-gray-500">
+                                            <th class="p-3 font-semibold">로그인 일시</th>
+                                            <th class="p-3 font-semibold text-center">이름</th>
+                                            <th class="p-3 font-semibold text-center">사번</th>
+                                            <th class="p-3 font-semibold text-center">디바이스</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${rows}</tbody>
+                                </table>
+                            </div>
+                            <div class="md:hidden flex flex-col gap-2 p-3">${mobileCards}${list.length > 50 ? `<p class="text-xs text-center text-gray-400 mt-2">모바일에서는 최근 50건만 표시됩니다.</p>` : ''}</div>
+                        </div>`;
+                    };
+
+                    const loadData = async () => {
+                        const start = startInput?.value || '';
+                        const end = endInput?.value || '';
+                        resultEl.innerHTML = `<div class="flex items-center justify-center h-40"><div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>`;
+                        const res = await callApi('getLoginHistory', start, end, state.user.staffId);
+                        if (res.error) {
+                            resultEl.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl">${res.message}</div>`;
+                            return;
+                        }
+                        renderLoginHistory(res.list || []);
+                    };
+
+                    if (fetchBtn) fetchBtn.addEventListener('click', loadData);
+
+                    // 초기 데이터 로드
+                    loadData();
+                }, 10);
+
+                return div;
+            }
+
             // === 대시보드 화면 (default) ===
 
             // 시상금 데이터
@@ -1502,6 +1746,7 @@
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl self-start sm:self-center">
                     <button onclick="setBranchSubView('dashboard')" class="px-4 py-2 text-sm rounded-md transition duration-200 bg-white shadow-sm text-primary font-bold">대시보드</button>
                     <button onclick="setBranchSubView('newContracts')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">신계약 리스트</button>
+                    <button onclick="setBranchSubView('loginHistory')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">로그인 기록</button>
                 </div>
             </div>
 
