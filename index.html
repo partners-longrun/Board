@@ -3559,9 +3559,7 @@
             let originalText = "로그인";
             if (btn) {
                 originalText = btn.innerHTML;
-                btn.innerHTML = `< div
-                class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2" >
-</div > 인증 중...`;
+                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div> 인증 중...`;
                 btn.disabled = true;
                 btn.classList.add('opacity-80', 'cursor-not-allowed');
             }
