@@ -2669,6 +2669,9 @@
 
             showLoading(true);
 
+            const today = new Date();
+            const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
             let printHtml = `
             <!DOCTYPE html>
             <html>
@@ -2680,7 +2683,7 @@
                     body { font-family: 'Pretendard', sans-serif; margin: 0; padding: 0; color: #111; background: #fff; }
                     .page { page-break-after: always; padding: 25px; box-sizing: border-box; width: 100%; height: 100vh; overflow: hidden; }
                     .page:last-child { page-break-after: auto; }
-                    .header { display: flex; align-items: center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px; }
+                    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px; }
                     .header-pill { background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-right: 12px; border: 1px solid #bfdbfe; }
                     h2 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
                     .section-title { font-size: 15px; font-weight: 700; color: #333; margin-top: 24px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -2730,11 +2733,13 @@
                 const lapsedData = d.lapsed || [];
                 const arrearsData = d.arrears || [];
 
-                printHtml += `<div class="page">`;
-                printHtml += `
+                printHtml += `<div class="page">
                     <div class="header">
-                        <span class="header-pill">${state.lapseBaseType === 'recruiter' ? '모집인 기준' : '수금인 기준'}</span>
-                        <h2>[${person.name}] 당월 실효 & 연체계약 상세 리스트</h2>
+                        <div style="display: flex; align-items: center;">
+                            <span class="header-pill">${state.lapseBaseType === 'recruiter' ? '모집인 기준' : '수금인 기준'}</span>
+                            <h2>[${person.name}] 당월 실효 & 연체계약 상세 리스트</h2>
+                        </div>
+                        <div style="font-size: 13px; font-weight: 600; color: #555;">출력일 : ${todayStr}</div>
                     </div>`;
 
                 // 실효 계약
@@ -2748,12 +2753,13 @@
                                 <th style="width: 7%">수금인</th>
                                 <th style="width: 10%">보험사</th>
                                 <th style="width: 12%">증권번호</th>
-                                <th style="width: 25%" class="text-left">상품명</th>
+                                <th style="width: 18%" class="text-left">상품명</th>
                                 <th style="width: 9%" class="text-right">계속보험료</th>
                                 <th style="width: 8%">계약일</th>
                                 <th style="width: 5%">회차</th>
                                 <th style="width: 6%">최종납입</th>
                                 <th style="width: 6%">계약자</th>
+                                <th style="width: 7%">기준일</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -2774,6 +2780,7 @@
                             <td>${x['납입회차']}</td>
                             <td style="font-family: monospace;">${x['최종납입월']}</td>
                             <td>${x['계약자']}</td>
+                            <td style="color:#6b7280; font-size:10px;">${x['데이터기준일'] || '-'}</td>
                         </tr>`;
                     });
                     printHtml += `</tbody></table>`;
@@ -2792,12 +2799,13 @@
                                 <th style="width: 7%">수금인</th>
                                 <th style="width: 10%">보험사</th>
                                 <th style="width: 12%">증권번호</th>
-                                <th style="width: 25%" class="text-left">상품명</th>
+                                <th style="width: 18%" class="text-left">상품명</th>
                                 <th style="width: 9%" class="text-right">계속보험료</th>
                                 <th style="width: 8%">계약일</th>
                                 <th style="width: 5%">회차</th>
                                 <th style="width: 6%">최종납입</th>
                                 <th style="width: 6%">계약자</th>
+                                <th style="width: 7%">기준일</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -2818,6 +2826,7 @@
                             <td>${x['납입회차']}</td>
                             <td style="font-family: monospace;">${x['최종납입월']}</td>
                             <td>${x['계약자']}</td>
+                            <td style="color:#6b7280; font-size:10px;">${x['데이터기준일'] || '-'}</td>
                         </tr>`;
                     });
                     printHtml += `</tbody></table>`;
@@ -2839,7 +2848,7 @@
 </body>
 
 </html>
-`;
+                    `;
 
             showLoading(false);
 
@@ -2876,7 +2885,7 @@
             const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
 
             const desktopRows = d.length ? d.map(x => `
-<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    < tr class="border-b border-gray-100 hover:bg-gray-50 transition" >
     <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
                 '-'}</td>
     <td class="p-3 text-gray-700">${x.company}</td>
@@ -2892,12 +2901,12 @@
     <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
     </td>
     <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
-</tr>`).join('') : `<tr>
-    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
-</tr>`;
+</tr > `).join('') : ` < tr >
+                    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr > `;
 
             const mobileCards = d.length ? d.map(x => `
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+                    < div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0" >
     <div class="flex justify-between items-start mb-2">
         <div>
             <p class="font-bold text-gray-900">${x.recruiter || '-'} <span
@@ -2932,12 +2941,12 @@
         title="${x.desc}">
         <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
     </div>
-</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
+</div > `).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
 
-            const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
+            const titlePrefix = customTitle ? `< span class="text-gray-500 mr-2" > [${customTitle}]</span > ` : '';
 
-            modal.innerHTML = `<div
-    class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+            modal.innerHTML = `< div
+                class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5" >
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
         <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
             <span class="w-1.5 h-5 md:h-6 bg-primary rounded-full block shadow-sm"></span>
@@ -2992,7 +3001,7 @@
         <button
             class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
     </div>
-</div>`;
+</div > `;
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
                 document.body.classList.remove('modal-open');
@@ -3008,8 +3017,8 @@
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
             const payLabel = type === 'pay' ? '지급' : '환수';
             const payColor = type === 'pay' ? 'text-blue-600' : 'text-red-500';
-            modal.innerHTML = `<div
-    class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+            modal.innerHTML = `< div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5" >
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
         <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
             <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
@@ -3028,7 +3037,7 @@
         <button
             class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
     </div>
-</div>`;
+</div > `;
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
                 document.body.classList.remove('modal-open');
@@ -3036,7 +3045,7 @@
             });
 
             // 2. 데이터 로드 (캐시 우선 확인)
-            const cacheKey = `DATA_${id}_${state.currentMonth}_dashboard`;
+            const cacheKey = `DATA_${id}_${state.currentMonth} _dashboard`;
             let d = null;
             const cached = sessionStorage.getItem(cacheKey);
             if (cached) {
@@ -3061,17 +3070,17 @@
                 // 타이틀에 합계 추가
                 const titleEl = modal.querySelector('h3');
                 if (titleEl) {
-                    titleEl.insertAdjacentHTML('afterend', `<div class="text-right">
+                    titleEl.insertAdjacentHTML('afterend', `< div class="text-right" >
     <div class="text-xs text-gray-400 font-medium">합계</div>
     <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
-</div>`);
+</div > `);
                     titleEl.closest('div').classList.add('justify-between');
                 }
 
                 const calcRate = (amt, prem) => (!prem || prem == 0) ? '0%' : ((amt / prem) * 100).toFixed(1) + '%';
 
                 const desktopRows = details.length ? details.map(x => `
-<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    < tr class="border-b border-gray-100 hover:bg-gray-50 transition" >
     <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
                     name}</td>
     <td class="p-3 text-gray-700">${x.company}</td>
@@ -3087,12 +3096,12 @@
     <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
     </td>
     <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
-</tr>`).join('') : `<tr>
-    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
-</tr>`;
+</tr > `).join('') : ` < tr >
+                    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr > `;
 
                 const mobileCards = details.length ? details.map(x => `
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+                    < div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0" >
     <div class="flex justify-between items-start mb-2">
         <div>
             <p class="font-bold text-gray-900">${x.recruiter || name} <span
@@ -3127,10 +3136,10 @@
         title="${x.desc}">
         <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
     </div>
-</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
+</div > `).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
 
-                body.outerHTML = `<div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
-    <!-- 데스크탑 테이블 뷰 -->
+                body.outerHTML = `< div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0" >
+    < !--데스크탑 테이블 뷰-- >
     <div class="hidden md:block">
         <table class="w-full text-sm whitespace-nowrap">
             <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
@@ -3152,13 +3161,13 @@
         </table>
     </div>
 
-    <!-- 모바일 카드 뷰 -->
-    <div class="md:hidden flex flex-col">
-        ${mobileCards}
-    </div>
-</div>`;
+    <!--모바일 카드 뷰-- >
+                    <div class="md:hidden flex flex-col">
+                        ${mobileCards}
+                    </div>
+</div > `;
             } else {
-                body.innerHTML = `<div class="p-8 text-center text-red-500">오류: ${(d && d.message) || '데이터를 불러올 수 없습니다.'}</div>`;
+                body.innerHTML = `< div class="p-8 text-center text-red-500" > 오류: ${(d && d.message) || '데이터를 불러올 수 없습니다.'}</div > `;
             }
         };
 
@@ -3171,8 +3180,8 @@
             const typeLabel = commType === 'nl' ? '손보수수료' : commType === 'l' ? '생보수수료' : '관리수수료';
             const payLabel = payType === 'pay' ? '지급' : '환수';
             const colorClass = payType === 'pay' ? 'blue' : 'red';
-            modal.innerHTML = `<div
-    class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+            modal.innerHTML = `< div
+                class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5" >
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
         <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
             <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
@@ -3191,7 +3200,7 @@
         <button
             class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
     </div>
-</div>`;
+</div > `;
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
                 document.body.classList.remove('modal-open');
@@ -3199,7 +3208,7 @@
             });
 
             // 2. 데이터 로드 (캐시 우선 확인)
-            const cacheKey = `DATA_COMM_${targetId}_${state.currentMonth}_${commType}_${payType}`;
+            const cacheKey = `DATA_COMM_${targetId}_${state.currentMonth}_${commType}_${payType} `;
             let res = null;
             const cached = sessionStorage.getItem(cacheKey);
             if (cached) {
@@ -3217,7 +3226,7 @@
             if (!body) return;
 
             if (res.error || !res.success) {
-                body.innerHTML = `<div class="p-8 text-center text-red-500">수수료 내역을 불러오지 못했습니다: ${res.message || '알 수 없는 오류'}</div>`;
+                body.innerHTML = `< div class="p-8 text-center text-red-500" > 수수료 내역을 불러오지 못했습니다: ${res.message || '알 수 없는 오류'}</div > `;
                 return;
             }
 
@@ -3229,17 +3238,17 @@
             const headerDiv = modal.querySelector('.justify-between') || modal.querySelector('.flex.justify-between');
             if (headerDiv) {
                 const btn = headerDiv.querySelector('.close');
-                const summaryHtml = `<div class="flex items-center gap-4 mr-2">
-    <div class="text-right">
-        <div class="text-xs text-gray-400 font-medium">합계 (${list.length}건)</div>
-        <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
-    </div>
-</div>`;
+                const summaryHtml = `< div class="flex items-center gap-4 mr-2" >
+                    <div class="text-right">
+                        <div class="text-xs text-gray-400 font-medium">합계 (${list.length}건)</div>
+                        <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
+                    </div>
+</div > `;
                 btn.insertAdjacentHTML('beforebegin', summaryHtml);
             }
 
             const rows = list.length ? list.map(x => `
-<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    < tr class="border-b border-gray-100 hover:bg-gray-50 transition" >
     <td class="p-3 text-gray-700">${x.company}</td>
     <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
     <td class="p-3 font-medium text-gray-800">
@@ -3251,27 +3260,27 @@
     <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
     </td>
     <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.sheetName}</td>
-</tr>`).join('') : `<tr>
-    <td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
-</tr>`;
+</tr > `).join('') : ` < tr >
+                    <td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr > `;
 
-            body.outerHTML = `<div class="overflow-auto flex-grow bg-white">
-    <table class="w-full text-sm whitespace-nowrap">
-        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
-            <tr class="text-left text-gray-600">
-                <th class="p-3 font-semibold">보험사</th>
-                <th class="p-3 font-semibold">증권번호</th>
-                <th class="p-3 font-semibold">상품명</th>
-                <th class="p-3 font-semibold">계약일</th>
-                <th class="p-3 text-right font-semibold">보험료</th>
-                <th class="p-3 text-center font-semibold">계약자</th>
-                <th class="p-3 text-right font-semibold">수수료</th>
-                <th class="p-3 font-semibold">구분</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">${rows}</tbody>
-    </table>
-</div>`;
+            body.outerHTML = `< div class="overflow-auto flex-grow bg-white" >
+                    <table class="w-full text-sm whitespace-nowrap">
+                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+                            <tr class="text-left text-gray-600">
+                                <th class="p-3 font-semibold">보험사</th>
+                                <th class="p-3 font-semibold">증권번호</th>
+                                <th class="p-3 font-semibold">상품명</th>
+                                <th class="p-3 font-semibold">계약일</th>
+                                <th class="p-3 text-right font-semibold">보험료</th>
+                                <th class="p-3 text-center font-semibold">계약자</th>
+                                <th class="p-3 text-right font-semibold">수수료</th>
+                                <th class="p-3 font-semibold">구분</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+                    </table>
+</div > `;
         };
 
         window.fetchAndShowOrgTree = async function (targetId, targetName) {
@@ -3331,37 +3340,37 @@
                 const netClass = net >= 0 ? 'text-blue-600' : 'text-red-500';
 
                 let html = `
-<div class="mb-2">
-    <div
-        class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition border border-gray-100/50">
-        <div class="flex-shrink-0 mr-3">
-            <div
-                class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
-                ${node.level}차</div>
-        </div>
-        <div class="flex-grow min-w-0">
-            <p class="text-sm font-bold text-gray-800 truncate">${node['이름']} <span
-                    class="text-gray-400 font-normal text-xs">(${node['사번']})</span></p>
-            <p class="text-xs text-gray-500 truncate">${node['소속'] || ''} | ${node['직책'] || ''} | ${node['위촉월'] || ''}
-            </p>
-        </div>
-        <div class="flex-shrink-0 text-right ml-3">
-            <p class="text-sm font-bold ${netClass}">${formatMoney(net)}</p>
-            <p class="text-[10px] text-gray-400">지급 ${formatMoney(pay)} / 환수 ${formatMoney(ref)}</p>
-        </div>
-    </div>
-    `;
+                    < div class="mb-2" >
+                        <div
+                            class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition border border-gray-100/50">
+                            <div class="flex-shrink-0 mr-3">
+                                <div
+                                    class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
+                                    ${node.level}차</div>
+                            </div>
+                            <div class="flex-grow min-w-0">
+                                <p class="text-sm font-bold text-gray-800 truncate">${node['이름']} <span
+                                    class="text-gray-400 font-normal text-xs">(${node['사번']})</span></p>
+                                <p class="text-xs text-gray-500 truncate">${node['소속'] || ''} | ${node['직책'] || ''} | ${node['위촉월'] || ''}
+                                </p>
+                            </div>
+                            <div class="flex-shrink-0 text-right ml-3">
+                                <p class="text-sm font-bold ${netClass}">${formatMoney(net)}</p>
+                                <p class="text-[10px] text-gray-400">지급 ${formatMoney(pay)} / 환수 ${formatMoney(ref)}</p>
+                            </div>
+                        </div>
+                `;
 
                 if (node.children && node.children.length > 0) {
-                    html += `<div class="ml-6 pl-4 border-l-2 border-gray-100 mt-2 space-y-2">`;
+                    html += `< div class="ml-6 pl-4 border-l-2 border-gray-100 mt-2 space-y-2" > `;
                     node.children.forEach(child => {
                         html += renderNode(child);
                     });
-                    html += `</div>`;
+                    html += `</div > `;
                 }
 
                 html += `
-</div>`;
+</div > `;
                 return html;
             };
 
@@ -3370,7 +3379,7 @@
             else tree.forEach(node => contentHtml += renderNode(node));
 
             modal.innerHTML = `
-<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+                    < div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden" >
     <div
         class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
         <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
@@ -3394,8 +3403,8 @@
         <button
             class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
     </div>
-</div>
-`;
+</div >
+                    `;
 
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
@@ -3405,7 +3414,7 @@
         };
 
         window.fetchAndShowLapsedContracts = async function () {
-            const cacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
+            const cacheKey = `DATA_MY_LAPSED_${state.user.staffId} `;
             let cached = sessionStorage.getItem(cacheKey);
             let res = null;
             if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
@@ -3432,7 +3441,7 @@
             modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
             const rows = data.length > 0 ? data.map(x => `
-<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    < tr class="border-b border-gray-100 hover:bg-gray-50 transition" >
     <td class="p-3 text-center">
         <span
             class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
@@ -3450,12 +3459,12 @@
     <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
     <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
     <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
-</tr>`).join('') : `<tr>
-    <td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td>
-</tr>`;
+</tr > `).join('') : ` < tr >
+                    <td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td>
+</tr > `;
 
             const mobileCards = data.length > 0 ? data.map(x => `
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+                    < div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0" >
     <div class="flex justify-between items-start mb-2">
         <div>
             <p class="font-bold text-gray-900">${x['계약자']} <span
@@ -3483,10 +3492,10 @@
         <span>수금인: <span class="text-gray-600">${x['수금인명']}</span></span>
         <span>보험사: <span class="text-gray-600">${x['보험사']}</span></span>
     </div>
-</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">실효 계약 내역이 없습니다.</div>';
+</div > `).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">실효 계약 내역이 없습니다.</div>';
 
-            modal.innerHTML = `<div
-    class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+            modal.innerHTML = `< div
+                class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5" >
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
         <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
             <span class="w-1.5 h-5 md:h-6 bg-red-500 rounded-full block shadow-sm"></span>
@@ -3535,7 +3544,7 @@
         <button
             class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
     </div>
-</div>`;
+</div > `;
             document.body.appendChild(modal);
             modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
                 document.body.classList.remove('modal-open');
@@ -3550,9 +3559,9 @@
             let originalText = "로그인";
             if (btn) {
                 originalText = btn.innerHTML;
-                btn.innerHTML = `<div
-    class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2">
-</div>인증 중...`;
+                btn.innerHTML = `< div
+                class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2" >
+</div > 인증 중...`;
                 btn.disabled = true;
                 btn.classList.add('opacity-80', 'cursor-not-allowed');
             }
@@ -3599,7 +3608,7 @@
             if (!state.user) return;
 
             // [OPTIMIZATION] Client-side caching
-            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
+            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView} `;
 
             // 1. Check Memory State
             if (state.currentView === 'home' && state.data.homeData) { render(); return; }
@@ -3701,8 +3710,8 @@
                 rewardRes.month = state.currentMonth;
                 state.data.rewardData = rewardRes;
                 // branch 뷰의 시상금 캐시는 dashboard와 공유
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(rewardRes));
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(rewardRes));
+                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`, JSON.stringify(rewardRes));
+                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _branch`, JSON.stringify(rewardRes));
             }
 
             if (!commRes.error && commRes.success) {
@@ -3752,7 +3761,7 @@
             if (!state.user || !state.currentMonth) return;
 
             // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
-            const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
+            const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId} `;
             if (!sessionStorage.getItem(myLapsedCacheKey)) {
                 callApi('getLapsedContracts', state.user.staffId).then(d => {
                     if (d && !d.error && d.success) {
@@ -3762,12 +3771,12 @@
             }
 
             // 1. Reward Data
-            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
+            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`)) {
                 callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error) {
                         d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _branch`, JSON.stringify(d));
                     }
                 });
             }
@@ -3784,22 +3793,22 @@
             }
 
             // 2. Recruitment Data
-            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
+            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _recruitment`)) {
                 callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error) {
                         d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _recruitment`, JSON.stringify(d));
                     }
                 });
             }
 
             // 3. Admin Summary
             if ((state.user.role === '지사대표' || state.user.role === '관리자') &&
-                !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
+                !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _admin`)) {
                 callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
                     let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
                     if (!parsed.error) {
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _admin`, JSON.stringify(parsed));
 
                         // [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
                         if (parsed.reward) {
@@ -3810,7 +3819,7 @@
                             membersToPrefetch.forEach((m, idx) => {
                                 setTimeout(() => {
                                     const id = String(m.id || m['사번']);
-                                    const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
+                                    const rKey = `DATA_${id}_${state.currentMonth} _dashboard`;
                                     if (!sessionStorage.getItem(rKey)) {
                                         callApi('getRewardData', id, state.currentMonth).then(rd => {
                                             if (rd && !rd.error) {
@@ -3823,7 +3832,7 @@
                                     if (state.user.role === '지사대표') {
                                         ['nl', 'l', 'm'].forEach(cType => {
                                             ['pay', 'refund'].forEach(pType => {
-                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
+                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType} `;
                                                 if (!sessionStorage.getItem(cKey)) {
                                                     callApi('getBranchMemberCommissionDetails', state.user.staffId, id, state.currentMonth, cType, pType).then(cd => {
                                                         if (cd && cd.success && !cd.error) sessionStorage.setItem(cKey, JSON.stringify(cd));
@@ -3863,7 +3872,7 @@
                         const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
                         membersToPrefetch.forEach((m, idx) => {
                             setTimeout(() => {
-                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
+                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id} _recruiter`;
                                 if (!sessionStorage.getItem(cacheKey)) {
                                     callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
                                         if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
