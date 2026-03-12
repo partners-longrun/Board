@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Updated print functionality -->
 <html>
 
 <head>
@@ -2269,9 +2270,15 @@
                         <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리</h2>
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
-                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
-                        <button onclick="setLapseBaseType('recruiter')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
-                        <button onclick="setLapseBaseType('collector')" class="px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'collector' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">수금인 기준</button>
+                    <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
+                        <button onclick="printAllLapseAdminDetails()" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold rounded-xl shadow-sm border border-indigo-100 transition flex items-center justify-center gap-2 whitespace-nowrap text-sm w-full sm:w-auto">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            전체 프린트
+                        </button>
+                        <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto justify-center">
+                            <button onclick="setLapseBaseType('recruiter')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
+                            <button onclick="setLapseBaseType('collector')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'collector' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">수금인 기준</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -2637,980 +2644,1318 @@
             });
         };
 
-
-        // --- 7. Modals & Popups ---
-        window.openDetail = function (k, t, customDetails = null, customTitle = null) {
-            let d = [];
-            if (customDetails) {
-                d = customDetails.filter(x => x.category === k && x.type === t);
-            } else {
-                d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
-            }
-
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
-
-            const calcRate = (amt, prem) => {
-                if (!prem || prem == 0) return '0%';
-                return ((amt / prem) * 100).toFixed(1) + '%';
-            };
-
-            // 합계 계산
-            const totalAmt = d.reduce((sum, x) => sum + (x.amount || 0), 0);
-            const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
-
-            const desktopRows = d.length ? d.map(x => `
-             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-               <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter || '-'}</td>
-               <td class="p-3 text-gray-700">${x.company}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
-               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x.product}">${x.product}</div></td>
-               <td class="p-3 text-xs text-gray-500">${x.date}</td>
-               <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
-               <td class="p-3 text-center text-gray-700">${x.customer}</td>
-               <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</td>
-               <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</td>
-               <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
-             </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
-
-            const mobileCards = d.length ? d.map(x => `
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <p class="font-bold text-gray-900">${x.recruiter || '-'} <span class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
-                        <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
-                    </div>
-                    <div class="text-right flex flex-col items-end">
-                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${t === 'pay' ? '지급' : '환수'} ${(x.amount > 0 && t === 'pay') || (x.amount < 0 && t !== 'pay') ? '' : '(주의)'}</span>
-                        <p class="font-extrabold text-base ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</p>
-                    </div>
-                </div>
-                <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x.product}</p>
-                <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
-                    <div><p class="text-gray-400 mb-0.5">보험료</p><p class="font-semibold text-gray-700">${formatMoney(x.premium)}</p></div>
-                    <div><p class="text-gray-400 mb-0.5">시상금 비율</p><p class="font-semibold text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</p></div>
-                </div>
-                <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
-                    <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
-                    <span>계약일: <span class="text-gray-600">${x.date}</span></span>
-                </div>
-                <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate" title="${x.desc}">
-                    <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
-                </div>
-            </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
-
-            const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
-
-            modal.innerHTML = `<div class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
-                    <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
-                        <span class="w-1.5 h-5 md:h-6 bg-primary rounded-full block shadow-sm"></span>
-                        <span class="truncate max-w-[150px] md:max-w-none">${titlePrefix}${k} <span class="${t === 'pay' ? 'text-blue-600' : 'text-red-500'}">${t === 'pay' ? '지급' : '환수'}</span></span>
-                    </h3>
-                    <div class="flex items-center gap-3 md:gap-4">
-                        <div class="text-right">
-                            <div class="text-[10px] md:text-xs text-gray-400 font-medium tracking-tight">전체 합계</div>
-                            <div class="text-sm md:text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
-                        </div>
-                        <button class="close p-1.5 md:p-2 bg-gray-100 md:bg-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition focus:outline-none"><svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                    </div>
-                </div>
-                
-                <div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
-                    <!-- 데스크탑 테이블 뷰 -->
-                    <div class="hidden md:block">
-                        <table class="w-full text-sm whitespace-nowrap">
-                            <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
-                                <th class="p-3 font-semibold text-center text-gray-800 bg-gray-100 border-r border-gray-200">모집인</th>
-                                <th class="p-3 font-semibold">보험사</th>
-                                <th class="p-3 font-semibold">증권번호</th>
-                                <th class="p-3 font-semibold">상품명</th>
-                                <th class="p-3 font-semibold">계약일</th>
-                                <th class="p-3 text-right font-semibold">보험료</th>
-                                <th class="p-3 text-center font-semibold">계약자</th>
-                                <th class="p-3 text-right font-semibold">보험사시상</th>
-                                <th class="p-3 text-right font-semibold">시상율(%)</th>
-                                <th class="p-3 font-semibold">시상내용</th>
-                            </tr></thead>
-                            <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- 모바일 카드 뷰 -->
-                    <div class="md:hidden flex flex-col">
-                        ${mobileCards}
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-white border-t border-gray-100 hidden md:block text-right">
-                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                </div>
-            </div>`;
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-        }
-
-        // 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
-        window.fetchAndShowAdminDetail = async function (id, name, category, type) {
-            // 1. 팝업 즉시 표시 + 로딩 스피너
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
-            const payLabel = type === 'pay' ? '지급' : '환수';
-            const payColor = type === 'pay' ? 'text-blue-600' : 'text-red-500';
-            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
-                        <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
-                        <span><span class="text-gray-500 mr-2">[${name}]</span>${category} <span class="${payColor}">${payLabel}</span> 상세내역</span>
-                    </h3>
-                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </div>
-                <div id="admin-detail-body" class="flex-grow flex items-center justify-center h-48">
-                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
-                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                </div>
-            </div>`;
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-
-            // 2. 데이터 로드 (캐시 우선 확인)
-            const cacheKey = `DATA_${id}_${state.currentMonth}_dashboard`;
-            let d = null;
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                try { d = JSON.parse(cached); } catch (e) { }
-            }
-            if (!d) {
-                d = await callApi('getRewardData', id, state.currentMonth);
-                if (d && !d.error) {
-                    d.month = state.currentMonth;
-                    sessionStorage.setItem(cacheKey, JSON.stringify(d));
-                }
-            }
-
-            const body = modal.querySelector('#admin-detail-body');
-            if (!body) return;
-
-            if (d && !d.error && d.details) {
-                const details = d.details.filter(x => x.category === category && x.type === type);
-                const totalAmt = details.reduce((sum, x) => sum + (x.amount || 0), 0);
-                const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
-
-                // 타이틀에 합계 추가
-                const titleEl = modal.querySelector('h3');
-                if (titleEl) {
-                    titleEl.insertAdjacentHTML('afterend', `<div class="text-right"><div class="text-xs text-gray-400 font-medium">합계</div><div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div></div>`);
-                    titleEl.closest('div').classList.add('justify-between');
-                }
-
-                const calcRate = (amt, prem) => (!prem || prem == 0) ? '0%' : ((amt / prem) * 100).toFixed(1) + '%';
-
-                const desktopRows = details.length ? details.map(x => `
-                 <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-                   <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter || name}</td>
-                   <td class="p-3 text-gray-700">${x.company}</td>
-                   <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
-                   <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x.product}">${x.product}</div></td>
-                   <td class="p-3 text-xs text-gray-500">${x.date}</td>
-                   <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
-                   <td class="p-3 text-center text-gray-700">${x.customer}</td>
-                   <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</td>
-                   <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</td>
-                   <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
-                 </tr>`).join('') : '<tr><td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
-
-                const mobileCards = details.length ? details.map(x => `
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <p class="font-bold text-gray-900">${x.recruiter || name} <span class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
-                            <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end">
-                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${type === 'pay' ? '지급' : '환수'} ${(x.amount > 0 && type === 'pay') || (x.amount < 0 && type !== 'pay') ? '' : '(주의)'}</span>
-                            <p class="font-extrabold text-base ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</p>
-                        </div>
-                    </div>
-                    <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x.product}</p>
-                    <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
-                        <div><p class="text-gray-400 mb-0.5">보험료</p><p class="font-semibold text-gray-700">${formatMoney(x.premium)}</p></div>
-                        <div><p class="text-gray-400 mb-0.5">시상금 비율</p><p class="font-semibold text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</p></div>
-                    </div>
-                    <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
-                        <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
-                        <span>계약일: <span class="text-gray-600">${x.date}</span></span>
-                    </div>
-                    <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate" title="${x.desc}">
-                        <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
-                    </div>
-                </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
-
-                body.outerHTML = `<div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
-                    <!-- 데스크탑 테이블 뷰 -->
-                    <div class="hidden md:block">
-                        <table class="w-full text-sm whitespace-nowrap">
-                            <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
-                                <th class="p-3 font-semibold text-center text-gray-800 bg-gray-100 border-r border-gray-200">모집인</th><th class="p-3 font-semibold">보험사</th><th class="p-3 font-semibold">증권번호</th><th class="p-3 font-semibold">상품명</th><th class="p-3 font-semibold">계약일</th><th class="p-3 text-right font-semibold">보험료</th><th class="p-3 text-center font-semibold">계약자</th><th class="p-3 text-right font-semibold">보험사시상</th><th class="p-3 text-right font-semibold">시상율(%)</th><th class="p-3 font-semibold">시상내용</th>
-                            </tr></thead>
-                            <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- 모바일 카드 뷰 -->
-                    <div class="md:hidden flex flex-col">
-                        ${mobileCards}
-                    </div>
-                </div>`;
-            } else {
-                body.innerHTML = `<div class="p-8 text-center text-red-500">오류: ${(d && d.message) || '데이터를 불러올 수 없습니다.'}</div>`;
-            }
-        };
-
-        // 수수료 판업 즉시 표시 후 데이터 로딩 (UX 개선)
-        window.fetchAndShowCommissionAdminDetail = async function (targetId, targetName, commType, payType) {
-            // 1. 팝업 즉시 표시 + 로딩 스피너
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
-            const typeLabel = commType === 'nl' ? '손보수수료' : commType === 'l' ? '생보수수료' : '관리수수료';
-            const payLabel = payType === 'pay' ? '지급' : '환수';
-            const colorClass = payType === 'pay' ? 'blue' : 'red';
-            modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
-                        <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
-                        <span>[${targetName}] ${typeLabel} <span class="text-${colorClass === 'blue' ? 'blue-600' : 'red-500'}">${payLabel}</span> 상세내역</span>
-                    </h3>
-                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </div>
-                <div id="comm-detail-body" class="flex-grow flex items-center justify-center h-48">
-                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                </div>
-                <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
-                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                </div>
-            </div>`;
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-
-            // 2. 데이터 로드 (캐시 우선 확인)
-            const cacheKey = `DATA_COMM_${targetId}_${state.currentMonth}_${commType}_${payType}`;
-            let res = null;
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                try { res = JSON.parse(cached); } catch (e) { }
-            }
-            if (!res) {
-                res = await callApi('getBranchMemberCommissionDetails', state.user.staffId, targetId, state.currentMonth, commType, payType);
-                if (res && res.success && !res.error) {
-                    sessionStorage.setItem(cacheKey, JSON.stringify(res));
-                }
-            }
-
-            const body = modal.querySelector('#comm-detail-body');
-            if (!body) return;
-
-            if (res.error || !res.success) {
-                body.innerHTML = `<div class="p-8 text-center text-red-500">수수료 내역을 불러오지 못했습니다: ${res.message || '알 수 없는 오류'}</div>`;
+        window.printAllLapseAdminDetails = async function () {
+            if (!state.data.lapseAdminSummary || state.data.lapseAdminSummary.length === 0) {
+                alert('출력할 대상이 없습니다.');
                 return;
             }
 
-            const list = res.list || [];
-            const totalAmt = list.reduce((sum, x) => sum + (x.amount || 0), 0);
-            const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+            const activeTab = state.lapseAdminTab || 'active';
+            const searchInput = document.getElementById('lapseAdminSearch');
+            const fText = (searchInput ? searchInput.value : '').toLowerCase();
 
-            // 타이틀에 합계 및 건수 추가
-            const headerDiv = modal.querySelector('.justify-between') || modal.querySelector('.flex.justify-between');
-            if (headerDiv) {
-                const btn = headerDiv.querySelector('.close');
-                const summaryHtml = `<div class="flex items-center gap-4 mr-2">
-                    <div class="text-right"><div class="text-xs text-gray-400 font-medium">합계 (${list.length}건)</div><div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div></div>
-                </div>`;
-                btn.insertAdjacentHTML('beforebegin', summaryHtml);
+            let list = state.data.lapseAdminSummary;
+            list = activeTab === 'active' ? list.filter(x => !x.isResigned) : list.filter(x => x.isResigned);
+            if (fText) {
+                list = list.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
             }
 
-            const rows = list.length ? list.map(x => `
-             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-               <td class="p-3 text-gray-700">${x.company}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
-               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x.product}">${x.product}</div></td>
-               <td class="p-3 text-xs text-gray-500">${x.date}</td>
-               <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
-               <td class="p-3 text-center text-gray-700">${x.customer}</td>
-               <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}</td>
-               <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.sheetName}</td>
-             </tr>`).join('') : '<tr><td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td></tr>';
+            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0));
 
-            body.outerHTML = `<div class="overflow-auto flex-grow bg-white">
-                <table class="w-full text-sm whitespace-nowrap">
-                    <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
-                        <th class="p-3 font-semibold">보험사</th><th class="p-3 font-semibold">증권번호</th><th class="p-3 font-semibold">상품명</th><th class="p-3 font-semibold">계약일</th><th class="p-3 text-right font-semibold">보험료</th><th class="p-3 text-center font-semibold">계약자</th><th class="p-3 text-right font-semibold">수수료</th><th class="p-3 font-semibold">구분</th>
-                    </tr></thead>
-                    <tbody class="divide-y divide-gray-100">${rows}</tbody>
-                </table>
-            </div>`;
-        };
+            if (targetList.length === 0) {
+                alert('현재 조회된 인원 중 당월 실효나 당월 연체 건이 있는 대상이 없습니다.');
+                return;
+            }
 
-        window.fetchAndShowOrgTree = async function (targetId, targetName) {
             showLoading(true);
-            const res = await callApi('getOrgTree', state.user.staffId, targetId, state.currentMonth);
-            showLoading(false);
 
-            if (res.error) {
-                alert('오류: ' + res.message);
-            } else {
-                showOrgTreeModal(res.data, targetName);
-            }
-        };
-
-        window.showOrgTreeModal = function (data, targetName) {
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
-
-            // Build Tree Logic
-            const list = data.downlines || [];
-            // Sort to ensure hierarchy (this does not guarantee full tree order but helps if sorted by levels)
-            // Better approach: Reconstruct tree
-
-            const buildTree = () => {
-                const nodeMap = {};
-                list.forEach(n => nodeMap[String(n['사번'])] = { ...n, children: [] });
-
-                const hierarchy = [];
-
-                list.forEach(n => {
-                    if (n.level === 1) {
-                        hierarchy.push(nodeMap[String(n['사번'])]);
-                    } else {
-                        // For levels > 1, parent is always the direct upline (상위1차)
-                        const parentId = String(n['상위1차']);
-
-                        if (nodeMap[parentId]) {
-                            nodeMap[parentId].children.push(nodeMap[String(n['사번'])]);
-                        } else {
-                            // Orphaned node (parent missing from list)?
-                            // Add to root level to ensure visibility
-                            hierarchy.push(nodeMap[String(n['사번'])]);
-                        }
+            let printHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>실효연체 리스트 일괄 프린트</title>
+                <style>
+                    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+                    body { font-family: 'Pretendard', sans-serif; margin: 0; padding: 0; color: #111; background: #fff; }
+                    .page { page-break-after: always; padding: 25px; box-sizing: border-box; width: 100%; height: 100vh; overflow: hidden; }
+                    .page:last-child { page-break-after: auto; }
+                    .header { display: flex; align-items: center; border-bottom: 2px solid #222; padding-bottom: 12px; margin-bottom: 20px; }
+                    .header-pill { background: #eff6ff; color: #3b82f6; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-right: 12px; border: 1px solid #bfdbfe; }
+                    h2 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+                    .section-title { font-size: 15px; font-weight: 700; color: #333; margin-top: 24px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+                    .section-title.lapsed::before { content: ''; display: block; width: 6px; height: 16px; background-color: #ef4444; border-radius: 4px; }
+                    .section-title.arrears::before { content: ''; display: block; width: 6px; height: 16px; background-color: #f97316; border-radius: 4px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+                    th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: center; word-break: keep-all; }
+                    th { background-color: #f3f4f6; font-weight: 700; color: #4b5563; }
+                    td { color: #374151; }
+                    .text-left { text-align: left; }
+                    .text-right { text-align: right; }
+                    .font-bold { font-weight: 700; }
+                    .empty-message { padding: 20px; text-align: center; color: #6b7280; font-style: italic; border: 1px dashed #e5e7eb; background: #f9fafb; border-radius: 8px; font-size: 13px; }
+                    .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+                    .badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+                    .badge-orange { background: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
+                    .badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+                    .footer-note { text-align: right; font-size: 10px; color: #9ca3af; margin-top: 20px; }
+                    @media print {
+                        @page { size: A4 landscape; margin: 10mm; }
+                        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .page { height: auto; }
                     }
-                });
-                return hierarchy;
-            };
-
-            const tree = buildTree();
-
-            // Render Function
-            const renderNode = (node) => {
-                const pay = (Number(node['손보월발생분'] || 0) + Number(node['생보월발생분'] || 0));
-                const ref = (Number(node['손보월환수분'] || 0) + Number(node['생보월환수분'] || 0));
-                const net = pay + ref;
-                const netClass = net >= 0 ? 'text-blue-600' : 'text-red-500';
-
-                let html = `
-                <div class="mb-2">
-                    <div class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition border border-gray-100/50">
-                        <div class="flex-shrink-0 mr-3">
-                            <div class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">${node.level}차</div>
-                        </div>
-                        <div class="flex-grow min-w-0">
-                            <p class="text-sm font-bold text-gray-800 truncate">${node['이름']} <span class="text-gray-400 font-normal text-xs">(${node['사번']})</span></p>
-                            <p class="text-xs text-gray-500 truncate">${node['소속'] || ''} | ${node['직책'] || ''} | ${node['위촉월'] || ''}</p>
-                        </div>
-                        <div class="flex-shrink-0 text-right ml-3">
-                            <p class="text-sm font-bold ${netClass}">${formatMoney(net)}</p>
-                            <p class="text-[10px] text-gray-400">지급 ${formatMoney(pay)} / 환수 ${formatMoney(ref)}</p>
-                        </div>
-                    </div>
-                `;
-
-                if (node.children && node.children.length > 0) {
-                    html += `<div class="ml-6 pl-4 border-l-2 border-gray-100 mt-2 space-y-2">`;
-                    node.children.forEach(child => {
-                        html += renderNode(child);
-                    });
-                    html += `</div>`;
-                }
-
-                html += `</div>`;
-                return html;
-            };
-
-            let contentHtml = '';
-            if (tree.length === 0) contentHtml = '<div class="text-center py-10 text-gray-400">산하 조직이 없습니다.</div>';
-            else tree.forEach(node => contentHtml += renderNode(node));
-
-            modal.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
-                    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
-                        <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
-                            <span class="p-1.5 bg-blue-100 text-blue-600 rounded-lg"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg></span>
-                            <span>${targetName} <span class="text-gray-400 font-normal text-sm">산하 조직도</span></span>
-                        </h3>
-                        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                    </div>
-                    <div class="p-6 overflow-y-auto bg-white custom-scrollbar">
-                        ${contentHtml}
-                    </div>
-                     <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
-                        <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                    </div>
-                </div>
+                </style>
+            </head>
+            <body>
             `;
 
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-        };
+            for (const person of targetList) {
+                const cacheKey = `DATA_LAPSE_DETAIL_${person.id}_${state.lapseBaseType}`;
+                let d = null;
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) { try { d = JSON.parse(cached); } catch (e) { } }
 
-        window.fetchAndShowLapsedContracts = async function () {
-            const cacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
-            let cached = sessionStorage.getItem(cacheKey);
-            let res = null;
-            if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
-
-            if (!res) {
-                showLoading(true);
-                res = await callApi('getLapsedContracts', state.user.staffId);
-                showLoading(false);
-                if (res && !res.error && res.success) {
-                    sessionStorage.setItem(cacheKey, JSON.stringify(res));
-                }
-            }
-
-            if (res && (res.error || !res.success)) {
-                alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
-            } else {
-                showLapsedContractsModal(res.list || [], "나의 ");
-            }
-        };
-
-        window.showLapsedContractsModal = function (data, prefix = "") {
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
-
-            const rows = data.length > 0 ? data.map(x => `
-             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-               <td class="p-3 text-center">
-                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
-               </td>
-               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
-               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
-               <td class="p-3 text-gray-700">${x['보험사']}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
-               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
-               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
-               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
-               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
-               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
-             </tr>`).join('') : '<tr><td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td></tr>';
-
-            const mobileCards = data.length > 0 ? data.map(x => `
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <p class="font-bold text-gray-900">${x['계약자']} <span class="text-xs text-gray-400 font-normal">(${x['모집인명']})</span></p>
-                        <p class="text-xs text-gray-500 font-mono mt-0.5">${x['증권번호']}</p>
-                    </div>
-                    <div class="text-right flex flex-col items-end">
-                        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')} mb-1">${x['계약상태']}</span>
-                        <p class="font-extrabold text-base text-blue-600">${formatMoney(x['계속보험료'])}</p>
-                    </div>
-                </div>
-                <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x['상품명']}</p>
-                <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
-                    <div><p class="text-gray-400 mb-0.5">계약일</p><p class="font-semibold text-gray-700">${x['계약일']}</p></div>
-                    <div><p class="text-gray-400 mb-0.5">최종납입월/회차</p><p class="font-semibold text-gray-600">${x['최종납입월']} (${x['납입회차']})</p></div>
-                </div>
-                <div class="flex justify-between items-center mt-2 text-[11px] text-gray-400">
-                    <span>수금인: <span class="text-gray-600">${x['수금인명']}</span></span>
-                    <span>보험사: <span class="text-gray-600">${x['보험사']}</span></span>
-                </div>
-            </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">실효 계약 내역이 없습니다.</div>';
-
-            modal.innerHTML = `<div class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
-                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
-                    <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
-                        <span class="w-1.5 h-5 md:h-6 bg-red-500 rounded-full block shadow-sm"></span>
-                        <span class="truncate max-w-[200px] md:max-w-none">${prefix}실효계약 <span class="text-sm font-normal text-gray-500 ml-2">(총 <span class="text-red-500 font-bold">${data.length}</span>건)</span></span>
-                    </h3>
-                    <button class="close p-1.5 md:p-2 bg-gray-100 md:bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition focus:outline-none"><svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </div>
-                
-                <div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
-                    <!-- 데스크탑 테이블 뷰 -->
-                    <div class="hidden md:block">
-                        <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
-                            <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600">
-                                <th class="p-3 font-semibold text-center">상태</th>
-                                <th class="p-3 font-semibold text-center">모집인</th>
-                                <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
-                                <th class="p-3 font-semibold">보험사</th>
-                                <th class="p-3 font-semibold">증권번호</th>
-                                <th class="p-3 font-semibold">상품명</th>
-                                <th class="p-3 text-right font-semibold">계속보험료</th>
-                                <th class="p-3 font-semibold">계약일</th>
-                                <th class="p-3 text-center font-semibold">납입회차</th>
-                                <th class="p-3 text-center font-semibold">최종납입월</th>
-                                <th class="p-3 text-center font-semibold">계약자</th>
-                                <th class="p-3 text-center font-semibold">데이터기준일</th>
-                            </tr></thead>
-                            <tbody class="divide-y divide-gray-100">${rows}</tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- 모바일 카드 뷰 -->
-                    <div class="md:hidden flex flex-col">
-                        ${mobileCards}
-                    </div>
-                </div>
-                
-                <div class="p-4 bg-white border-t border-gray-100 hidden md:block text-right">
-                    <button class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
-                </div>
-            </div>`;
-            document.body.appendChild(modal);
-            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
-                document.body.classList.remove('modal-open');
-                modal.remove();
-            });
-        };
-
-        // --- 8. Logic Interactions ---
-        async function doLogin(id, pw) {
-            // [OPTIMIZATION] Inline spinner on login button to prevent screen freezing
-            const btn = document.querySelector('#loginForm button[type="submit"]');
-            let originalText = "로그인";
-            if (btn) {
-                originalText = btn.innerHTML;
-                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div>인증 중...`;
-                btn.disabled = true;
-                btn.classList.add('opacity-80', 'cursor-not-allowed');
-            }
-
-            const r = await callApi('loginUser', id, pw);
-
-            if (btn) {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                btn.classList.remove('opacity-80', 'cursor-not-allowed');
-            }
-
-            if (r.success) {
-                state.user = r.user;
-                if (r.months && r.months.length > 0) {
-                    state.months = r.months;
-                    state.currentMonth = r.currentMonth || r.months[0];
-                } else {
-                    const now = new Date(); state.months = [String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0')];
-                    state.currentMonth = state.months[0];
-                }
-                if (r.dashboardData) state.data.rewardData = r.dashboardData;
-
-                if (state.user.isFirstLogin) {
-                    openChangePasswordModal(false);
-                } else {
-                    saveSession();
-                    navigate('home');
-                    setTimeout(prefetchAllBackground, 500); // Trigger background prefetch
-                }
-            } else {
-                alert(r.message || '로그인 실패');
-            }
-        }
-
-        function logout() {
-            state.user = null;
-            state.homeLoaded = false;
-            clearSession();
-            navigate('login');
-        }
-
-        function refresh() {
-            if (!state.user) return;
-
-            // [OPTIMIZATION] Client-side caching
-            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
-
-            // 1. Check Memory State
-            if (state.currentView === 'home' && state.data.homeData) { render(); return; }
-            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
-            if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
-            if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth && state.data.branchCommData?.month === state.currentMonth) { render(); return; }
-
-            // 2. Check Session Storage
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    // Update State
-                    if (state.currentView === 'home') {
-                        state.data.homeData = parsed;
-                        state.homeLoaded = true;
-                    }
-                    else if (state.currentView === 'branch') {
-                        // branch 뷰: rewardData는 세션 캐시 복원, branchCommData는 별도 fetch
-                        state.data.rewardData = parsed;
-                        state.isLoading = false;
-                        render();
-                        if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
-                            callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
-                                if (!commRes.error && commRes.success) {
-                                    commRes.month = state.currentMonth;
-                                    state.data.branchCommData = commRes;
-                                } else {
-                                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                                    if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
-                                }
-                                if (state.currentView === 'branch') render();
-                            });
-                        }
-                        return;
-                    }
-                    else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
-                    else if (state.currentView === 'recruitment') state.data.recData = parsed;
-                    else if (state.currentView === 'admin') state.data.adminSummary = parsed;
-
-                    state.isLoading = false; // [FIX] Reset loading state when using cache
-                    render();
-                    return; // Skip fetch
-                } catch (e) {
-                    sessionStorage.removeItem(cacheKey);
-                }
-            }
-
-            if (state.currentView === 'home') fetchHome(cacheKey);
-            else if (state.currentView === 'dashboard') fetchReward(cacheKey);
-            else if (state.currentView === 'branch') fetchBranch(cacheKey);
-            else if (state.currentView === 'recruitment') fetchRec(cacheKey);
-            else if (state.currentView === 'admin') fetchAdmin(cacheKey);
-        }
-
-        async function fetchHome(key) {
-            state.homeLoaded = false;
-            render();
-            const d = await callApi('getHomeData', state.user.staffId);
-            state.homeLoaded = true;
-
-            if (!d.error && d.success) {
-                state.data.homeData = d;
-                sessionStorage.setItem(key, JSON.stringify(d));
-                if (state.currentView === 'home') render();
-            } else {
-                state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
-                if (state.currentView === 'home') render();
-            }
-        }
-
-        async function fetchReward(key) {
-            state.isLoading = true; render();
-            const d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
-            state.isLoading = false;
-
-            if (!d.error) {
-                d.month = state.currentMonth;
-                state.data.rewardData = d;
-                sessionStorage.setItem(key, JSON.stringify(d));
-                render();
-            } else {
-                alert('데이터 로드 실패: ' + d.message);
-                render();
-            }
-        }
-
-        async function fetchBranch(key) {
-            state.isLoading = true; render();
-            // 시상금데이터와 수수료데이터 동시 호출
-            const [rewardRes, commRes] = await Promise.all([
-                callApi('getRewardData', state.user.staffId, state.currentMonth),
-                callApi('getBranchCommissionData', state.user.staffId, state.currentMonth)
-            ]);
-            state.isLoading = false;
-
-            if (!rewardRes.error) {
-                rewardRes.month = state.currentMonth;
-                state.data.rewardData = rewardRes;
-                // branch 뷰의 시상금 캐시는 dashboard와 공유
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(rewardRes));
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(rewardRes));
-            }
-
-            if (!commRes.error && commRes.success) {
-                commRes.month = state.currentMonth;
-                state.data.branchCommData = commRes;
-            } else {
-                // 에러시 빈 값으로 초기화 (화면은 사용 가능)
-                state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                if (commRes.error) console.warn('수수료 데이터 로드 실패:', commRes.message);
-            }
-
-            render();
-        }
-        async function fetchRec(key) {
-            state.isLoading = true; render();
-            const d = await callApi('getRecruitmentData', state.user.staffId, state.currentMonth);
-            state.isLoading = false;
-
-            if (!d.error) {
-                d.month = state.currentMonth;
-                state.data.recData = d;
-                sessionStorage.setItem(key, JSON.stringify(d));
-                render();
-            } else {
-                alert('데이터 로드 실패: ' + d.message);
-                render();
-            }
-        }
-        async function fetchAdmin(key) {
-            state.isLoading = true; render();
-            const d = await callApi('getAdminSummary', state.currentMonth, state.user.staffId);
-            state.isLoading = false;
-
-            let parsed = d;
-            // Handle double JSON parsing if necessary (sometimes GAS returns stringified JSON)
-            if (typeof d === 'string') {
-                try { parsed = JSON.parse(d); } catch (e) { parsed = { error: true, message: 'JSON Parse Error' }; }
-            }
-
-            state.data.adminSummary = parsed;
-            if (!parsed.error && key) sessionStorage.setItem(key, JSON.stringify(parsed));
-            render();
-        }
-
-        // --- 8.5 Background Pre-fetcher ---
-        function prefetchAllBackground() {
-            if (!state.user || !state.currentMonth) return;
-
-            // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
-            const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
-            if (!sessionStorage.getItem(myLapsedCacheKey)) {
-                callApi('getLapsedContracts', state.user.staffId).then(d => {
+                if (!d) {
+                    d = await callApi('getLapseManagementData', person.id, state.lapseBaseType);
                     if (d && !d.error && d.success) {
-                        sessionStorage.setItem(myLapsedCacheKey, JSON.stringify(d));
+                        sessionStorage.setItem(cacheKey, JSON.stringify(d));
                     }
-                });
-            }
-
-            // 1. Reward Data
-            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
-                callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!d.error) {
-                        d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
-                    }
-                });
-            }
-
-            // 1-2. Branch Commission Data (for 지사대표)
-            if (state.user.role === '지사대표' && !state.data.branchCommData) {
-                callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!d.error && d.success) {
-                        d.month = state.currentMonth;
-                        state.data.branchCommData = d;
-                        if (state.currentView === 'branch') render();
-                    }
-                });
-            }
-
-            // 2. Recruitment Data
-            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
-                callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!d.error) {
-                        d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
-                    }
-                });
-            }
-
-            // 3. Admin Summary
-            if ((state.user.role === '지사대표' || state.user.role === '관리자') && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
-                callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
-                    let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
-                    if (!parsed.error) {
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
-
-                        // [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
-                        if (parsed.reward) {
-                            const allMembers = [...(parsed.reward.active || []), ...(parsed.reward.resigned || [])];
-                            // 메인 스레드 부하 방지를 위해 최대 30명까지만 순차적 선로딩 적용
-                            const membersToPrefetch = allMembers.slice(0, 30);
-
-                            membersToPrefetch.forEach((m, idx) => {
-                                setTimeout(() => {
-                                    const id = String(m.id || m['사번']);
-                                    const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
-                                    if (!sessionStorage.getItem(rKey)) {
-                                        callApi('getRewardData', id, state.currentMonth).then(rd => {
-                                            if (rd && !rd.error) {
-                                                rd.month = state.currentMonth;
-                                                sessionStorage.setItem(rKey, JSON.stringify(rd));
-                                            }
-                                        });
-                                    }
-
-                                    if (state.user.role === '지사대표') {
-                                        ['nl', 'l', 'm'].forEach(cType => {
-                                            ['pay', 'refund'].forEach(pType => {
-                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
-                                                if (!sessionStorage.getItem(cKey)) {
-                                                    callApi('getBranchMemberCommissionDetails', state.user.staffId, id, state.currentMonth, cType, pType).then(cd => {
-                                                        if (cd && cd.success && !cd.error) sessionStorage.setItem(cKey, JSON.stringify(cd));
-                                                    });
-                                                }
-                                            });
-                                        });
-                                    }
-                                }, idx * 800); // 0.8초 간격 분산 호출
-                            });
-                        }
-                    }
-                });
-            }
-
-            // 4. Lapse Data (Home/My Lapsed)
-            if (!state.lapseLoaded) {
-                callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
-                    if (res.success) {
-                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
-                        state.lapseLoaded = true;
-                        updateHomeLapseCounts(); // Refresh UI specifically
-                    }
-                });
-            }
-
-            // 5. Lapse Admin Summary
-            if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') && !state.data.lapseAdminSummary) {
-                callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter').then(res => {
-                    if (!res.error && res.success) {
-                        state.data.lapseAdminSummary = res.list || [];
-                        state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-                        state.data.lapseAdminSummaryType = 'recruiter';
-
-                        // [UX 개선] 실효연체 팝업 미리 캐싱 (Prefetch)
-                        const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
-                        membersToPrefetch.forEach((m, idx) => {
-                            setTimeout(() => {
-                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
-                                if (!sessionStorage.getItem(cacheKey)) {
-                                    callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
-                                        if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
-                                    });
-                                }
-                            }, idx * 1000); // 1초 간격
-                        });
-                    }
-                });
-            }
-
-            // 6. Retention Admin Summary
-            if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') && !state.data.retentionAdminSummary) {
-                callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
-                    if (!res.error && res.success) {
-                        state.data.retentionAdminSummary = res.list || [];
-
-                        // [UX 개선] 통산유지율 팝업 미리 캐싱 (Prefetch)
-                        const membersToPrefetch = state.data.retentionAdminSummary.slice(0, 30);
-                        membersToPrefetch.forEach((m, idx) => {
-                            setTimeout(() => {
-                                const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${m.id}`;
-                                if (!sessionStorage.getItem(cacheKey)) {
-                                    callApi('getLapsedContractsByRecruiter', state.user.staffId, m.id).then(rd => {
-                                        if (rd && !rd.error && rd.success) sessionStorage.setItem(cacheKey, JSON.stringify(rd));
-                                    });
-                                }
-                            }, 5000 + (idx * 1000)); // 다른 프리페치와 안겹치도록 지연 대기 후 1초 간격 실행
-                        });
-                    }
-                });
-            }
-
-            // 7. New Contracts (Both NL and L)
-            if (state.user.role === '지사대표') {
-                if (!state.data.newContractNl || state.data.newContractNl_month !== state.currentMonth) {
-                    callApi('getNewContractList', state.user.staffId, state.currentMonth, 'nl').then(res => {
-                        if (!res.error && res.success) {
-                            state.data.newContractNl = res.list || [];
-                            state.data.newContractNl_month = state.currentMonth;
-                        }
-                    });
                 }
-                if (!state.data.newContractL || state.data.newContractL_month !== state.currentMonth) {
-                    callApi('getNewContractList', state.user.staffId, state.currentMonth, 'l').then(res => {
-                        if (!res.error && res.success) {
-                            state.data.newContractL = res.list || [];
-                            state.data.newContractL_month = state.currentMonth;
-                        }
-                    });
+
+                if (!d || d.error || !d.success) {
+                    console.error(`Failed to fetch data for ${person.name}(${person.id})`);
+                    continue;
                 }
+
+                const lapsedData = d.lapsed || [];
+                const arrearsData = d.arrears || [];
+
+                printHtml += `<div class="page">`;
+                printHtml += `
+                    <div class="header">
+                        <span class="header-pill">${state.lapseBaseType === 'recruiter' ? '모집인 기준' : '수금인 기준'}</span>
+                        <h2>[${person.name}] 당월 실효 & 연체계약 상세 리스트</h2>
+                    </div>`;
+
+                // 실효 계약
+                printHtml += `<div class="section-title lapsed">당월 실효계약 리스트 (총 ${lapsedData.length}건)</div>`;
+                if (lapsedData.length > 0) {
+                    printHtml += `<table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">상태</th>
+                                <th style="width: 7%">모집인</th>
+                                <th style="width: 7%">수금인</th>
+                                <th style="width: 10%">보험사</th>
+                                <th style="width: 12%">증권번호</th>
+                                <th style="width: 25%" class="text-left">상품명</th>
+                                <th style="width: 9%" class="text-right">계속보험료</th>
+                                <th style="width: 8%">계약일</th>
+                                <th style="width: 5%">회차</th>
+                                <th style="width: 6%">최종납입</th>
+                                <th style="width: 6%">계약자</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    lapsedData.forEach(x => {
+                        let statusClass = 'badge-gray';
+                        if (String(x['계약상태']).includes('실효')) statusClass = 'badge-red';
+                        else if (String(x['계약상태']).includes('연체')) statusClass = 'badge-orange';
+
+                        printHtml += `<tr>
+                            <td><span class="badge ${statusClass}">${x['계약상태']}</span></td>
+                            <td>${x['모집인명']}</td>
+                            <td class="font-bold">${x['수금인명']}</td>
+                            <td>${x['보험사']}</td>
+                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;">${x['상품명']}</td>
+                            <td class="text-right font-bold" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                            <td>${x['계약일']}</td>
+                            <td>${x['납입회차']}</td>
+                            <td style="font-family: monospace;">${x['최종납입월']}</td>
+                            <td>${x['계약자']}</td>
+                        </tr>`;
+                    });
+                    printHtml += `</tbody></table>`;
+                } else {
+                    printHtml += `<div class="empty-message">해당하는 실효 계약 내역이 없습니다.</div>`;
+                }
+
+                // 연체 계약
+                printHtml += `<div class="section-title arrears">당월 연체계약 리스트 (총 ${arrearsData.length}건)</div>`;
+                if (arrearsData.length > 0) {
+                    printHtml += `<table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">상태</th>
+                                <th style="width: 7%">모집인</th>
+                                <th style="width: 7%">수금인</th>
+                                <th style="width: 10%">보험사</th>
+                                <th style="width: 12%">증권번호</th>
+                                <th style="width: 25%" class="text-left">상품명</th>
+                                <th style="width: 9%" class="text-right">계속보험료</th>
+                                <th style="width: 8%">계약일</th>
+                                <th style="width: 5%">회차</th>
+                                <th style="width: 6%">최종납입</th>
+                                <th style="width: 6%">계약자</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    arrearsData.forEach(x => {
+                        let statusClass = 'badge-gray';
+                        if (String(x['계약상태']).includes('실효')) statusClass = 'badge-red';
+                        else if (String(x['계약상태']).includes('연체')) statusClass = 'badge-orange';
+
+                        printHtml += `<tr>
+                            <td><span class="badge ${statusClass}">${x['계약상태']}</span></td>
+                            <td>${x['모집인명']}</td>
+                            <td class="font-bold">${x['수금인명']}</td>
+                            <td>${x['보험사']}</td>
+                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;">${x['상품명']}</td>
+                            <td class="text-right font-bold" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                            <td>${x['계약일']}</td>
+                            <td>${x['납입회차']}</td>
+                            <td style="font-family: monospace;">${x['최종납입월']}</td>
+                            <td>${x['계약자']}</td>
+                        </tr>`;
+                    });
+                    printHtml += `</tbody></table>`;
+                } else {
+                    printHtml += `<div class="empty-message">해당하는 연체 계약 내역이 없습니다.</div>`;
+                }
+
+                printHtml += `<div class="footer-note">* 본 자료는 작성 시점 기준이며 실시간 데이터 반영 등에 따라 실제와 다를 수 있습니다.</div></div>`;
             }
-        }
 
-        // --- 9. Password Change ---
-        function openChangePasswordModal(canCancel) {
-            document.body.classList.add('modal-open');
-            const m = document.getElementById('pw-modal');
-            m.classList.remove('hidden');
-            const cancelBtn = document.getElementById('pwCancelBtn');
-            // Show/Hide cancel button (it's the first button in the div usually, or select by ID)
-            if (cancelBtn) cancelBtn.style.visibility = canCancel ? 'visible' : 'hidden'; // Don't remove from layout to keep alignment? Or display none.
-            if (cancelBtn) cancelBtn.style.display = canCancel ? 'block' : 'none';
-        }
-
-        function closePwModal() {
-            document.body.classList.remove('modal-open');
-            document.getElementById('pw-modal').classList.add('hidden');
-        }
-
-        document.getElementById('pwForm').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const p1 = document.getElementById('newPw').value;
-            const p2 = document.getElementById('confirmPw').value;
-            if (p1 !== p2) { alert('비밀번호가 일치하지 않습니다.'); return; }
-            if (p1.length < 4) { alert('비밀번호는 4자리 이상이어야 합니다.'); return; }
-
-            showLoading(true);
-            const res = await callApi('changePassword', state.user.staffId, p1);
-            showLoading(false);
-
-            if (res.success) {
-                alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
-                closePwModal();
-                logout();
-            } else {
-                alert('실패: ' + (res.message || 'Unknown Error'));
-            }
-        });
-
-        // --- 10. Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Check if already on a specific route without session
-            if (restoreSession()) {
-                refresh();
-            } else {
-                render(); // shows login
-            }
-        });
-
+            printHtml += `
+            <script>
+                window.onload = function() {
+                    setTimeout(function() {
+                        window.print();
+                    }, 800);
+                }
     </script>
 </body>
 
 </html>
+`;
+
+showLoading(false);
+
+const printWin = window.open('', '_blank');
+if (printWin) {
+printWin.document.open();
+printWin.document.write(printHtml);
+printWin.document.close();
+} else {
+alert('팝업 차단이 활성화되어 있습니다. 브라우저 설정에서 팝업 차단을 해제한 후 다시 시도해주세요.');
+}
+};
+
+// --- 7. Modals & Popups ---
+window.openDetail = function (k, t, customDetails = null, customTitle = null) {
+let d = [];
+if (customDetails) {
+d = customDetails.filter(x => x.category === k && x.type === t);
+} else {
+d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
+}
+
+document.body.classList.add('modal-open');
+const modal = document.createElement('div');
+modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+const calcRate = (amt, prem) => {
+if (!prem || prem == 0) return '0%';
+return ((amt / prem) * 100).toFixed(1) + '%';
+};
+
+// 합계 계산
+const totalAmt = d.reduce((sum, x) => sum + (x.amount || 0), 0);
+const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+
+const desktopRows = d.length ? d.map(x => `
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+    <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
+        '-'}</td>
+    <td class="p-3 text-gray-700">${x.company}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+    <td class="p-3 font-medium text-gray-800">
+        <div class="truncate-product" title="${x.product}">${x.product}</div>
+    </td>
+    <td class="p-3 text-xs text-gray-500">${x.date}</td>
+    <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
+    <td class="p-3 text-center text-gray-700">${x.customer}</td>
+    <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
+    </td>
+    <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
+    </td>
+    <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
+</tr>`).join('') : `<tr>
+    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr>`;
+
+const mobileCards = d.length ? d.map(x => `
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+    <div class="flex justify-between items-start mb-2">
+        <div>
+            <p class="font-bold text-gray-900">${x.recruiter || '-'} <span
+                    class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
+        </div>
+        <div class="text-right flex flex-col items-end">
+            <span
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${t
+                === 'pay' ? '지급' : '환수'} ${(x.amount > 0 && t === 'pay') || (x.amount < 0 && t !=='pay' ) ? '' : '(주의)'
+                    }</span>
+                    <p class="font-extrabold text-base ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">
+                        ${formatMoney(x.amount)}</p>
+        </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x.product}</p>
+    <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
+        <div>
+            <p class="text-gray-400 mb-0.5">보험료</p>
+            <p class="font-semibold text-gray-700">${formatMoney(x.premium)}</p>
+        </div>
+        <div>
+            <p class="text-gray-400 mb-0.5">시상금 비율</p>
+            <p class="font-semibold text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</p>
+        </div>
+    </div>
+    <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
+        <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
+        <span>계약일: <span class="text-gray-600">${x.date}</span></span>
+    </div>
+    <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate"
+        title="${x.desc}">
+        <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
+    </div>
+</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
+
+const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
+
+modal.innerHTML = `<div
+    class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+        <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
+            <span class="w-1.5 h-5 md:h-6 bg-primary rounded-full block shadow-sm"></span>
+            <span class="truncate max-w-[150px] md:max-w-none">${titlePrefix}${k} <span
+                    class="${t === 'pay' ? 'text-blue-600' : 'text-red-500'}">${t === 'pay' ? '지급' : '환수'}</span></span>
+        </h3>
+        <div class="flex items-center gap-3 md:gap-4">
+            <div class="text-right">
+                <div class="text-[10px] md:text-xs text-gray-400 font-medium tracking-tight">전체 합계</div>
+                <div class="text-sm md:text-lg font-extrabold ${totalColor} tabular-nums">
+                    ${Number(totalAmt).toLocaleString()}원</div>
+            </div>
+            <button
+                class="close p-1.5 md:p-2 bg-gray-100 md:bg-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition focus:outline-none"><svg
+                    class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg></button>
+        </div>
+    </div>
+
+    <div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
+        <!-- 데스크탑 테이블 뷰 -->
+        <div class="hidden md:block">
+            <table class="w-full text-sm whitespace-nowrap">
+                <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+                    <tr class="text-left text-gray-600">
+                        <th class="p-3 font-semibold text-center text-gray-800 bg-gray-100 border-r border-gray-200">모집인
+                        </th>
+                        <th class="p-3 font-semibold">보험사</th>
+                        <th class="p-3 font-semibold">증권번호</th>
+                        <th class="p-3 font-semibold">상품명</th>
+                        <th class="p-3 font-semibold">계약일</th>
+                        <th class="p-3 text-right font-semibold">보험료</th>
+                        <th class="p-3 text-center font-semibold">계약자</th>
+                        <th class="p-3 text-right font-semibold">보험사시상</th>
+                        <th class="p-3 text-right font-semibold">시상율(%)</th>
+                        <th class="p-3 font-semibold">시상내용</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
+            </table>
+        </div>
+
+        <!-- 모바일 카드 뷰 -->
+        <div class="md:hidden flex flex-col">
+            ${mobileCards}
+        </div>
+    </div>
+
+    <div class="p-4 bg-white border-t border-gray-100 hidden md:block text-right">
+        <button
+            class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+    </div>
+</div>`;
+document.body.appendChild(modal);
+modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+document.body.classList.remove('modal-open');
+modal.remove();
+});
+}
+
+// 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
+window.fetchAndShowAdminDetail = async function (id, name, category, type) {
+// 1. 팝업 즉시 표시 + 로딩 스피너
+document.body.classList.add('modal-open');
+const modal = document.createElement('div');
+modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+const payLabel = type === 'pay' ? '지급' : '환수';
+const payColor = type === 'pay' ? 'text-blue-600' : 'text-red-500';
+modal.innerHTML = `<div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+            <span class="w-1.5 h-6 bg-primary rounded-full block shadow-sm"></span>
+            <span><span class="text-gray-500 mr-2">[${name}]</span>${category} <span
+                    class="${payColor}">${payLabel}</span> 상세내역</span>
+        </h3>
+        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg
+                class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg></button>
+    </div>
+    <div id="admin-detail-body" class="flex-grow flex items-center justify-center h-48">
+        <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+        <button
+            class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+    </div>
+</div>`;
+document.body.appendChild(modal);
+modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+document.body.classList.remove('modal-open');
+modal.remove();
+});
+
+// 2. 데이터 로드 (캐시 우선 확인)
+const cacheKey = `DATA_${id}_${state.currentMonth}_dashboard`;
+let d = null;
+const cached = sessionStorage.getItem(cacheKey);
+if (cached) {
+try { d = JSON.parse(cached); } catch (e) { }
+}
+if (!d) {
+d = await callApi('getRewardData', id, state.currentMonth);
+if (d && !d.error) {
+d.month = state.currentMonth;
+sessionStorage.setItem(cacheKey, JSON.stringify(d));
+}
+}
+
+const body = modal.querySelector('#admin-detail-body');
+if (!body) return;
+
+if (d && !d.error && d.details) {
+const details = d.details.filter(x => x.category === category && x.type === type);
+const totalAmt = details.reduce((sum, x) => sum + (x.amount || 0), 0);
+const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+
+// 타이틀에 합계 추가
+const titleEl = modal.querySelector('h3');
+if (titleEl) {
+titleEl.insertAdjacentHTML('afterend', `<div class="text-right">
+    <div class="text-xs text-gray-400 font-medium">합계</div>
+    <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
+</div>`);
+titleEl.closest('div').classList.add('justify-between');
+}
+
+const calcRate = (amt, prem) => (!prem || prem == 0) ? '0%' : ((amt / prem) * 100).toFixed(1) + '%';
+
+const desktopRows = details.length ? details.map(x => `
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+    <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
+        name}</td>
+    <td class="p-3 text-gray-700">${x.company}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+    <td class="p-3 font-medium text-gray-800">
+        <div class="truncate-product" title="${x.product}">${x.product}</div>
+    </td>
+    <td class="p-3 text-xs text-gray-500">${x.date}</td>
+    <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
+    <td class="p-3 text-center text-gray-700">${x.customer}</td>
+    <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
+    </td>
+    <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
+    </td>
+    <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
+</tr>`).join('') : `<tr>
+    <td colspan="10" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr>`;
+
+const mobileCards = details.length ? details.map(x => `
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+    <div class="flex justify-between items-start mb-2">
+        <div>
+            <p class="font-bold text-gray-900">${x.recruiter || name} <span
+                    class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
+        </div>
+        <div class="text-right flex flex-col items-end">
+            <span
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${type
+                === 'pay' ? '지급' : '환수'} ${(x.amount > 0 && type === 'pay') || (x.amount < 0 && type !=='pay' ) ? ''
+                    : '(주의)' }</span>
+                    <p class="font-extrabold text-base ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">
+                        ${formatMoney(x.amount)}</p>
+        </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x.product}</p>
+    <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
+        <div>
+            <p class="text-gray-400 mb-0.5">보험료</p>
+            <p class="font-semibold text-gray-700">${formatMoney(x.premium)}</p>
+        </div>
+        <div>
+            <p class="text-gray-400 mb-0.5">시상금 비율</p>
+            <p class="font-semibold text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}</p>
+        </div>
+    </div>
+    <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
+        <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
+        <span>계약일: <span class="text-gray-600">${x.date}</span></span>
+    </div>
+    <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate"
+        title="${x.desc}">
+        <span class="font-bold text-gray-400 mr-1">내용:</span>${x.desc}
+    </div>
+</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
+
+body.outerHTML = `<div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
+    <!-- 데스크탑 테이블 뷰 -->
+    <div class="hidden md:block">
+        <table class="w-full text-sm whitespace-nowrap">
+            <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+                <tr class="text-left text-gray-600">
+                    <th class="p-3 font-semibold text-center text-gray-800 bg-gray-100 border-r border-gray-200">모집인
+                    </th>
+                    <th class="p-3 font-semibold">보험사</th>
+                    <th class="p-3 font-semibold">증권번호</th>
+                    <th class="p-3 font-semibold">상품명</th>
+                    <th class="p-3 font-semibold">계약일</th>
+                    <th class="p-3 text-right font-semibold">보험료</th>
+                    <th class="p-3 text-center font-semibold">계약자</th>
+                    <th class="p-3 text-right font-semibold">보험사시상</th>
+                    <th class="p-3 text-right font-semibold">시상율(%)</th>
+                    <th class="p-3 font-semibold">시상내용</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
+        </table>
+    </div>
+
+    <!-- 모바일 카드 뷰 -->
+    <div class="md:hidden flex flex-col">
+        ${mobileCards}
+    </div>
+</div>`;
+} else {
+body.innerHTML = `<div class="p-8 text-center text-red-500">오류: ${(d && d.message) || '데이터를 불러올 수 없습니다.'}</div>`;
+}
+};
+
+// 수수료 판업 즉시 표시 후 데이터 로딩 (UX 개선)
+window.fetchAndShowCommissionAdminDetail = async function (targetId, targetName, commType, payType) {
+// 1. 팝업 즉시 표시 + 로딩 스피너
+document.body.classList.add('modal-open');
+const modal = document.createElement('div');
+modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+const typeLabel = commType === 'nl' ? '손보수수료' : commType === 'l' ? '생보수수료' : '관리수수료';
+const payLabel = payType === 'pay' ? '지급' : '환수';
+const colorClass = payType === 'pay' ? 'blue' : 'red';
+modal.innerHTML = `<div
+    class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col max-h-[90vh] overflow-hidden ring-1 ring-black/5">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+        <h3 class="font-bold text-xl text-gray-800 flex items-center gap-3">
+            <span class="w-1.5 h-6 bg-${colorClass}-400 rounded-full block shadow-sm"></span>
+            <span>[${targetName}] ${typeLabel} <span
+                    class="text-${colorClass === 'blue' ? 'blue-600' : 'red-500'}">${payLabel}</span> 상세내역</span>
+        </h3>
+        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg
+                class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg></button>
+    </div>
+    <div id="comm-detail-body" class="flex-grow flex items-center justify-center h-48">
+        <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    </div>
+    <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+        <button
+            class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+    </div>
+</div>`;
+document.body.appendChild(modal);
+modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+document.body.classList.remove('modal-open');
+modal.remove();
+});
+
+// 2. 데이터 로드 (캐시 우선 확인)
+const cacheKey = `DATA_COMM_${targetId}_${state.currentMonth}_${commType}_${payType}`;
+let res = null;
+const cached = sessionStorage.getItem(cacheKey);
+if (cached) {
+try { res = JSON.parse(cached); } catch (e) { }
+}
+if (!res) {
+res = await callApi('getBranchMemberCommissionDetails', state.user.staffId, targetId, state.currentMonth, commType,
+payType);
+if (res && res.success && !res.error) {
+sessionStorage.setItem(cacheKey, JSON.stringify(res));
+}
+}
+
+const body = modal.querySelector('#comm-detail-body');
+if (!body) return;
+
+if (res.error || !res.success) {
+body.innerHTML = `<div class="p-8 text-center text-red-500">수수료 내역을 불러오지 못했습니다: ${res.message || '알 수 없는 오류'}</div>`;
+return;
+}
+
+const list = res.list || [];
+const totalAmt = list.reduce((sum, x) => sum + (x.amount || 0), 0);
+const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+
+// 타이틀에 합계 및 건수 추가
+const headerDiv = modal.querySelector('.justify-between') || modal.querySelector('.flex.justify-between');
+if (headerDiv) {
+const btn = headerDiv.querySelector('.close');
+const summaryHtml = `<div class="flex items-center gap-4 mr-2">
+    <div class="text-right">
+        <div class="text-xs text-gray-400 font-medium">합계 (${list.length}건)</div>
+        <div class="text-lg font-extrabold ${totalColor} tabular-nums">${Number(totalAmt).toLocaleString()}원</div>
+    </div>
+</div>`;
+btn.insertAdjacentHTML('beforebegin', summaryHtml);
+}
+
+const rows = list.length ? list.map(x => `
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+    <td class="p-3 text-gray-700">${x.company}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+    <td class="p-3 font-medium text-gray-800">
+        <div class="truncate-product" title="${x.product}">${x.product}</div>
+    </td>
+    <td class="p-3 text-xs text-gray-500">${x.date}</td>
+    <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
+    <td class="p-3 text-center text-gray-700">${x.customer}</td>
+    <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
+    </td>
+    <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.sheetName}</td>
+</tr>`).join('') : `<tr>
+    <td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+</tr>`;
+
+body.outerHTML = `<div class="overflow-auto flex-grow bg-white">
+    <table class="w-full text-sm whitespace-nowrap">
+        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+            <tr class="text-left text-gray-600">
+                <th class="p-3 font-semibold">보험사</th>
+                <th class="p-3 font-semibold">증권번호</th>
+                <th class="p-3 font-semibold">상품명</th>
+                <th class="p-3 font-semibold">계약일</th>
+                <th class="p-3 text-right font-semibold">보험료</th>
+                <th class="p-3 text-center font-semibold">계약자</th>
+                <th class="p-3 text-right font-semibold">수수료</th>
+                <th class="p-3 font-semibold">구분</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">${rows}</tbody>
+    </table>
+</div>`;
+};
+
+window.fetchAndShowOrgTree = async function (targetId, targetName) {
+showLoading(true);
+const res = await callApi('getOrgTree', state.user.staffId, targetId, state.currentMonth);
+showLoading(false);
+
+if (res.error) {
+alert('오류: ' + res.message);
+} else {
+showOrgTreeModal(res.data, targetName);
+}
+};
+
+window.showOrgTreeModal = function (data, targetName) {
+document.body.classList.add('modal-open');
+const modal = document.createElement('div');
+modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+// Build Tree Logic
+const list = data.downlines || [];
+// Sort to ensure hierarchy (this does not guarantee full tree order but helps if sorted by levels)
+// Better approach: Reconstruct tree
+
+const buildTree = () => {
+const nodeMap = {};
+list.forEach(n => nodeMap[String(n['사번'])] = { ...n, children: [] });
+
+const hierarchy = [];
+
+list.forEach(n => {
+if (n.level === 1) {
+hierarchy.push(nodeMap[String(n['사번'])]);
+} else {
+// For levels > 1, parent is always the direct upline (상위1차)
+const parentId = String(n['상위1차']);
+
+if (nodeMap[parentId]) {
+nodeMap[parentId].children.push(nodeMap[String(n['사번'])]);
+} else {
+// Orphaned node (parent missing from list)?
+// Add to root level to ensure visibility
+hierarchy.push(nodeMap[String(n['사번'])]);
+}
+}
+});
+return hierarchy;
+};
+
+const tree = buildTree();
+
+// Render Function
+const renderNode = (node) => {
+const pay = (Number(node['손보월발생분'] || 0) + Number(node['생보월발생분'] || 0));
+const ref = (Number(node['손보월환수분'] || 0) + Number(node['생보월환수분'] || 0));
+const net = pay + ref;
+const netClass = net >= 0 ? 'text-blue-600' : 'text-red-500';
+
+let html = `
+<div class="mb-2">
+    <div
+        class="flex items-center p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition border border-gray-100/50">
+        <div class="flex-shrink-0 mr-3">
+            <div
+                class="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
+                ${node.level}차</div>
+        </div>
+        <div class="flex-grow min-w-0">
+            <p class="text-sm font-bold text-gray-800 truncate">${node['이름']} <span
+                    class="text-gray-400 font-normal text-xs">(${node['사번']})</span></p>
+            <p class="text-xs text-gray-500 truncate">${node['소속'] || ''} | ${node['직책'] || ''} | ${node['위촉월'] || ''}
+            </p>
+        </div>
+        <div class="flex-shrink-0 text-right ml-3">
+            <p class="text-sm font-bold ${netClass}">${formatMoney(net)}</p>
+            <p class="text-[10px] text-gray-400">지급 ${formatMoney(pay)} / 환수 ${formatMoney(ref)}</p>
+        </div>
+    </div>
+    `;
+
+    if (node.children && node.children.length > 0) {
+    html += `<div class="ml-6 pl-4 border-l-2 border-gray-100 mt-2 space-y-2">`;
+        node.children.forEach(child => {
+        html += renderNode(child);
+        });
+        html += `</div>`;
+    }
+
+    html += `
+</div>`;
+return html;
+};
+
+let contentHtml = '';
+if (tree.length === 0) contentHtml = '<div class="text-center py-10 text-gray-400">산하 조직이 없습니다.</div>';
+else tree.forEach(node => contentHtml += renderNode(node));
+
+modal.innerHTML = `
+<div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden">
+    <div
+        class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-md sticky top-0 z-10">
+        <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+            <span class="p-1.5 bg-blue-100 text-blue-600 rounded-lg"><svg class="w-5 h-5" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg></span>
+            <span>${targetName} <span class="text-gray-400 font-normal text-sm">산하 조직도</span></span>
+        </h3>
+        <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"><svg
+                class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg></button>
+    </div>
+    <div class="p-6 overflow-y-auto bg-white custom-scrollbar">
+        ${contentHtml}
+    </div>
+    <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+        <button
+            class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+    </div>
+</div>
+`;
+
+document.body.appendChild(modal);
+modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+document.body.classList.remove('modal-open');
+modal.remove();
+});
+};
+
+window.fetchAndShowLapsedContracts = async function () {
+const cacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
+let cached = sessionStorage.getItem(cacheKey);
+let res = null;
+if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
+
+if (!res) {
+showLoading(true);
+res = await callApi('getLapsedContracts', state.user.staffId);
+showLoading(false);
+if (res && !res.error && res.success) {
+sessionStorage.setItem(cacheKey, JSON.stringify(res));
+}
+}
+
+if (res && (res.error || !res.success)) {
+alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
+} else {
+showLapsedContractsModal(res.list || [], "나의 ");
+}
+};
+
+window.showLapsedContractsModal = function (data, prefix = "") {
+document.body.classList.add('modal-open');
+const modal = document.createElement('div');
+modal.className = "fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+const rows = data.length > 0 ? data.map(x => `
+<tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+    <td class="p-3 text-center">
+        <span
+            class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+    </td>
+    <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+    <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+    <td class="p-3 text-gray-700">${x['보험사']}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+    <td class="p-3 font-medium text-gray-800">
+        <div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div>
+    </td>
+    <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+    <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+    <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+    <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+    <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+    <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+</tr>`).join('') : `<tr>
+    <td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td>
+</tr>`;
+
+const mobileCards = data.length > 0 ? data.map(x => `
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 last:mb-0">
+    <div class="flex justify-between items-start mb-2">
+        <div>
+            <p class="font-bold text-gray-900">${x['계약자']} <span
+                    class="text-xs text-gray-400 font-normal">(${x['모집인명']})</span></p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${x['증권번호']}</p>
+        </div>
+        <div class="text-right flex flex-col items-end">
+            <span
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')} mb-1">${x['계약상태']}</span>
+            <p class="font-extrabold text-base text-blue-600">${formatMoney(x['계속보험료'])}</p>
+        </div>
+    </div>
+    <p class="text-sm text-gray-600 mb-2 font-medium truncate">${x['상품명']}</p>
+    <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
+        <div>
+            <p class="text-gray-400 mb-0.5">계약일</p>
+            <p class="font-semibold text-gray-700">${x['계약일']}</p>
+        </div>
+        <div>
+            <p class="text-gray-400 mb-0.5">최종납입월/회차</p>
+            <p class="font-semibold text-gray-600">${x['최종납입월']} (${x['납입회차']})</p>
+        </div>
+    </div>
+    <div class="flex justify-between items-center mt-2 text-[11px] text-gray-400">
+        <span>수금인: <span class="text-gray-600">${x['수금인명']}</span></span>
+        <span>보험사: <span class="text-gray-600">${x['보험사']}</span></span>
+    </div>
+</div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">실효 계약 내역이 없습니다.</div>';
+
+modal.innerHTML = `<div
+    class="bg-gray-50 md:bg-white rounded-t-3xl md:rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col max-h-[90vh] md:max-h-[85vh] mt-auto md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
+        <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
+            <span class="w-1.5 h-5 md:h-6 bg-red-500 rounded-full block shadow-sm"></span>
+            <span class="truncate max-w-[200px] md:max-w-none">${prefix}실효계약 <span
+                    class="text-sm font-normal text-gray-500 ml-2">(총 <span
+                        class="text-red-500 font-bold">${data.length}</span>건)</span></span>
+        </h3>
+        <button
+            class="close p-1.5 md:p-2 bg-gray-100 md:bg-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition focus:outline-none"><svg
+                class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg></button>
+    </div>
+
+    <div class="overflow-y-auto flex-grow bg-gray-50 md:bg-white p-4 md:p-0">
+        <!-- 데스크탑 테이블 뷰 -->
+        <div class="hidden md:block">
+            <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
+                <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+                    <tr class="text-left text-gray-600">
+                        <th class="p-3 font-semibold text-center">상태</th>
+                        <th class="p-3 font-semibold text-center">모집인</th>
+                        <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                        <th class="p-3 font-semibold">보험사</th>
+                        <th class="p-3 font-semibold">증권번호</th>
+                        <th class="p-3 font-semibold">상품명</th>
+                        <th class="p-3 text-right font-semibold">계속보험료</th>
+                        <th class="p-3 font-semibold">계약일</th>
+                        <th class="p-3 text-center font-semibold">납입회차</th>
+                        <th class="p-3 text-center font-semibold">최종납입월</th>
+                        <th class="p-3 text-center font-semibold">계약자</th>
+                        <th class="p-3 text-center font-semibold">데이터기준일</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">${rows}</tbody>
+            </table>
+        </div>
+
+        <!-- 모바일 카드 뷰 -->
+        <div class="md:hidden flex flex-col">
+            ${mobileCards}
+        </div>
+    </div>
+
+    <div class="p-4 bg-white border-t border-gray-100 hidden md:block text-right">
+        <button
+            class="close px-6 py-2.5 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl shadow-lg shadow-gray-200 transition">닫기</button>
+    </div>
+</div>`;
+document.body.appendChild(modal);
+modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+document.body.classList.remove('modal-open');
+modal.remove();
+});
+};
+
+// --- 8. Logic Interactions ---
+async function doLogin(id, pw) {
+// [OPTIMIZATION] Inline spinner on login button to prevent screen freezing
+const btn = document.querySelector('#loginForm button[type="submit"]');
+let originalText = "로그인";
+if (btn) {
+originalText = btn.innerHTML;
+btn.innerHTML = `<div
+    class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2">
+</div>인증 중...`;
+btn.disabled = true;
+btn.classList.add('opacity-80', 'cursor-not-allowed');
+}
+
+const r = await callApi('loginUser', id, pw);
+
+if (btn) {
+btn.innerHTML = originalText;
+btn.disabled = false;
+btn.classList.remove('opacity-80', 'cursor-not-allowed');
+}
+
+if (r.success) {
+state.user = r.user;
+if (r.months && r.months.length > 0) {
+state.months = r.months;
+state.currentMonth = r.currentMonth || r.months[0];
+} else {
+const now = new Date(); state.months = [String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0')];
+state.currentMonth = state.months[0];
+}
+if (r.dashboardData) state.data.rewardData = r.dashboardData;
+
+if (state.user.isFirstLogin) {
+openChangePasswordModal(false);
+} else {
+saveSession();
+navigate('home');
+setTimeout(prefetchAllBackground, 500); // Trigger background prefetch
+}
+} else {
+alert(r.message || '로그인 실패');
+}
+}
+
+function logout() {
+state.user = null;
+state.homeLoaded = false;
+clearSession();
+navigate('login');
+}
+
+function refresh() {
+if (!state.user) return;
+
+// [OPTIMIZATION] Client-side caching
+const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
+
+// 1. Check Memory State
+if (state.currentView === 'home' && state.data.homeData) { render(); return; }
+if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
+if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
+if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
+state.data.branchCommData?.month === state.currentMonth) { render(); return; }
+
+// 2. Check Session Storage
+const cached = sessionStorage.getItem(cacheKey);
+if (cached) {
+try {
+const parsed = JSON.parse(cached);
+// Update State
+if (state.currentView === 'home') {
+state.data.homeData = parsed;
+state.homeLoaded = true;
+}
+else if (state.currentView === 'branch') {
+// branch 뷰: rewardData는 세션 캐시 복원, branchCommData는 별도 fetch
+state.data.rewardData = parsed;
+state.isLoading = false;
+render();
+if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
+callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
+if (!commRes.error && commRes.success) {
+commRes.month = state.currentMonth;
+state.data.branchCommData = commRes;
+} else {
+state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
+}
+if (state.currentView === 'branch') render();
+});
+}
+return;
+}
+else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
+else if (state.currentView === 'recruitment') state.data.recData = parsed;
+else if (state.currentView === 'admin') state.data.adminSummary = parsed;
+
+state.isLoading = false; // [FIX] Reset loading state when using cache
+render();
+return; // Skip fetch
+} catch (e) {
+sessionStorage.removeItem(cacheKey);
+}
+}
+
+if (state.currentView === 'home') fetchHome(cacheKey);
+else if (state.currentView === 'dashboard') fetchReward(cacheKey);
+else if (state.currentView === 'branch') fetchBranch(cacheKey);
+else if (state.currentView === 'recruitment') fetchRec(cacheKey);
+else if (state.currentView === 'admin') fetchAdmin(cacheKey);
+}
+
+async function fetchHome(key) {
+state.homeLoaded = false;
+render();
+const d = await callApi('getHomeData', state.user.staffId);
+state.homeLoaded = true;
+
+if (!d.error && d.success) {
+state.data.homeData = d;
+sessionStorage.setItem(key, JSON.stringify(d));
+if (state.currentView === 'home') render();
+} else {
+state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+if (state.currentView === 'home') render();
+}
+}
+
+async function fetchReward(key) {
+state.isLoading = true; render();
+const d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
+state.isLoading = false;
+
+if (!d.error) {
+d.month = state.currentMonth;
+state.data.rewardData = d;
+sessionStorage.setItem(key, JSON.stringify(d));
+render();
+} else {
+alert('데이터 로드 실패: ' + d.message);
+render();
+}
+}
+
+async function fetchBranch(key) {
+state.isLoading = true; render();
+// 시상금데이터와 수수료데이터 동시 호출
+const [rewardRes, commRes] = await Promise.all([
+callApi('getRewardData', state.user.staffId, state.currentMonth),
+callApi('getBranchCommissionData', state.user.staffId, state.currentMonth)
+]);
+state.isLoading = false;
+
+if (!rewardRes.error) {
+rewardRes.month = state.currentMonth;
+state.data.rewardData = rewardRes;
+// branch 뷰의 시상금 캐시는 dashboard와 공유
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(rewardRes));
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(rewardRes));
+}
+
+if (!commRes.error && commRes.success) {
+commRes.month = state.currentMonth;
+state.data.branchCommData = commRes;
+} else {
+// 에러시 빈 값으로 초기화 (화면은 사용 가능)
+state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+if (commRes.error) console.warn('수수료 데이터 로드 실패:', commRes.message);
+}
+
+render();
+}
+async function fetchRec(key) {
+state.isLoading = true; render();
+const d = await callApi('getRecruitmentData', state.user.staffId, state.currentMonth);
+state.isLoading = false;
+
+if (!d.error) {
+d.month = state.currentMonth;
+state.data.recData = d;
+sessionStorage.setItem(key, JSON.stringify(d));
+render();
+} else {
+alert('데이터 로드 실패: ' + d.message);
+render();
+}
+}
+async function fetchAdmin(key) {
+state.isLoading = true; render();
+const d = await callApi('getAdminSummary', state.currentMonth, state.user.staffId);
+state.isLoading = false;
+
+let parsed = d;
+// Handle double JSON parsing if necessary (sometimes GAS returns stringified JSON)
+if (typeof d === 'string') {
+try { parsed = JSON.parse(d); } catch (e) { parsed = { error: true, message: 'JSON Parse Error' }; }
+}
+
+state.data.adminSummary = parsed;
+if (!parsed.error && key) sessionStorage.setItem(key, JSON.stringify(parsed));
+render();
+}
+
+// --- 8.5 Background Pre-fetcher ---
+function prefetchAllBackground() {
+if (!state.user || !state.currentMonth) return;
+
+// 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
+const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
+if (!sessionStorage.getItem(myLapsedCacheKey)) {
+callApi('getLapsedContracts', state.user.staffId).then(d => {
+if (d && !d.error && d.success) {
+sessionStorage.setItem(myLapsedCacheKey, JSON.stringify(d));
+}
+});
+}
+
+// 1. Reward Data
+if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
+callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
+if (!d.error) {
+d.month = state.currentMonth;
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
+}
+});
+}
+
+// 1-2. Branch Commission Data (for 지사대표)
+if (state.user.role === '지사대표' && !state.data.branchCommData) {
+callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(d => {
+if (!d.error && d.success) {
+d.month = state.currentMonth;
+state.data.branchCommData = d;
+if (state.currentView === 'branch') render();
+}
+});
+}
+
+// 2. Recruitment Data
+if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
+callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
+if (!d.error) {
+d.month = state.currentMonth;
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
+}
+});
+}
+
+// 3. Admin Summary
+if ((state.user.role === '지사대표' || state.user.role === '관리자') &&
+!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
+callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
+let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
+if (!parsed.error) {
+sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
+
+// [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
+if (parsed.reward) {
+const allMembers = [...(parsed.reward.active || []), ...(parsed.reward.resigned || [])];
+// 메인 스레드 부하 방지를 위해 최대 30명까지만 순차적 선로딩 적용
+const membersToPrefetch = allMembers.slice(0, 30);
+
+membersToPrefetch.forEach((m, idx) => {
+setTimeout(() => {
+const id = String(m.id || m['사번']);
+const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
+if (!sessionStorage.getItem(rKey)) {
+callApi('getRewardData', id, state.currentMonth).then(rd => {
+if (rd && !rd.error) {
+rd.month = state.currentMonth;
+sessionStorage.setItem(rKey, JSON.stringify(rd));
+}
+});
+}
+
+if (state.user.role === '지사대표') {
+['nl', 'l', 'm'].forEach(cType => {
+['pay', 'refund'].forEach(pType => {
+const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
+if (!sessionStorage.getItem(cKey)) {
+callApi('getBranchMemberCommissionDetails', state.user.staffId, id, state.currentMonth, cType, pType).then(cd => {
+if (cd && cd.success && !cd.error) sessionStorage.setItem(cKey, JSON.stringify(cd));
+});
+}
+});
+});
+}
+}, idx * 800); // 0.8초 간격 분산 호출
+});
+}
+}
+});
+}
+
+// 4. Lapse Data (Home/My Lapsed)
+if (!state.lapseLoaded) {
+callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
+if (res.success) {
+state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
+state.lapseLoaded = true;
+updateHomeLapseCounts(); // Refresh UI specifically
+}
+});
+}
+
+// 5. Lapse Admin Summary
+if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') &&
+!state.data.lapseAdminSummary) {
+callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter').then(res => {
+if (!res.error && res.success) {
+state.data.lapseAdminSummary = res.list || [];
+state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+state.data.lapseAdminSummaryType = 'recruiter';
+
+// [UX 개선] 실효연체 팝업 미리 캐싱 (Prefetch)
+const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
+membersToPrefetch.forEach((m, idx) => {
+setTimeout(() => {
+const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
+if (!sessionStorage.getItem(cacheKey)) {
+callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
+if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
+});
+}
+}, idx * 1000); // 1초 간격
+});
+}
+});
+}
+
+// 6. Retention Admin Summary
+if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') &&
+!state.data.retentionAdminSummary) {
+callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
+if (!res.error && res.success) {
+state.data.retentionAdminSummary = res.list || [];
+
+// [UX 개선] 통산유지율 팝업 미리 캐싱 (Prefetch)
+const membersToPrefetch = state.data.retentionAdminSummary.slice(0, 30);
+membersToPrefetch.forEach((m, idx) => {
+setTimeout(() => {
+const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${m.id}`;
+if (!sessionStorage.getItem(cacheKey)) {
+callApi('getLapsedContractsByRecruiter', state.user.staffId, m.id).then(rd => {
+if (rd && !rd.error && rd.success) sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+});
+}
+}, 5000 + (idx * 1000)); // 다른 프리페치와 안겹치도록 지연 대기 후 1초 간격 실행
+});
+}
+});
+}
+
+// 7. New Contracts (Both NL and L)
+if (state.user.role === '지사대표') {
+if (!state.data.newContractNl || state.data.newContractNl_month !== state.currentMonth) {
+callApi('getNewContractList', state.user.staffId, state.currentMonth, 'nl').then(res => {
+if (!res.error && res.success) {
+state.data.newContractNl = res.list || [];
+state.data.newContractNl_month = state.currentMonth;
+}
+});
+}
+if (!state.data.newContractL || state.data.newContractL_month !== state.currentMonth) {
+callApi('getNewContractList', state.user.staffId, state.currentMonth, 'l').then(res => {
+if (!res.error && res.success) {
+state.data.newContractL = res.list || [];
+state.data.newContractL_month = state.currentMonth;
+}
+});
+}
+}
+}
+
+// --- 9. Password Change ---
+function openChangePasswordModal(canCancel) {
+document.body.classList.add('modal-open');
+const m = document.getElementById('pw-modal');
+m.classList.remove('hidden');
+const cancelBtn = document.getElementById('pwCancelBtn');
+// Show/Hide cancel button (it's the first button in the div usually, or select by ID)
+if (cancelBtn) {
+cancelBtn.style.visibility = canCancel ? 'visible' : 'hidden'; // Don't remove from layout to keep alignment? Or display
+none.
+cancelBtn.style.display = canCancel ? 'block' : 'none';
+}
+}
+
+function closePwModal() {
+document.body.classList.remove('modal-open');
+document.getElementById('pw-modal').classList.add('hidden');
+}
+
+document.getElementById('pwForm').addEventListener('submit', async function (e) {
+e.preventDefault();
+const p1 = document.getElementById('newPw').value;
+const p2 = document.getElementById('confirmPw').value;
+if (p1 !== p2) { alert('비밀번호가 일치하지 않습니다.'); return; }
+if (p1.length < 4) { alert('비밀번호는 4자리 이상이어야 합니다.'); return; } showLoading(true); const res=await
+    callApi('changePassword', state.user.staffId, p1); showLoading(false); if (res.success) { alert('비밀번호가 변경되었습니다. 다시
+    로그인해주세요.'); closePwModal(); logout(); } else { alert('실패: ' + (res.message || ' Unknown Error')); } }); // --- 10.
+    Initialization --- document.addEventListener('DOMContentLoaded', ()=> {
+    // Check if already on a specific route without session
+    if (restoreSession()) {
+    refresh();
+    } else {
+    render(); // shows login
+    }
+    });
+
+    </script>
+    </body>
+
+    </html>
