@@ -315,7 +315,7 @@
             months: [],
             data: {},
             homeLoaded: false,
-            lapseData: { lapsed: [], arrears: [] },
+            lapseData: { lapsed: [], arrears: [], unpaid: [] },
             lapseCurrentTab: 'lapsed', // 'lapsed' or 'arrears'
             lapseLimit: 20,
             lapseLoaded: false,
@@ -3954,7 +3954,7 @@
             if (!state.lapseLoaded) {
                 callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
                     if (res.success) {
-                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
+                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [] };
                         state.lapseLoaded = true;
                         updateHomeLapseCounts(); // Refresh UI specifically
                     }
