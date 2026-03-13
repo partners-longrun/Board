@@ -923,18 +923,28 @@
             state.lapseCurrentTab = tab;
             state.lapseLimit = 20; // reset pagination limit
             const container = document.getElementById('lapse-container');
-            const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            let data = [];
+            if (tab === 'arrears') data = state.lapseData.arrears;
+            else if (tab === 'unpaid') data = state.lapseData.unpaid;
+            else data = state.lapseData.lapsed;
             renderLapseContents(container, data);
 
             // Update Tab UI
             const btnLapsed = document.getElementById('tab-btn-lapsed');
             const btnArrears = document.getElementById('tab-btn-arrears');
+            const btnUnpaid = document.getElementById('tab-btn-unpaid');
+
+            [btnLapsed, btnArrears, btnUnpaid].forEach(btn => {
+                if (!btn) return;
+                btn.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
+            });
+
             if (tab === 'lapsed') {
                 btnLapsed.className = 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition';
-                btnArrears.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
-            } else {
-                btnLapsed.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
+            } else if (tab === 'arrears') {
                 btnArrears.className = 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition';
+            } else if (tab === 'unpaid') {
+                btnUnpaid.className = 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 shadow-sm rounded-xl transition';
             }
         };
 
@@ -948,9 +958,10 @@
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
-                <div class="bg-gray-100 p-1.5 rounded-2xl flex mb-6 max-w-sm mx-auto md:mx-0">
-                    <button id="tab-btn-lapsed" onclick="switchLapseTab('lapsed')" class="${state.lapseCurrentTab === 'lapsed' ? 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 실효계약</button>
-                    <button id="tab-btn-arrears" onclick="switchLapseTab('arrears')" class="${state.lapseCurrentTab === 'arrears' ? 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 연체계약</button>
+                <div class="bg-gray-100 p-1.5 rounded-2xl flex mb-6 max-w-md mx-auto md:mx-0">
+                    <button id="tab-btn-lapsed" onclick="switchLapseTab('lapsed')" class="${state.lapseCurrentTab === 'lapsed' ? 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 실효</button>
+                    <button id="tab-btn-arrears" onclick="switchLapseTab('arrears')" class="${state.lapseCurrentTab === 'arrears' ? 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 연체</button>
+                    <button id="tab-btn-unpaid" onclick="switchLapseTab('unpaid')" class="${state.lapseCurrentTab === 'unpaid' ? 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 미납</button>
                 </div>
                 
                 <div id="lapse-container" class="min-h-[400px]">
@@ -964,7 +975,7 @@
             setTimeout(async () => {
                 const container = div.querySelector('#lapse-container');
 
-                if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length)) {
+                if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length && !state.lapseData.unpaid?.length)) {
                     container.innerHTML = getSkeletonUI().innerHTML;
                     const res = await callApi('getLapseManagementData', state.user.staffId, 'collector');
 
@@ -972,10 +983,14 @@
                         container.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
                         return;
                     }
-                    state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [] };
+                    state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [] };
                 }
 
-                const dataToRender = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+                let dataToRender = [];
+                if (state.lapseCurrentTab === 'arrears') dataToRender = state.lapseData.arrears;
+                else if (state.lapseCurrentTab === 'unpaid') dataToRender = state.lapseData.unpaid;
+                else dataToRender = state.lapseData.lapsed;
+
                 renderLapseContents(container, dataToRender);
             }, 10);
 
@@ -984,8 +999,9 @@
 
         function renderLapseContents(container, data) {
             const isArrears = state.lapseCurrentTab === 'arrears';
-            const colorClass = isArrears ? 'orange' : 'red';
-            const titleText = isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트';
+            const isUnpaid = state.lapseCurrentTab === 'unpaid';
+            const colorClass = isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red');
+            const titleText = isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트');
 
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</div>`;
@@ -1090,12 +1106,18 @@
         window.loadMoreLapse = function () {
             state.lapseLimit += 20;
             const container = document.getElementById('lapse-container');
-            const data = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            let data = [];
+            if (state.lapseCurrentTab === 'arrears') data = state.lapseData.arrears;
+            else if (state.lapseCurrentTab === 'unpaid') data = state.lapseData.unpaid;
+            else data = state.lapseData.lapsed;
             renderLapseContents(container, data);
         };
 
         window.openMobileLapseDetail = function (idx) {
-            const dataList = state.lapseCurrentTab === 'arrears' ? state.lapseData.arrears : state.lapseData.lapsed;
+            let dataList = [];
+            if (state.lapseCurrentTab === 'arrears') dataList = state.lapseData.arrears;
+            else if (state.lapseCurrentTab === 'unpaid') dataList = state.lapseData.unpaid;
+            else dataList = state.lapseData.lapsed;
             const data = dataList[idx];
             if (!data) return;
 
