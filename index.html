@@ -2595,15 +2595,15 @@
                </td>
                <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
                <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
-               <td class="p-3 text-gray-700">${x['보험사']}</td>
+               <td class="p-3 text-gray-700 max-w-[80px] truncate">${x['보험사']}</td>
                <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
                <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
-               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+               <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['계속보험료'])}</td>
+               <td class="p-3 text-xs text-gray-500 min-w-[85px]">${x['계약일']}</td>
                <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
                <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
                <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+               <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
              </tr>`).join('') : `<tr><td colspan="12" class="p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</td></tr>`;
 
             modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95%] xl:max-w-[1280px] flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
@@ -2624,11 +2624,11 @@
                             <th class="p-3 font-semibold">증권번호</th>
                             <th class="p-3 font-semibold">상품명</th>
                             <th class="p-3 text-right font-semibold">계속보험료</th>
-                            <th class="p-3 font-semibold">계약일</th>
+                            <th class="p-3 font-semibold min-w-[85px]">계약일</th>
                             <th class="p-3 text-center font-semibold">납입회차</th>
                             <th class="p-3 text-center font-semibold">최종납입월</th>
                             <th class="p-3 text-center font-semibold">계약자</th>
-                            <th class="p-3 text-center font-semibold">데이터기준일</th>
+                            <th class="p-3 text-center font-semibold min-w-[85px]">기준일</th>
                         </tr></thead>
                         <tbody class="divide-y divide-gray-100">${rows}</tbody>
                     </table>
@@ -2702,6 +2702,8 @@
                     .badge-orange { background: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
                     .badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
                     .footer-note { text-align: right; font-size: 10px; color: #9ca3af; margin-top: 20px; }
+                    .tabular-nums { font-variant-numeric: tabular-nums; }
+                    .truncate-product { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
                     @media print {
                         @page { size: A4 landscape; margin: 10mm; }
                         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -2751,15 +2753,15 @@
                                 <th style="width: 5%">상태</th>
                                 <th style="width: 6%">모집인</th>
                                 <th style="width: 6%">수금인</th>
-                                <th style="width: 10%">보험사</th>
+                                <th style="width: 8%">보험사</th>
                                 <th style="width: 12%">증권번호</th>
-                                <th style="width: 18%" class="text-left">상품명</th>
+                                <th style="width: 20%" class="text-left">상품명</th>
                                 <th style="width: 9%" class="text-right">계속보험료</th>
-                                <th style="width: 8%">계약일</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
                                 <th style="width: 5%">회차</th>
                                 <th style="width: 6%">최종납입</th>
                                 <th style="width: 7%">계약자</th>
-                                <th style="width: 8%">기준일</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -2820,7 +2822,7 @@
                             <td class="font-bold">${x['수금인명']}</td>
                             <td>${x['보험사']}</td>
                             <td style="font-family: monospace;">${x['증권번호']}</td>
-                            <td class="text-left font-bold" style="color:#1f2937;">${x['상품명']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                             <td class="text-right font-bold" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
                             <td>${x['계약일']}</td>
                             <td>${x['납입회차']}</td>
