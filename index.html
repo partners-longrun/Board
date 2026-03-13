@@ -501,14 +501,14 @@
                 </div>
                 
                 <div class="mb-8">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <!-- 1. 유지율 카드 -->
                         <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="fetchAndShowLapsedContracts()">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' && displayMonth !== undefined ? '(' + displayMonth + ' 기준)' : ''}</p>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide">나의 13회차 통산유지율 ${displayMonth !== '-' && displayMonth !== undefined ? '(' + displayMonth + ' 기준)' : ''}</p>
                             </div>
-                            <div class="text-4xl font-extrabold ${state.homeLoaded ? rateClass : 'text-primary'} tracking-tight drop-shadow-sm text-center w-full flex justify-center items-center h-10">
+                            <div class="text-3xl font-extrabold ${state.homeLoaded ? rateClass : 'text-primary'} tracking-tight drop-shadow-sm text-center w-full flex justify-center items-center h-10">
                                 ${state.homeLoaded ? retentionDisplay : '<svg class="animate-spin w-8 h-8 text-primary/40" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
                             </div>
                         </div>
@@ -517,7 +517,7 @@
                         <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-6 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수</p>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수</p>
                             </div>
                             <div class="text-2xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-lapsed-count">
                                 ${state.lapseLoaded ? (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -528,10 +528,21 @@
                         <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-6 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="state.lapseCurrentTab='arrears'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block"></span>
-                                <p class="text-sm font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수</p>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수</p>
                             </div>
                             <div class="text-2xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-arrears-count">
                                 ${state.lapseLoaded ? (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-orange-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
+                        </div>
+
+                        <!-- 4. 당월 미납 건수 카드 -->
+                        <div class="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-sm border border-blue-50 p-6 flex flex-col justify-center cursor-pointer hover:border-blue-100 transition group" onclick="state.lapseCurrentTab='unpaid'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
+                                <span class="w-1.5 h-4 bg-blue-400 rounded-full inline-block"></span>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-blue-500 transition">당월 미납 건수</p>
+                            </div>
+                            <div class="text-2xl font-extrabold text-blue-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unpaid-count">
+                                ${state.lapseLoaded ? (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-blue-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
                             </div>
                         </div>
                     </div>
@@ -636,8 +647,10 @@
             if (!state.lapseLoaded) return;
             const lEl = document.getElementById('home-lapsed-count');
             const aEl = document.getElementById('home-arrears-count');
+            const uEl = document.getElementById('home-unpaid-count');
             if (lEl) lEl.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
             if (aEl) aEl.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            if (uEl) uEl.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
         }
 
         function createLoginView() {
@@ -912,8 +925,10 @@
                 if (state.lapseLoaded) {
                     const lCount = container.querySelector('#home-lapsed-count');
                     const aCount = container.querySelector('#home-arrears-count');
+                    const uCount = container.querySelector('#home-unpaid-count');
                     if (lCount) lCount.innerHTML = state.lapseData.lapsed.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
                     if (aCount) aCount.innerHTML = state.lapseData.arrears.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    if (uCount) uCount.innerHTML = state.lapseData.unpaid.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
                 }
             }, 0);
             return container;
@@ -1065,7 +1080,7 @@
             const mobileCards = limitedData.map((x, idx) => `
                 <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
                     <div class="flex justify-between items-center mb-3">
-                        <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+                        <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : (String(x['계약상태']) === '미납' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-100 text-gray-600'))}">${x['계약상태']}</span>
                         <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
                     </div>
                     <div class="flex justify-between items-end mb-2">
