@@ -2776,13 +2776,13 @@
                             <td class="font-bold">${x['수금인명']}</td>
                             <td>${x['보험사']}</td>
                             <td style="font-family: monospace;">${x['증권번호']}</td>
-                            <td class="text-left font-bold" style="color:#1f2937;">${x['상품명']}</td>
-                            <td class="text-right font-bold" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
-                            <td>${x['계약일']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                            <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                            <td style="min-width: 85px;">${x['계약일']}</td>
                             <td>${x['납입회차']}</td>
                             <td style="font-family: monospace;">${x['최종납입월']}</td>
                             <td class="font-bold" style="color:#2563eb;">${x['계약자']}</td>
-                            <td style="color:#6b7280; font-size:10px;">${x['데이터기준일'] || '-'}</td>
+                            <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
                         </tr>`;
                     });
                     printHtml += `</tbody></table>`;
@@ -2799,15 +2799,15 @@
                                 <th style="width: 5%">상태</th>
                                 <th style="width: 6%">모집인</th>
                                 <th style="width: 6%">수금인</th>
-                                <th style="width: 10%">보험사</th>
+                                <th style="width: 8%">보험사</th>
                                 <th style="width: 12%">증권번호</th>
-                                <th style="width: 18%" class="text-left">상품명</th>
+                                <th style="width: 20%" class="text-left">상품명</th>
                                 <th style="width: 9%" class="text-right">계속보험료</th>
-                                <th style="width: 8%">계약일</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
                                 <th style="width: 5%">회차</th>
                                 <th style="width: 6%">최종납입</th>
                                 <th style="width: 7%">계약자</th>
-                                <th style="width: 8%">기준일</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -2823,12 +2823,12 @@
                             <td>${x['보험사']}</td>
                             <td style="font-family: monospace;">${x['증권번호']}</td>
                             <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-                            <td class="text-right font-bold" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
-                            <td>${x['계약일']}</td>
+                            <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                            <td style="min-width: 85px;">${x['계약일']}</td>
                             <td>${x['납입회차']}</td>
                             <td style="font-family: monospace;">${x['최종납입월']}</td>
                             <td class="font-bold" style="color:#2563eb;">${x['계약자']}</td>
-                            <td style="color:#6b7280; font-size:10px;">${x['데이터기준일'] || '-'}</td>
+                            <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
                         </tr>`;
                     });
                     printHtml += `</tbody></table>`;
