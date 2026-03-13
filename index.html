@@ -2344,14 +2344,18 @@
                                  </span>
                              </div>
                          </div>
-                         <div class="grid grid-cols-2 gap-3 text-center">
-                            <div class="cursor-pointer hover:bg-red-50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
-                                <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 실효</p>
-                                <p class="text-xl font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-sm font-medium ml-0.5">건</span></p>
+                         <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="cursor-pointer hover:bg-red-50 p-2 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 실효</p>
+                                <p class="text-lg font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-[10px] font-medium ml-0.5">건</span></p>
                             </div>
-                            <div class="cursor-pointer hover:bg-orange-50 p-2.5 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
-                                <p class="text-[11px] text-gray-400 font-bold uppercase mb-1">당월 연체</p>
-                                <p class="text-xl font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-sm font-medium ml-0.5">건</span></p>
+                            <div class="cursor-pointer hover:bg-orange-50 p-2 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 연체</p>
+                                <p class="text-lg font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-[10px] font-medium ml-0.5">건</span></p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-blue-50 p-2 rounded-xl transition border border-transparent hover:border-blue-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'unpaid')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 미납</p>
+                                <p class="text-lg font-extrabold ${item.unpaid > 0 ? 'text-blue-600' : 'text-gray-300'}">${item.unpaid || 0}<span class="text-[10px] font-medium ml-0.5">건</span></p>
                             </div>
                          </div>
                     </div>
@@ -2575,7 +2579,11 @@
                 return;
             }
 
-            const dataToRender = type === 'lapsed' ? (res.lapsed || []) : (res.arrears || []);
+            let dataToRender = [];
+            if (type === 'lapsed') dataToRender = (res.lapsed || []);
+            else if (type === 'arrears') dataToRender = (res.arrears || []);
+            else if (type === 'unpaid') dataToRender = (res.unpaid || []);
+
             openLapseAdminDetailModal(dataToRender, staffName, type);
         };
 
@@ -2585,8 +2593,9 @@
             modal.className = "fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
             const isArrears = type === 'arrears';
-            const colorClass = isArrears ? 'orange' : 'red';
-            const titleText = isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트';
+            const isUnpaid = type === 'unpaid';
+            const colorClass = isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red');
+            const titleText = isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트');
 
             const rows = data.length ? data.map(x => `
              <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -2660,7 +2669,7 @@
                 list = list.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
             }
 
-            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0));
+            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0) || (x.unpaid && parseInt(x.unpaid) > 0));
 
             if (targetList.length === 0) {
                 alert('현재 조회된 인원 중 당월 실효나 당월 연체 건이 있는 대상이 없습니다.');
@@ -2689,6 +2698,7 @@
                     .section-title { font-size: 15px; font-weight: 700; color: #333; margin-top: 24px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
                     .section-title.lapsed::before { content: ''; display: block; width: 6px; height: 16px; background-color: #ef4444; border-radius: 4px; }
                     .section-title.arrears::before { content: ''; display: block; width: 6px; height: 16px; background-color: #f97316; border-radius: 4px; }
+                    .section-title.unpaid::before { content: ''; display: block; width: 6px; height: 16px; background-color: #2563eb; border-radius: 4px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
                     th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: center; word-break: keep-all; }
                     th { background-color: #f3f4f6; font-weight: 700; color: #4b5563; }
@@ -2700,6 +2710,7 @@
                     .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
                     .badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
                     .badge-orange { background: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
+                    .badge-blue { background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; }
                     .badge-gray { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
                     .footer-note { text-align: right; font-size: 10px; color: #9ca3af; margin-top: 20px; }
                     .tabular-nums { font-variant-numeric: tabular-nums; }
@@ -2734,6 +2745,7 @@
 
                 const lapsedData = d.lapsed || [];
                 const arrearsData = d.arrears || [];
+                const unpaidData = d.unpaid || [];
 
                 printHtml += `<div class="page">
                     <div class="header">
@@ -2834,6 +2846,49 @@
                     printHtml += `</tbody></table>`;
                 } else {
                     printHtml += `<div class="empty-message">해당하는 연체 계약 내역이 없습니다.</div>`;
+                }
+
+                // 미납 계약
+                printHtml += `<div class="section-title unpaid">당월 미납계약 리스트 (총 ${unpaidData.length}건)</div>`;
+                if (unpaidData.length > 0) {
+                    printHtml += `<table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%">상태</th>
+                                <th style="width: 6%">모집인</th>
+                                <th style="width: 6%">수금인</th>
+                                <th style="width: 8%">보험사</th>
+                                <th style="width: 12%">증권번호</th>
+                                <th style="width: 20%" class="text-left">상품명</th>
+                                <th style="width: 9%" class="text-right">계속보험료</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
+                                <th style="width: 5%">회차</th>
+                                <th style="width: 6%">최종납입</th>
+                                <th style="width: 7%">계약자</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    unpaidData.forEach(x => {
+                        let statusClass = 'badge-blue';
+                        printHtml += `<tr>
+                            <td><span class="badge ${statusClass}">${x['계약상태']}</span></td>
+                            <td>${x['모집인명']}</td>
+                            <td class="font-bold">${x['수금인명']}</td>
+                            <td>${x['보험사']}</td>
+                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                            <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                            <td style="min-width: 85px;">${x['계약일']}</td>
+                            <td>${x['납입회차']}</td>
+                            <td style="font-family: monospace;">${x['최종납입월']}</td>
+                            <td class="font-bold" style="color:#2563eb;">${x['계약자']}</td>
+                            <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
+                        </tr>`;
+                    });
+                    printHtml += `</tbody></table>`;
+                } else {
+                    printHtml += `<div class="empty-message">해당하는 미납 계약 내역이 없습니다.</div>`;
                 }
 
                 printHtml += `<div class="footer-note">* 본 자료는 작성 시점 기준이며 실시간 데이터 반영 등에 따라 실제와 다를 수 있습니다.</div></div>`;
