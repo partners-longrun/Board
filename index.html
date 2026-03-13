@@ -2293,10 +2293,17 @@
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
-                        <button onclick="printAllLapseAdminDetails()" class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold rounded-xl shadow-sm border border-indigo-100 transition flex items-center justify-center gap-2 whitespace-nowrap text-sm w-full sm:w-auto">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                            전체 프린트
-                        </button>
+                        <div class="flex items-center gap-2 bg-indigo-50/50 p-1.5 rounded-xl border border-indigo-100/50 w-full sm:w-auto">
+                            <label class="flex items-center gap-1.5 px-2 cursor-pointer group">
+                                <input type="checkbox" id="includeUnpaidPrint" class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition cursor-pointer">
+                                <span class="text-xs font-bold text-indigo-700 group-hover:text-indigo-900 transition whitespace-nowrap">당월 미납 포함</span>
+                            </label>
+                            <div class="w-px h-4 bg-indigo-200 hidden sm:block"></div>
+                            <button onclick="printAllLapseAdminDetails()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm flex-1 sm:flex-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                전체 프린트
+                            </button>
+                        </div>
                         <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto justify-center">
                             <button onclick="setLapseBaseType('recruiter')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
                             <button onclick="setLapseBaseType('collector')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'collector' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">수금인 기준</button>
@@ -2676,7 +2683,9 @@
         };
 
         window.printAllLapseAdminDetails = async function () {
-            if (!state.data.lapseAdminSummary || state.data.lapseAdminSummary.length === 0) {
+            const includeUnpaid = document.getElementById('includeUnpaidPrint')?.checked || false;
+            let list = state.data.lapseAdminSummary;
+            if (!list || list.length === 0) {
                 alert('출력할 대상이 없습니다.');
                 return;
             }
@@ -2685,16 +2694,15 @@
             const searchInput = document.getElementById('lapseAdminSearch');
             const fText = (searchInput ? searchInput.value : '').toLowerCase();
 
-            let list = state.data.lapseAdminSummary;
             list = activeTab === 'active' ? list.filter(x => !x.isResigned) : list.filter(x => x.isResigned);
             if (fText) {
                 list = list.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
             }
 
-            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0) || (x.unpaid && parseInt(x.unpaid) > 0));
+            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0) || (includeUnpaid && x.unpaid && parseInt(x.unpaid) > 0));
 
             if (targetList.length === 0) {
-                alert('현재 조회된 인원 중 당월 실효나 당월 연체 건이 있는 대상이 없습니다.');
+                alert('현재 조회된 인원 중 ' + (includeUnpaid ? '당월 실효, 연체 또는 미납' : '당월 실효나 연체') + ' 건이 있는 대상이 없습니다.');
                 return;
             }
 
@@ -2870,47 +2878,49 @@
                     printHtml += `<div class="empty-message">해당하는 연체 계약 내역이 없습니다.</div>`;
                 }
 
-                // 미납 계약
-                printHtml += `<div class="section-title unpaid">당월 미납계약 리스트 (총 ${unpaidData.length}건)</div>`;
-                if (unpaidData.length > 0) {
-                    printHtml += `<table>
-                        <thead>
-                            <tr>
-                                <th style="width: 5%">상태</th>
-                                <th style="width: 6%">모집인</th>
-                                <th style="width: 6%">수금인</th>
-                                <th style="width: 8%">보험사</th>
-                                <th style="width: 12%">증권번호</th>
-                                <th style="width: 20%" class="text-left">상품명</th>
-                                <th style="width: 9%" class="text-right">계속보험료</th>
-                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
-                                <th style="width: 5%">회차</th>
-                                <th style="width: 6%">최종납입</th>
-                                <th style="width: 7%">계약자</th>
-                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-                    unpaidData.forEach(x => {
-                        let statusClass = 'badge-blue';
-                        printHtml += `<tr>
-                            <td><span class="badge ${statusClass}">${x['계약상태']}</span></td>
-                            <td>${x['모집인명']}</td>
-                            <td class="font-bold">${x['수금인명']}</td>
-                            <td>${x['보험사']}</td>
-                            <td style="font-family: monospace;">${x['증권번호']}</td>
-                            <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-                            <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
-                            <td style="min-width: 85px;">${x['계약일']}</td>
-                            <td>${x['납입회차']}</td>
-                            <td style="font-family: monospace;">${x['최종납입월']}</td>
-                            <td class="font-bold" style="color:#2563eb;">${x['계약자']}</td>
-                            <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
-                        </tr>`;
-                    });
-                    printHtml += `</tbody></table>`;
-                } else {
-                    printHtml += `<div class="empty-message">해당하는 미납 계약 내역이 없습니다.</div>`;
+                // 미납 계약 (체크박스 활성화 시에만 포함)
+                if (includeUnpaid) {
+                    printHtml += `<div class="section-title unpaid">당월 미납계약 리스트 (총 ${unpaidData.length}건)</div>`;
+                    if (unpaidData.length > 0) {
+                        printHtml += `<table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 5%">상태</th>
+                                    <th style="width: 6%">모집인</th>
+                                    <th style="width: 6%">수금인</th>
+                                    <th style="width: 8%">보험사</th>
+                                    <th style="width: 12%">증권번호</th>
+                                    <th style="width: 20%" class="text-left">상품명</th>
+                                    <th style="width: 9%" class="text-right">계속보험료</th>
+                                    <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
+                                    <th style="width: 5%">회차</th>
+                                    <th style="width: 6%">최종납입</th>
+                                    <th style="width: 7%">계약자</th>
+                                    <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                        unpaidData.forEach(x => {
+                            let statusClass = 'badge-blue';
+                            printHtml += `<tr>
+                                <td><span class="badge ${statusClass}">${x['계약상태']}</span></td>
+                                <td>${x['모집인명']}</td>
+                                <td class="font-bold">${x['수금인명']}</td>
+                                <td>${x['보험사']}</td>
+                                <td style="font-family: monospace;">${x['증권번호']}</td>
+                                <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                                <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
+                                <td style="min-width: 85px;">${x['계약일']}</td>
+                                <td>${x['납입회차']}</td>
+                                <td style="font-family: monospace;">${x['최종납입월']}</td>
+                                <td class="font-bold" style="color:#2563eb;">${x['계약자']}</td>
+                                <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
+                            </tr>`;
+                        });
+                        printHtml += `</tbody></table>`;
+                    } else {
+                        printHtml += `<div class="empty-message">해당하는 미납 계약 내역이 없습니다.</div>`;
+                    }
                 }
 
                 printHtml += `<div class="footer-note">* 본 자료는 작성 시점 기준이며 실시간 데이터 반영 등에 따라 실제와 다를 수 있습니다.</div></div>`;
