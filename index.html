@@ -3518,7 +3518,7 @@
         };
 
         window.fetchAndShowLapsedContracts = async function () {
-            const cacheKey = `DATA_MY_LAPSED_${state.user.staffId} `;
+            const cacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
             let cached = sessionStorage.getItem(cacheKey);
             let res = null;
             if (cached) { try { res = JSON.parse(cached); } catch (e) { } }
@@ -3710,7 +3710,7 @@
             if (!state.user) return;
 
             // [OPTIMIZATION] Client-side caching
-            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView} `;
+            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
 
             // 1. Check Memory State
             if (state.currentView === 'home' && state.data.homeData) { render(); return; }
@@ -3863,7 +3863,7 @@
             if (!state.user || !state.currentMonth) return;
 
             // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
-            const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId} `;
+            const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
             if (!sessionStorage.getItem(myLapsedCacheKey)) {
                 callApi('getLapsedContracts', state.user.staffId).then(d => {
                     if (d && !d.error && d.success) {
@@ -3873,12 +3873,12 @@
             }
 
             // 1. Reward Data
-            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`)) {
+            if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
                 callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error) {
                         d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`, JSON.stringify(d));
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _branch`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
                     }
                 });
             }
@@ -3895,22 +3895,22 @@
             }
 
             // 2. Recruitment Data
-            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _recruitment`)) {
+            if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
                 callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
                     if (!d.error) {
                         d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _recruitment`, JSON.stringify(d));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
                     }
                 });
             }
 
             // 3. Admin Summary
             if ((state.user.role === '지사대표' || state.user.role === '관리자') &&
-                !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth} _admin`)) {
+                !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
                 callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
                     let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
                     if (!parsed.error) {
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _admin`, JSON.stringify(parsed));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
 
                         // [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
                         if (parsed.reward) {
@@ -3921,7 +3921,7 @@
                             membersToPrefetch.forEach((m, idx) => {
                                 setTimeout(() => {
                                     const id = String(m.id || m['사번']);
-                                    const rKey = `DATA_${id}_${state.currentMonth} _dashboard`;
+                                    const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
                                     if (!sessionStorage.getItem(rKey)) {
                                         callApi('getRewardData', id, state.currentMonth).then(rd => {
                                             if (rd && !rd.error) {
@@ -3934,7 +3934,7 @@
                                     if (state.user.role === '지사대표') {
                                         ['nl', 'l', 'm'].forEach(cType => {
                                             ['pay', 'refund'].forEach(pType => {
-                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType} `;
+                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
                                                 if (!sessionStorage.getItem(cKey)) {
                                                     callApi('getBranchMemberCommissionDetails', state.user.staffId, id, state.currentMonth, cType, pType).then(cd => {
                                                         if (cd && cd.success && !cd.error) sessionStorage.setItem(cKey, JSON.stringify(cd));
@@ -3974,7 +3974,7 @@
                         const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
                         membersToPrefetch.forEach((m, idx) => {
                             setTimeout(() => {
-                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id} _recruiter`;
+                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
                                 if (!sessionStorage.getItem(cacheKey)) {
                                     callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
                                         if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
