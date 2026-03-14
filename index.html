@@ -484,8 +484,10 @@
 
             // 기존에 접속했던 사용자의 브라우저 캐시에 '2026년 1월' 형태로 남아있을 경우를 대비하여 JS에서 한번 더 포맷팅
             let displayMonth = hd.baseMonth;
-            if (displayMonth && displayMonth.startsWith('20')) {
-                displayMonth = displayMonth.replace(/^20(\d{2}년)/, '$1');
+            if (displayMonth && (displayMonth.startsWith('20') || displayMonth.includes('년'))) {
+                // '202602' -> '2월말' 또는 '26년 2월' -> '2월말' 처리
+                const match = displayMonth.match(/(\d{1,2})월/);
+                if (match) displayMonth = match[1] + '월말';
             }
 
             const formatUserType = () => {
@@ -515,20 +517,20 @@
                         
                         <!-- 2. 당월 실효 건수 카드 -->
                         <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-6 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
-                            <div class="flex items-center gap-2 mb-4 w-full">
-                                <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block"></span>
-                                <p id="title-lapsed" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수</p>
+                            <div class="flex items-center gap-2 mb-4 w-full text-left">
+                                <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block flex-shrink-0"></span>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition break-keep" id="home-lapsed-title">당월 실효 건수</p>
                             </div>
                             <div class="text-2xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-lapsed-count">
                                 ${state.lapseLoaded ? (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
                             </div>
                         </div>
-
+                        
                         <!-- 3. 당월 연체 건수 카드 -->
                         <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-6 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="state.lapseCurrentTab='arrears'; navigate('lapse')">
-                            <div class="flex items-center gap-2 mb-4 w-full">
-                                <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block"></span>
-                                <p id="title-arrears" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수</p>
+                            <div class="flex items-center gap-2 mb-4 w-full text-left">
+                                <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block flex-shrink-0"></span>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition break-keep" id="home-arrears-title">당월 연체 건수</p>
                             </div>
                             <div class="text-2xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-arrears-count">
                                 ${state.lapseLoaded ? (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-orange-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -537,9 +539,9 @@
 
                         <!-- 4. 당월 미납 건수 카드 -->
                         <div class="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-sm border border-blue-50 p-6 flex flex-col justify-center cursor-pointer hover:border-blue-100 transition group" onclick="state.lapseCurrentTab='unpaid'; navigate('lapse')">
-                            <div class="flex items-center gap-2 mb-4 w-full">
-                                <span class="w-1.5 h-4 bg-blue-400 rounded-full inline-block"></span>
-                                <p id="title-unpaid" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-blue-500 transition">당월 미납 건수</p>
+                            <div class="flex items-center gap-2 mb-4 w-full text-left">
+                                <span class="w-1.5 h-4 bg-blue-400 rounded-full inline-block flex-shrink-0"></span>
+                                <p class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-blue-500 transition break-keep" id="home-unpaid-title">당월 미납 건수</p>
                             </div>
                             <div class="text-2xl font-extrabold text-blue-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unpaid-count">
                                 ${state.lapseLoaded ? (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-blue-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -645,20 +647,26 @@
 
         function updateHomeLapseCounts() {
             if (!state.lapseLoaded) return;
-            const lEl = document.getElementById('home-lapsed-count');
-            const aEl = document.getElementById('home-arrears-count');
-            const uEl = document.getElementById('home-unpaid-count');
-            if (lEl) lEl.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
-            if (aEl) aEl.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
-            if (uEl) uEl.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            const lCountEl = document.getElementById('home-lapsed-count');
+            const aCountEl = document.getElementById('home-arrears-count');
+            const uCountEl = document.getElementById('home-unpaid-count');
+            if (lCountEl) lCountEl.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            if (aCountEl) aCountEl.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            if (uCountEl) uCountEl.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
 
-            // 제목 업데이트 (기준일 반영)
-            const ltEl = document.getElementById('title-lapsed');
-            const atEl = document.getElementById('title-arrears');
-            const utEl = document.getElementById('title-unpaid');
-            if (ltEl && state.lapseData.lapsedDate) ltEl.textContent = `당월 실효 건수 (${state.lapseData.lapsedDate} 기준)`;
-            if (atEl && state.lapseData.arrearsDate) atEl.textContent = `당월 연체 건수 (${state.lapseData.arrearsDate} 기준)`;
-            if (utEl && state.lapseData.unpaidDate) utEl.textContent = `당월 미납 건수 (${state.lapseData.unpaidDate} 기준)`;
+            const lTitleEl = document.getElementById('home-lapsed-title');
+            const aTitleEl = document.getElementById('home-arrears-title');
+            const uTitleEl = document.getElementById('home-unpaid-title');
+
+            if (lTitleEl && state.lapseData.lapsedLatestDate && state.lapseData.lapsedLatestDate !== '-') {
+                lTitleEl.textContent = `당월 실효 건수 (${state.lapseData.lapsedLatestDate} 기준)`;
+            }
+            if (aTitleEl && state.lapseData.arrearsLatestDate && state.lapseData.arrearsLatestDate !== '-') {
+                aTitleEl.textContent = `당월 연체 건수 (${state.lapseData.arrearsLatestDate} 기준)`;
+            }
+            if (uTitleEl && state.lapseData.unpaidLatestDate && state.lapseData.unpaidLatestDate !== '-') {
+                uTitleEl.textContent = `당월 미납 건수 (${state.lapseData.unpaidLatestDate} 기준)`;
+            }
         }
 
         function createLoginView() {
@@ -3991,17 +3999,11 @@
                 });
             }
 
+            // 4. Lapse Data (Home/My Lapsed)
             if (!state.lapseLoaded) {
                 callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
                     if (res.success) {
-                        state.lapseData = {
-                            lapsed: res.lapsed || [],
-                            lapsedDate: res.lapsedDate || '',
-                            arrears: res.arrears || [],
-                            arrearsDate: res.arrearsDate || '',
-                            unpaid: res.unpaid || [],
-                            unpaidDate: res.unpaidDate || ''
-                        };
+                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [] };
                         state.lapseLoaded = true;
                         updateHomeLapseCounts(); // Refresh UI specifically
                     }
