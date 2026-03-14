@@ -979,7 +979,7 @@
 
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
@@ -2317,7 +2317,7 @@
             div.innerHTML = `
                 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리</h2>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
@@ -2460,7 +2460,7 @@
 
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">유지율 조회</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">유지율 조회${(() => { const hd = state.data.homeData || {}; let dm = hd.baseMonth; if (dm && dm.startsWith('20')) dm = dm.replace(/^20(\\d{2}년)/, '$1'); return (dm && dm !== '-') ? ' <span class="text-sm font-normal text-gray-400">(' + dm + ' 기준)</span>' : ''; })()}</h2>
                     <p class="text-gray-500 text-sm mt-1">모집인별 통산 일반 유지율 현황을 조회합니다.</p>
                 </div>
                 
