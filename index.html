@@ -3991,11 +3991,17 @@
                 });
             }
 
-            // 4. Lapse Data (Home/My Lapsed)
             if (!state.lapseLoaded) {
                 callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
                     if (res.success) {
-                        state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [] };
+                        state.lapseData = {
+                            lapsed: res.lapsed || [],
+                            lapsedDate: res.lapsedDate || '',
+                            arrears: res.arrears || [],
+                            arrearsDate: res.arrearsDate || '',
+                            unpaid: res.unpaid || [],
+                            unpaidDate: res.unpaidDate || ''
+                        };
                         state.lapseLoaded = true;
                         updateHomeLapseCounts(); // Refresh UI specifically
                     }
