@@ -16,6 +16,7 @@
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -326,7 +327,9 @@
             ncSearch: '',
             pageSize: 20,
             mobileMenuOpen: false,
-            isLoading: false
+            isLoading: false,
+            performanceData: null, // { currentYear: [], prevYear: [], currentYearLabel: '', prevYearLabel: '' }
+            performanceLoaded: false
         };
 
         var LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
@@ -361,6 +364,7 @@
             render();
             // Data refresh on nav if needed
             if (view !== 'login') refresh();
+            if (view === 'home' && state.user) fetchPerformanceTrend();
             window.scrollTo(0, 0);
         }
 
@@ -555,6 +559,20 @@
                     </div>
                 </div>
 
+                <!-- 2. 실적 추이 그래프 -->
+                <div class="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
+                            <h3 class="text-sm font-bold text-gray-700 tracking-wide">나의 실적 추이 <span class="text-xs font-normal text-gray-400 font-normal">(단위: 만 원)</span></h3>
+                        </div>
+                    </div>
+                    <div class="relative h-[240px] w-full">
+                        <canvas id="performanceChart"></canvas>
+                        ${!state.performanceLoaded ? '<div class="absolute inset-0 flex items-center justify-center bg-white/50"><svg class="animate-spin w-8 h-8 text-primary/40" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>' : ''}
+                    </div>
+                </div>
+
                 <div class="mb-5 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
@@ -661,6 +679,126 @@
             if (lTitleEl && state.lapseData.lapsedDate) lTitleEl.innerHTML = `당월 실효 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.lapsedDate} 기준)</span>`;
             if (aTitleEl && state.lapseData.arrearsDate) aTitleEl.innerHTML = `당월 연체 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.arrearsDate} 기준)</span>`;
             if (uTitleEl && state.lapseData.unpaidDate) uTitleEl.innerHTML = `당월 미납 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.unpaidDate} 기준)</span>`;
+        }
+
+        async function fetchPerformanceTrend() {
+            if (state.performanceLoaded) {
+                renderPerformanceChart();
+                return;
+            }
+            const res = await callApi('getPerformanceTrendData', state.user.staffId);
+            if (res.success) {
+                state.performanceData = res;
+                state.performanceLoaded = true;
+                renderPerformanceChart();
+            }
+        }
+
+        let perfChartInstance = null;
+        function renderPerformanceChart() {
+            const ctx = document.getElementById('performanceChart');
+            if (!ctx) return;
+
+            if (perfChartInstance) {
+                perfChartInstance.destroy();
+            }
+
+            const data = state.performanceData;
+            if (!data) return;
+
+            const labels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+            perfChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: data.currentYearLabel,
+                            data: data.currentYear,
+                            borderColor: '#F37321', // Primary Orange
+                            backgroundColor: 'rgba(243, 115, 33, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#F37321',
+                            zIndex: 2
+                        },
+                        {
+                            label: data.prevYearLabel,
+                            data: data.prevYear,
+                            borderColor: '#cbd5e1', // Light gray
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            zIndex: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 3,
+                                font: {
+                                    size: 11,
+                                    weight: 'bold'
+                                },
+                                usePointStyle: false,
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 13, weight: 'bold' },
+                            bodyFont: { size: 12 },
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function (context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '만 원';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f1f5f9'
+                            },
+                            ticks: {
+                                font: { size: 11 },
+                                callback: function (value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function createLoginView() {
@@ -3809,7 +3947,10 @@
                 }
             }
 
-            if (state.currentView === 'home') fetchHome(cacheKey);
+            if (state.currentView === 'home') {
+                fetchHome(cacheKey);
+                fetchPerformanceTrend();
+            }
             else if (state.currentView === 'dashboard') fetchReward(cacheKey);
             else if (state.currentView === 'branch') fetchBranch(cacheKey);
             else if (state.currentView === 'recruitment') fetchRec(cacheKey);
@@ -3825,7 +3966,10 @@
             if (!d.error && d.success) {
                 state.data.homeData = d;
                 sessionStorage.setItem(key, JSON.stringify(d));
-                if (state.currentView === 'home') render();
+                if (state.currentView === 'home') {
+                    render();
+                    fetchPerformanceTrend();
+                }
             } else {
                 state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
                 if (state.currentView === 'home') render();
