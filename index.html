@@ -686,11 +686,21 @@
                 renderPerformanceChart();
                 return;
             }
-            const res = await callApi('getPerformanceTrendData', state.user.staffId);
-            if (res.success) {
-                state.performanceData = res;
+            try {
+                const res = await callApi('getPerformanceTrendData', state.user.staffId);
+                if (res && res.success) {
+                    state.performanceData = res;
+                    state.performanceLoaded = true;
+                    renderPerformanceChart();
+                } else {
+                    console.warn('실적 추이 로드 실패:', res?.message);
+                    state.performanceLoaded = true; // 에러 시에도 로딩 표시 숨김
+                    render(); // 로딩 표시 제거를 위해 리렌더링
+                }
+            } catch (err) {
+                console.error('실적 추이 API 오류:', err);
                 state.performanceLoaded = true;
-                renderPerformanceChart();
+                render();
             }
         }
 
