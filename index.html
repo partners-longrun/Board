@@ -372,6 +372,7 @@
             if (e.state && e.state.view) {
                 state.currentView = e.state.view;
                 render();
+                if (state.currentView === 'home') fetchPerformanceTrend();
                 window.scrollTo(0, 0);
             } else {
                 if (state.user) navigate('home', false);
@@ -3915,7 +3916,11 @@
             const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
 
             // 1. Check Memory State
-            if (state.currentView === 'home' && state.data.homeData) { render(); return; }
+            if (state.currentView === 'home' && state.data.homeData) {
+                render();
+                fetchPerformanceTrend();
+                return;
+            }
             if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
@@ -3956,6 +3961,7 @@
 
                     state.isLoading = false; // [FIX] Reset loading state when using cache
                     render();
+                    if (state.currentView === 'home') fetchPerformanceTrend();
                     return; // Skip fetch
                 } catch (e) {
                     sessionStorage.removeItem(cacheKey);
@@ -4069,6 +4075,9 @@
         // --- 8.5 Background Pre-fetcher ---
         function prefetchAllBackground() {
             if (!state.user || !state.currentMonth) return;
+
+            // 0. Performance Trend (Pre-fetch for home)
+            fetchPerformanceTrend();
 
             // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
             const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
