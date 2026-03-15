@@ -786,12 +786,12 @@
                             align: 'end',
                             labels: {
                                 boxWidth: 12,
-                                boxHeight: 3,
+                                boxHeight: 12,
                                 font: {
                                     size: 11,
                                     weight: 'bold'
                                 },
-                                usePointStyle: false,
+                                usePointStyle: true,
                                 padding: 20
                             }
                         },
@@ -801,13 +801,11 @@
                             titleFont: { size: 13, weight: 'bold' },
                             bodyFont: { size: 12 },
                             cornerRadius: 8,
+                            usePointStyle: true,
                             callbacks: {
                                 label: function (context) {
                                     const val = context.parsed.y;
                                     const rounded = Math.round(val);
-                                    if (context.dataset.label === '현재 1등') {
-                                        return '★ ' + context.dataset.label + ' : ' + rounded.toLocaleString() + '만원';
-                                    }
                                     return context.dataset.label + ': ' + rounded.toLocaleString() + '만원';
                                 }
                             }
