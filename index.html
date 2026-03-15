@@ -565,7 +565,7 @@
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-2">
                             <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                            <h3 class="text-sm font-bold text-gray-700 tracking-wide">나의 실적 추이 <span class="text-xs font-normal text-gray-400 font-normal">(단위: 만 원)</span></h3>
+                            <h3 class="text-sm font-bold text-gray-700 tracking-wide">나의 실적 추이 <span id="perf-closing-date" class="text-xs font-normal text-gray-400"></span></h3>
                         </div>
                     </div>
                     <div class="relative h-[240px] w-full">
@@ -692,6 +692,11 @@
                 if (res && res.success) {
                     state.performanceData = res;
                     state.performanceLoaded = true;
+                    // 기준일 표시 업데이트
+                    const dateEl = document.getElementById('perf-closing-date');
+                    if (dateEl && res.closingDate) {
+                        dateEl.innerText = `(${res.closingDate} 마감 기준)`;
+                    }
                     renderPerformanceChart();
                 } else {
                     console.warn('실적 추이 로드 실패:', res?.message);
@@ -785,8 +790,8 @@
                             position: 'top',
                             align: 'end',
                             labels: {
-                                boxWidth: 12,
-                                boxHeight: 12,
+                                boxWidth: 8,
+                                boxHeight: 8,
                                 font: {
                                     size: 11,
                                     weight: 'bold'
