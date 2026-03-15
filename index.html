@@ -723,11 +723,28 @@
 
             const labels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
 
+            // 현재 1등 데이터셋 생성
+            const topPerfData = new Array(12).fill(null);
+            if (data.latestMonthIndex !== -1 && data.topPerformance > 0) {
+                topPerfData[data.latestMonthIndex] = data.topPerformance;
+            }
+
             perfChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
                     datasets: [
+                        {
+                            label: '현재 1등',
+                            data: topPerfData,
+                            pointStyle: 'star',
+                            pointRadius: 10,
+                            pointHoverRadius: 12,
+                            pointBackgroundColor: '#FFD700', // Gold
+                            pointBorderColor: '#FFD700',
+                            showLine: false, // 선은 그리지 않음
+                            zIndex: 3
+                        },
                         {
                             label: data.currentYearLabel,
                             data: data.currentYear,
@@ -786,7 +803,12 @@
                             cornerRadius: 8,
                             callbacks: {
                                 label: function (context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '만 원';
+                                    const val = context.parsed.y;
+                                    const rounded = Math.round(val);
+                                    if (context.dataset.label === '현재 1등') {
+                                        return '★ ' + context.dataset.label + ' : ' + rounded.toLocaleString() + '만원';
+                                    }
+                                    return context.dataset.label + ': ' + rounded.toLocaleString() + '만원';
                                 }
                             }
                         }
@@ -800,7 +822,7 @@
                             ticks: {
                                 font: { size: 11 },
                                 callback: function (value) {
-                                    return value.toLocaleString();
+                                    return Math.round(value).toLocaleString();
                                 }
                             }
                         },
