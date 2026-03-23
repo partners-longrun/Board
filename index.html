@@ -3566,7 +3566,7 @@
     <td class="p-3 text-center text-gray-700">${x.customer}</td>
     <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
     </td>
-    <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.sheetName}</td>
+    <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.contractStatus}">${x.contractStatus}</td>
 </tr>`).join('') : `<tr>
                     <td colspan="8" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
 </tr>`;
@@ -3596,7 +3596,7 @@
                     </div>
                     <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
                         <span>계약일: <span class="text-gray-600">${x.date}</span></span>
-                        <span>구분: <span class="text-gray-600">${x.sheetName}</span></span>
+                        <span>계약상태: <span class="text-gray-600">${x.contractStatus}</span></span>
                     </div>
                 </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
 
@@ -3612,7 +3612,7 @@
                                     <th class="p-3 text-right font-semibold">보험료</th>
                                     <th class="p-3 text-center font-semibold">계약자</th>
                                     <th class="p-3 text-right font-semibold">수수료</th>
-                                    <th class="p-3 font-semibold">구분</th>
+                                    <th class="p-3 font-semibold">계약상태</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">${rows}</tbody>
