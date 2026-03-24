@@ -2245,7 +2245,7 @@
                 const rawVal = el ? String(el.value).replace(/,/g, '') : '0';
                 data[f] = Number(rawVal) || 0;
             });
-            data['활동계'] = (data['TA'] || 0) + (data['AP'] || 0) + (data['P'] || 0) + (data['C'] || 0) + (data['N'] || 0);
+            data['활동계'] = (data['TA'] || 0) + (data['AP'] || 0) + (data['P'] || 0) + (data['C'] || 0) + (data['N'] || 0) + (data['소개'] || 0);
 
             showLoading(true);
             const res = await callApi('saveActivityData',
@@ -2386,8 +2386,9 @@
 
             // 소속원 테이블 행 빌드
             function buildTeamRows() {
-                if (!teamData.length) return `<tr><td colspan="11" class="text-center text-xs text-gray-400 py-4">소속원 데이터가 없습니다.</td></tr>`;
-                return teamData.map(m => {
+                const others = teamData.filter(m => String(m.staffId) !== String(state.user.staffId));
+                if (!others.length) return `<tr><td colspan="11" class="text-center text-xs text-gray-400 py-4">소속원 데이터가 없습니다.</td></tr>`;
+                return others.map(m => {
                     const wp = m.thisWeekPlan || {};
                     const wr = m.thisWeekResult || {};
                     const cols = ['TA', 'AP', 'P', 'C', 'N', '소개', '활동계', '보험료'];
@@ -2397,7 +2398,7 @@
                         <td class="border border-gray-200 px-1 py-1 text-center text-xs text-blue-600">예정</td>
                         ${cols.map(c => readonlyCell(c, wp[c] || '')).join('')}
                     </tr>`;
-                    const resultRow = `<tr class="hover:bg-gray-50 h-10">
+                    const resultRow = `<tr class="bg-gray-50 hover:bg-gray-100 h-10">
                         <td class="border border-gray-200 px-1 py-1 text-center text-xs text-orange-600">결과</td>
                         ${cols.map(c => readonlyCell(c, wr[c] || '')).join('')}
                     </tr>`;
