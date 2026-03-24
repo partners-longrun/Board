@@ -2276,7 +2276,7 @@
 
         function updateActivityTotal(week, type) {
             const prefix = `act_${week}_${type}`;
-            const fields = ['TA', 'AP', 'P', 'C', 'N'];
+            const fields = ['TA', 'AP', 'P', 'C', 'N', '소개'];
             let total = 0;
             fields.forEach(f => {
                 const el = document.getElementById(`${prefix}_${f}`);
@@ -2428,20 +2428,20 @@
                     </div>
 
                     <div class="overflow-x-auto">
-                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                        <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-20">주차</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-24">시작일</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-24">예정/결과</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">TA</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">AP</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">P</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">C</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">N</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">소개</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">활동 계</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-28">보험료</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">주차</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">시작일</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">예정/결과</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">소개</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">활동 계</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">보험료</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -2570,7 +2570,7 @@
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.P)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.C)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.소개, statData.N)}</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? avgN.toFixed(1) : '-'}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? (avgN * 100).toFixed(1) + '%' : '-'}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2584,20 +2584,20 @@
                         <h3 class="text-sm font-bold text-gray-700">소속원들의 주간 활동은?</h3>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                        <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-20">주차</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-24">이름</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-24">예정/결과</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">TA</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">AP</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">P</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">C</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">N</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">소개</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-14">활동 계</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-28">보험료</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">주차</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">이름</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">예정/결과</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">소개</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[8%]">활동 계</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[11%]">보험료</th>
                                 </tr>
                             </thead>
                             <tbody>
