@@ -376,6 +376,19 @@
             // Data refresh on nav if needed
             if (view !== 'login') refresh();
             if (view === 'home' && state.user) fetchPerformanceTrend();
+            if (view === 'activity' && state.user) {
+
+                if (!state.activityState) {
+
+                    const _todayW = getISOWeekJS(new Date());
+
+                    state.activityState = { year: String(_todayW.year), week: String(_todayW.week), statsYear: String(_todayW.year), data: null, loaded: false };
+
+                }
+
+                if (!state.activityState.loaded) loadActivityData();
+
+            }
             window.scrollTo(0, 0);
         }
 
@@ -623,6 +636,27 @@
                         </div>
                     </div>` : ''}
 
+
+
+                    <!-- 3-1. ?쒕룞愿由?-->
+
+                    <div onclick="navigate('activity')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-green-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+
+                        </div>
+
+                        <div>
+
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">?쒕룞愿由?/h3>
+
+                            <p class="text-[11px] text-gray-400 mt-0.5">二쇨컙 ?쒕룞 ?덉젙 諛?寃곌낵 ?낅젰</p>
+
+                        </div>
+
+                    </div>
                     <!-- 4. 관리자 대시보드 -->
                     ${(isBranchRepAny() || isAdminAny()) ? `
                     <div onclick="navigate('admin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
@@ -994,6 +1028,7 @@
                                     ${navLink('lapse', '실효연체')}
                                     ${state.user.role !== '실장' ? navLink('dashboard', '시상금') : ''}
                                     ${(state.user.isRecruiter && state.user.role !== '실장') ? navLink('recruitment', '증원수당') : ''}
+                                    ${navLink('activity', '활동관리')}
                                     ${(isBranchRepAny() || isAdminAny()) ? navLink('admin', '관리자') : ''}
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
@@ -1044,6 +1079,7 @@
                             <a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>
                             ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>` : ''}
                             ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
+                             <a href="#" data-nav="activity" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'activity' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">활동관리</a>
                             ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
@@ -1081,6 +1117,7 @@
             else if (state.currentView === 'lapse') main.appendChild(createLapseView());
             else if (state.currentView === 'dashboard') main.appendChild(createDashboardView());
             else if (state.currentView === 'recruitment') main.appendChild(createRecruitmentView());
+            else if (state.currentView === 'activity') main.appendChild(createActivityView());
             else if (state.currentView === 'branch') main.appendChild(createBranchView());
             else if (state.currentView === 'admin') main.appendChild(createAdminView());
             else if (state.currentView === 'lapseAdmin') main.appendChild(createLapseAdminView());
@@ -2128,6 +2165,475 @@
 
             return div;
         }
+
+        // ==========================================
+        // ?쒕룞愿由?View
+        // ==========================================
+        function getISOWeekJS(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+            return { year: d.getUTCFullYear(), week: week };
+        }
+        function getMonday(year, week) {
+            const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+            const dayOfWeek = simple.getUTCDay();
+            if (dayOfWeek <= 4) simple.setUTCDate(simple.getUTCDate() - dayOfWeek + 1);
+            else simple.setUTCDate(simple.getUTCDate() + 8 - dayOfWeek);
+            return simple;
+        }
+        function formatDateYMD(d) {
+            const yyyy = d.getUTCFullYear();
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+        function getWeeksInYear(year) {
+            const d = new Date(Date.UTC(year, 11, 31));
+            return getISOWeekJS(d).week === 1 ? getISOWeekJS(new Date(Date.UTC(year, 11, 24))).week : getISOWeekJS(d).week;
+        }
+
+        // ?꾩옱 ?ㅻ뒛??二쇱감
+        const _todayW = getISOWeekJS(new Date());
+        if (!state.activityState) {
+            state.activityState = {
+                year: String(_todayW.year),
+                week: String(_todayW.week),
+                statsYear: String(_todayW.year),
+                data: null,
+                loaded: false
+            };
+        }
+
+        async function loadActivityData() {
+            const as = state.activityState;
+            showLoading(true);
+            const res = await callApi('getActivityData', state.user.staffId, as.year, as.week);
+            showLoading(false);
+            if (res && res.success) {
+                as.data = res;
+                as.loaded = true;
+            } else {
+                as.data = null;
+                as.loaded = true;
+                alert('?쒕룞 ?곗씠??濡쒕뱶 ?ㅽ뙣: ' + (res ? res.message : '?????녿뒗 ?ㅻ쪟'));
+            }
+            renderActivityView();
+        }
+
+        function renderActivityView() {
+            const main = document.getElementById('main-view');
+            if (main) {
+                main.innerHTML = '';
+                main.appendChild(createActivityView());
+            }
+        }
+
+        async function saveActivityRow(week, type) {
+            const as = state.activityState;
+            const prefix = `act_${week}_${type}`;
+            const fields = ['TA','AP','P','C','N','?뚭컻','蹂댄뿕猷?];
+            const data = {};
+            fields.forEach(f => {
+                const el = document.getElementById(`${prefix}_${f}`);
+                data[f] = el ? (Number(el.value) || 0) : 0;
+            });
+            data['?쒕룞怨?] = (data['TA']||0) + (data['AP']||0) + (data['P']||0) + (data['C']||0) + (data['N']||0);
+
+            showLoading(true);
+            const res = await callApi('saveActivityData',
+                state.user.staffId,
+                state.user.name,
+                state.user.organization,
+                as.year,
+                String(week),
+                type,
+                data
+            );
+            showLoading(false);
+
+            if (res && res.success) {
+                // ?곗씠??由щ줈??
+                await loadActivityData();
+            } else {
+                alert('????ㅽ뙣: ' + (res ? res.message : '?????녿뒗 ?ㅻ쪟'));
+            }
+        }
+
+        function resetActivityRow(week, type) {
+            const prefix = `act_${week}_${type}`;
+            ['TA','AP','P','C','N','?뚭컻','蹂댄뿕猷?].forEach(f => {
+                const el = document.getElementById(`${prefix}_${f}`);
+                if (el) el.value = '';
+            });
+            const totalEl = document.getElementById(`${prefix}_?쒕룞怨?);
+            if (totalEl) totalEl.textContent = '';
+        }
+
+        function updateActivityTotal(week, type) {
+            const prefix = `act_${week}_${type}`;
+            const fields = ['TA','AP','P','C','N'];
+            let total = 0;
+            fields.forEach(f => {
+                const el = document.getElementById(`${prefix}_${f}`);
+                total += Number(el ? el.value : 0) || 0;
+            });
+            const totalEl = document.getElementById(`${prefix}_?쒕룞怨?);
+            if (totalEl) totalEl.textContent = total > 0 ? total : '';
+        }
+
+        function createActivityView() {
+            const div = document.createElement('div');
+            const as = state.activityState;
+            const today = new Date();
+            const todayW = getISOWeekJS(today);
+
+            // ?곕룄 ?좏깮 ?듭뀡 (?꾩옱?곕룄 짹2)
+            const currentYearNum = parseInt(as.year);
+            const yearOptions = [];
+            for (let y = currentYearNum - 2; y <= currentYearNum + 2; y++) {
+                yearOptions.push(`<option value="${y}" ${String(y) === as.year ? 'selected' : ''}>${y}??/option>`);
+            }
+            const statsYearOptions = [];
+            for (let y = currentYearNum - 2; y <= currentYearNum + 2; y++) {
+                statsYearOptions.push(`<option value="${y}" ${String(y) === as.statsYear ? 'selected' : ''}>${y}??/option>`);
+            }
+
+            // 二쇱감 ?좏깮 ?듭뀡
+            const maxWeek = getWeeksInYear(parseInt(as.year));
+            const weekOptions = [];
+            for (let w = 1; w <= maxWeek; w++) {
+                weekOptions.push(`<option value="${w}" ${String(w) === as.week ? 'selected' : ''}>${w}二쇱감</option>`);
+            }
+
+            const curWeekNum = parseInt(as.week);
+            const nextWeekNum = curWeekNum + 1;
+            const curMonday = getMonday(parseInt(as.year), curWeekNum);
+            const nextMonday = getMonday(parseInt(as.year), nextWeekNum);
+            const curStartDate = formatDateYMD(curMonday);
+            const nextStartDate = formatDateYMD(nextMonday);
+
+            // 湲곗〈 ?곗씠??異붿텧
+            const d = as.data || {};
+            const myRows = d.myData || [];
+            function getRow(wk, tp) {
+                return myRows.find(r => String(r['二쇱감']) === String(wk) && r['?덉젙寃곌낵'] === tp) || {};
+            }
+            const curPlan = getRow(curWeekNum, '?덉젙');
+            const curResult = getRow(curWeekNum, '寃곌낵');
+            const nextPlan = getRow(nextWeekNum, '?덉젙');
+
+            const yt = d.yearlyTotal || {};
+            const allResults = d.allMyYearResults || [];
+            const teamData = d.teamData || [];
+
+            // ?듦퀎 怨꾩궛
+            function calcStats(rows) {
+                const s = { TA:0, AP:0, P:0, C:0, N:0, ?뚭컻:0, ?쒕룞怨?0, 蹂댄뿕猷?0 };
+                rows.forEach(r => {
+                    ['TA','AP','P','C','N','?뚭컻','?쒕룞怨?,'蹂댄뿕猷?].forEach(k => { s[k] += Number(r[k]||0); });
+                });
+                return s;
+            }
+            const statData = calcStats(allResults.filter(r => String(r['?곕룄']) === as.statsYear));
+
+            function safeDiv(a, b) { return b > 0 ? (a/b*100).toFixed(1)+'%' : '-'; }
+            const weekCount = [...new Set(allResults.filter(r => String(r['?곕룄']) === as.statsYear).map(r => r['二쇱감']))].length || 1;
+            const avgN = statData.N / weekCount;
+
+            // ?낅젰? ?앹꽦 ?ы띁
+            function inputCell(wk, tp, field, val, bg='bg-green-50') {
+                const id = `act_${wk}_${tp}_${field}`;
+                if (field === '?쒕룞怨?) {
+                    return `<td class="border border-gray-200 px-1 py-1 text-center text-xs font-bold bg-green-100" id="${id}">${val > 0 ? val : ''}</td>`;
+                }
+                return `<td class="border border-gray-200 px-0 py-0 text-center">
+                    <input type="number" id="${id}" min="0" value="${val > 0 ? val : ''}"
+                        class="w-full h-full px-1 py-1 text-xs text-center ${bg} border-0 focus:ring-1 focus:ring-green-400 outline-none"
+                        oninput="updateActivityTotal(${wk},'${tp}')">
+                </td>`;
+            }
+
+            function readonlyCell(val, cls='') {
+                return `<td class="border border-gray-200 px-1 py-1 text-center text-xs ${cls}">${val !== undefined && val !== '' && val !== 0 ? val : ''}</td>`;
+            }
+
+            // ?뚯냽???뚯씠釉???鍮뚮뱶
+            function buildTeamRows() {
+                if (!teamData.length) return `<tr><td colspan="11" class="text-center text-xs text-gray-400 py-4">?뚯냽???곗씠?곌? ?놁뒿?덈떎.</td></tr>`;
+                return teamData.map(m => {
+                    const wp = m.thisWeekPlan || {};
+                    const wr = m.thisWeekResult || {};
+                    const cols = ['TA','AP','P','C','N','?뚭컻','?쒕룞怨?,'蹂댄뿕猷?];
+                    const planRow = `<tr class="hover:bg-gray-50">
+                        <td class="border border-gray-200 px-1 py-1 text-center text-xs" rowspan="2">${m.week}二쇱감</td>
+                        <td class="border border-gray-200 px-2 py-1 text-xs font-medium" rowspan="2">${m.name}</td>
+                        <td class="border border-gray-200 px-1 py-1 text-center text-xs text-blue-600">?덉젙</td>
+                        ${cols.map(c => readonlyCell(wp[c]||'')).join('')}
+                    </tr>`;
+                    const resultRow = `<tr class="hover:bg-gray-50">
+                        <td class="border border-gray-200 px-1 py-1 text-center text-xs text-orange-600">寃곌낵</td>
+                        ${cols.map(c => readonlyCell(wr[c]||'')).join('')}
+                    </tr>`;
+                    return planRow + resultRow;
+                }).join('');
+            }
+
+            div.innerHTML = `
+            <div class="animate-fadeIn">
+                <!-- ?ㅻ뜑 -->
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="w-1.5 h-6 bg-primary rounded-full"></span>
+                    <h2 class="text-xl font-bold text-gray-800">二쇨컙 ?쒕룞 愿由??쒖뒪??/h2>
+                </div>
+
+                <!-- ?낅젰 ?뱀뀡 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <!-- ?곕룄 ?좏깮 -->
+                        <div class="relative">
+                            <select id="act_year_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-gray-800 text-sm font-bold rounded-lg px-3 py-2 pr-8 cursor-pointer focus:ring-2 focus:ring-yellow-300 outline-none">
+                                ${yearOptions.join('')}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                        </div>
+                        <span class="text-sm text-gray-600 font-medium">${state.user.name}?섏쓽 二쇨컙 ?쒕룞 ?덉젙 諛?寃곌낵瑜??낅젰??二쇱꽭??</span>
+                        <span class="ml-auto text-xs text-gray-400">(?⑥쐞 : 媛? ??</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">二쇱감</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?쒖옉??/th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?덉젙/寃곌낵</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?뚭컻</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?쒕룞 怨?/th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">蹂댄뿕猷?/th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- ?대쾲二??덉젙 -->
+                                <tr>
+                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50" rowspan="2">
+                                        <div class="relative">
+                                            <select id="act_week_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-xs font-bold rounded px-1 py-1 pr-5 cursor-pointer focus:ring-1 focus:ring-yellow-300 outline-none w-20">
+                                                ${weekOptions.join('')}
+                                            </select>
+                                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-600"><svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                                        </div>
+                                    </td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600" rowspan="2" id="act_cur_start">${curStartDate}</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-blue-600 font-medium">?덉젙</td>
+                                    ${inputCell(curWeekNum, '?덉젙', 'TA', Number(curPlan['TA']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', 'AP', Number(curPlan['AP']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', 'P', Number(curPlan['P']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', 'C', Number(curPlan['C']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', 'N', Number(curPlan['N']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', '?뚭컻', Number(curPlan['?뚭컻']||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', '?쒕룞怨?, Number(curPlan['?쒕룞怨?]||0))}
+                                    ${inputCell(curWeekNum, '?덉젙', '蹂댄뿕猷?, Number(curPlan['蹂댄뿕猷?]||0))}
+                                </tr>
+                                <!-- ?대쾲二?寃곌낵 -->
+                                <tr>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-orange-600 font-medium">寃곌낵</td>
+                                    ${inputCell(curWeekNum, '寃곌낵', 'TA', Number(curResult['TA']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', 'AP', Number(curResult['AP']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', 'P', Number(curResult['P']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', 'C', Number(curResult['C']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', 'N', Number(curResult['N']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', '?뚭컻', Number(curResult['?뚭컻']||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', '?쒕룞怨?, Number(curResult['?쒕룞怨?]||0))}
+                                    ${inputCell(curWeekNum, '寃곌낵', '蹂댄뿕猷?, Number(curResult['蹂댄뿕猷?]||0))}
+                                </tr>
+                                <!-- ?ㅼ쓬二??덉젙 -->
+                                <tr class="bg-gray-50/50">
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs" id="act_next_week">${nextWeekNum}二쇱감</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs" id="act_next_start">${nextStartDate}</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-blue-500 text-xs">?덉젙</td>
+                                    ${inputCell(nextWeekNum, '?덉젙', 'TA', Number(nextPlan['TA']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', 'AP', Number(nextPlan['AP']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', 'P', Number(nextPlan['P']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', 'C', Number(nextPlan['C']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', 'N', Number(nextPlan['N']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', '?뚭컻', Number(nextPlan['?뚭컻']||0), 'bg-green-50/70')}
+                                    ${inputCell(nextWeekNum, '?덉젙', '?쒕룞怨?, Number(nextPlan['?쒕룞怨?]||0))}
+                                    ${inputCell(nextWeekNum, '?덉젙', '蹂댄뿕猷?, Number(nextPlan['蹂댄뿕猷?]||0), 'bg-green-50/70')}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 踰꾪듉 -->
+                    <div class="flex justify-end gap-2 mt-3">
+                        <button onclick="resetActivityInputs()" class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium">珥덇린??/button>
+                        <button onclick="saveAllActivityRows()" class="px-4 py-2 text-sm bg-primary hover:bg-primaryHover text-white rounded-lg transition font-bold shadow-sm">???/button>
+                    </div>
+
+                    <!-- ?곌컙 珥??쒕룞 寃곌낵 -->
+                    <div class="mt-5 overflow-x-auto">
+                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-32">?쒕룞 援щ텇</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?뚭컻</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?쒕룞 怨?/th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">蹂댄뿕猷?/th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">?곌컙 珥??쒕룞 寃곌낵</td>
+                                    ${['TA','AP','P','C','N','?뚭컻','?쒕룞怨?,'蹂댄뿕猷?].map(k => `<td class="border border-gray-200 px-2 py-2 text-center text-xs font-semibold text-gray-700">${yt[k] > 0 ? yt[k].toLocaleString() : ''}</td>`).join('')}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ?섏쓽 ?쒕룞 寃곌낵 ?듦퀎 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="w-1.5 h-4 bg-primary rounded-full"></span>
+                        <h3 class="text-sm font-bold text-gray-700">* ?섏쓽 ?쒕룞 寃곌낵 ?듦퀎</h3>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 mb-4">
+                        <div class="relative">
+                            <select id="act_stats_year_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-gray-800 text-sm font-bold rounded-lg px-3 py-2 pr-8 cursor-pointer focus:ring-2 focus:ring-yellow-300 outline-none">
+                                ${statsYearOptions.join('')}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                        </div>
+                        <span class="text-sm text-gray-600">${state.user.name}?섏쓽 ?곌컙 ?쒕룞 寃곌낵???곕Ⅸ 媛??쒕룞媛꾩쓽 ?듦퀎?낅땲?? ???섏튂?????쒕룞???좏슚?깆쓣 媛?좏븯?붾뜲 ?꾩????⑸땲??</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">援щ텇</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">TA / AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">AP / P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">P / C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">TA / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">AP / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">P / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">C / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?뚭컻 / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">二쇨컙 ?좎떎瑜?/th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">?뺣쪧</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.AP, statData.TA)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.P, statData.AP)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.C, statData.P)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.TA)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.AP)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.P)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.C)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.?뚭컻, statData.N)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? avgN.toFixed(1) + '嫄?二? : '-'}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ?뚯냽?먮뱾??二쇨컙 ?쒕룞 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="w-1.5 h-4 bg-primary rounded-full"></span>
+                        <h3 class="text-sm font-bold text-gray-700">* ?뚯냽?먮뱾??二쇨컙 ?쒕룞??</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-xs min-w-[600px]">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">二쇱감</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?대쫫</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?덉젙/寃곌낵</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?뚭컻</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">?쒕룞 怨?/th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700">蹂댄뿕猷?/th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${buildTeamRows()}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+
+            // ?대깽???곌껐
+            setTimeout(() => {
+                // ?곕룄 ?좏깮
+                const yearSel = div.querySelector('#act_year_sel');
+                if (yearSel) yearSel.addEventListener('change', e => {
+                    state.activityState.year = e.target.value;
+                    state.activityState.loaded = false;
+                    loadActivityData();
+                });
+                // 二쇱감 ?좏깮
+                const weekSel = div.querySelector('#act_week_sel');
+                if (weekSel) weekSel.addEventListener('change', e => {
+                    state.activityState.week = e.target.value;
+                    state.activityState.loaded = false;
+                    loadActivityData();
+                });
+                // ?듦퀎 ?곕룄 ?좏깮
+                const statsYearSel = div.querySelector('#act_stats_year_sel');
+                if (statsYearSel) statsYearSel.addEventListener('change', e => {
+                    state.activityState.statsYear = e.target.value;
+                    renderActivityView();
+                });
+            }, 0);
+
+            return div;
+        }
+
+        window.saveAllActivityRows = async function() {
+            const as = state.activityState;
+            const curWeekNum = parseInt(as.week);
+            const nextWeekNum = curWeekNum + 1;
+
+            // ?대쾲二??덉젙
+            await saveActivityRow(curWeekNum, '?덉젙');
+            // ?대쾲二?寃곌낵
+            await saveActivityRow(curWeekNum, '寃곌낵');
+            // ?ㅼ쓬二??덉젙
+            await saveActivityRow(nextWeekNum, '?덉젙');
+
+            alert('??μ씠 ?꾨즺?섏뿀?듬땲??');
+        };
+
+        window.resetActivityInputs = function() {
+            const as = state.activityState;
+            const curWeekNum = parseInt(as.week);
+            const nextWeekNum = curWeekNum + 1;
+            resetActivityRow(curWeekNum, '?덉젙');
+            resetActivityRow(curWeekNum, '寃곌낵');
+            resetActivityRow(nextWeekNum, '?덉젙');
+        };
 
         function createRecruitmentView() {
             if (state.isLoading) return getSkeletonUI();
