@@ -4891,6 +4891,27 @@
                     });
                 }
             }
+
+            // 8. Activity Data Prefetch (활동관리 사전 캐싱)
+            if (!state.activityState) {
+                state.activityState = {
+                    year: String(_todayW.year),
+                    week: String(_todayW.week),
+                    statsYear: String(_todayW.year),
+                    data: null,
+                    loaded: false
+                };
+            }
+            if (!state.activityState.loaded) {
+                const as = state.activityState;
+                callApi('getActivityData', state.user.staffId, as.year, as.week).then(res => {
+                    if (!state.user) return; // 로그아웃 후 콜백 방지
+                    if (res && res.success) {
+                        as.data = res;
+                        as.loaded = true;
+                    }
+                });
+            }
         }
 
         // --- 9. Password Change ---
