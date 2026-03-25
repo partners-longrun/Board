@@ -2342,7 +2342,7 @@
             }
             const statData = calcStats(allResults.filter(r => String(r['연도']) === as.statsYear));
 
-            function safeDiv(a, b) { return b > 0 ? (a / b * 100).toFixed(1) + '%' : '-'; }
+            function safeDiv(a, b) { return b > 0 ? Math.round(a / b * 100) + '%' : '-'; }
 
             const statsYearRows = allResults.filter(r => String(r['연도']) === as.statsYear);
             const weekCount = [...new Set(statsYearRows.map(r => r['주차']))].length;
@@ -2541,8 +2541,38 @@
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
                         </div>
-                        <span class="text-sm text-gray-600">${state.user.name}님의 연간 활동 결과에 따른 각 활동간의 통계입니다. 이 수치는 앞 활동의 유효성을 가늠하는데 도움이 됩니다.</span>
+                        <span class="text-sm text-gray-600">${state.user.name}님의 연간 활동 결과에 따른 각 활동 간의 통계입니다. 이 수치는 각 활동의 유효성을 가늠하는데 도움이 됩니다.</span>
                     </div>
+                    
+                    <!-- 예정과 결과 간 확률 -->
+                    <div class="overflow-x-auto mb-4">
+                        <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
+                            <thead>
+                                <tr class="bg-blue-50">
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[15%]">활동 구분</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">TA</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">AP</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">P</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">C</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">소개</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">활동 계</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[15%]">보험료 (원)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">예정과 결과 간 확률</td>
+                                    ${['TA', 'AP', 'P', 'C', 'N', '소개', '활동계', '보험료'].map(k => {
+                const plan = d.yearlyPlanTotal ? Number(d.yearlyPlanTotal[k] || 0) : 0;
+                const result = yt ? Number(yt[k] || 0) : 0;
+                return `<td class="border border-gray-200 px-2 py-2 text-xs text-center">${plan > 0 ? Math.round(result / plan * 100) + '%' : '-'}</td>`;
+            }).join('')}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
@@ -2561,7 +2591,7 @@
                             </thead>
                             <tbody>
                                 <tr class="hover:bg-gray-50">
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">확률</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">활동 간 확률</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.AP, statData.TA)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.P, statData.AP)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.C, statData.P)}</td>
@@ -2570,7 +2600,7 @@
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.P)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.C)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.소개, statData.N)}</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? (avgN * 100).toFixed(1) + '%' : '-'}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? Math.round(avgN * 100) + '%' : '-'}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -2673,7 +2703,6 @@
             } else {
                 await loadActivityData();
                 showLoading(false);
-                alert('저장이 완료되었습니다.');
             }
         };
 
