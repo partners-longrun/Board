@@ -599,7 +599,7 @@
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-2">
                             <span class="w-1.5 h-4 bg-primary rounded-full inline-block"></span>
-                            <h3 class="text-sm font-bold text-gray-700 tracking-wide">나의 실적 추이 <span id="perf-closing-date" class="text-xs font-normal text-gray-400"></span></h3>
+                            <h3 class="text-sm font-bold text-gray-700 tracking-wide">나의 실적 추이 <span id="perf-closing-date" class="text-xs font-normal text-gray-400">${state.performanceLoaded && state.performanceData?.closingDate ? '(' + state.performanceData.closingDate + ' 마감 기준)' : ''}</span></h3>
                         </div>
                     </div>
                     <div class="relative h-[240px] w-full">
