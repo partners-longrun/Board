@@ -4826,10 +4826,10 @@
                 perfCharts.pie = new Chart(pieCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['생명보험', '손해보험'],
+                        labels: ['손해보험', '생명보험'],
                         datasets: [{
-                            data: [d.pieData.life, d.pieData.nonLife],
-                            backgroundColor: ['#3B82F6', '#F37321'],
+                            data: [d.pieData.nonLife, d.pieData.life],
+                            backgroundColor: ['#F37321', '#3B82F6'],
                             borderWidth: 0,
                             cutout: '75%'
                         }]
@@ -4844,17 +4844,37 @@
                                 }
                             }
                         }
-                    }
+                    },
+                    plugins: [{
+                        afterDraw: (chart) => {
+                            const { ctx, chartArea: { top, bottom, left, right, width, height } } = chart;
+                            chart.data.datasets.forEach((dataset, i) => {
+                                chart.getDatasetMeta(i).data.forEach((datapoint, index) => {
+                                    const { x, y } = datapoint.tooltipPosition();
+                                    const percent = index === 0 ? nlPct : lifePct;
+                                    if (percent > 0) {
+                                        ctx.fillStyle = '#fff';
+                                        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                                        ctx.shadowBlur = 4;
+                                        ctx.font = 'bold 12px Pretendard';
+                                        ctx.textAlign = 'center';
+                                        ctx.fillText(percent + '%', x, y);
+                                        ctx.shadowBlur = 0;
+                                    }
+                                });
+                            });
+                        }
+                    }]
                 });
 
                 document.getElementById('ratio-legend').innerHTML = `
                     <div class="text-center">
-                        <p class="text-xs text-blue-500 font-bold mb-1">생명보험 ${lifePct}%</p>
-                        <p class="text-lg font-extrabold text-blue-600">${Math.round(d.pieData.life/10000).toLocaleString()}만</p>
-                    </div>
-                    <div class="text-center">
                         <p class="text-xs text-orange-500 font-bold mb-1">손해보험 ${nlPct}%</p>
                         <p class="text-lg font-extrabold text-orange-600">${Math.round(d.pieData.nonLife/10000).toLocaleString()}만</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-blue-500 font-bold mb-1">생명보험 ${lifePct}%</p>
+                        <p class="text-lg font-extrabold text-blue-600">${Math.round(d.pieData.life/10000).toLocaleString()}만</p>
                     </div>
                 `;
             }
@@ -4962,17 +4982,18 @@
 
             const NL_COMPANIES = ['AIG손보', 'DB손보', 'KB손보', 'NH농협손보', '롯데손보', '메리츠화재', '삼성화재', '하나손보', '한화손보', '현대해상', '흥국화재'];
             
-            const renderGroup = (title, list, color) => {
+            const renderGroup = (title, list, color, isNL) => {
                 if (list.length === 0) return '';
                 const cards = list.map(comp => {
                     const stats = d.topPartners[comp] || { countTop: { name: '-', value: 0 }, premiumTop: { name: '-', value: 0 } };
+                    const bgClass = isNL ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100';
                     return `
-                        <div class="bg-gray-50/50 rounded-3xl p-6 border border-gray-100 hover:shadow-md transition">
+                        <div class="${bgClass} rounded-3xl p-6 border hover:shadow-md transition">
                             <h4 class="font-bold text-gray-800 mb-4 ml-1">${comp}</h4>
                             <div class="space-y-3">
                                 <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
                                     <div class="flex items-center gap-3">
-                                        <div class="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-1 rounded-lg">건수 1위</div>
+                                        <div class="bg-green-50 text-green-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">건수 1위</div>
                                         <span class="font-bold text-gray-700">${stats.countTop.name}</span>
                                     </div>
                                     <div class="text-right">
@@ -4981,7 +5002,7 @@
                                 </div>
                                 <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
                                     <div class="flex items-center gap-3">
-                                        <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-lg">보험료 1위</div>
+                                        <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">보험료 1위</div>
                                         <span class="font-bold text-gray-700">${stats.premiumTop.name}</span>
                                     </div>
                                     <div class="text-right">
@@ -4999,20 +5020,25 @@
                             <span class="w-2 h-2 rounded-full" style="background-color: ${color}"></span>
                             ${title}
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             ${cards}
                         </div>
                     </div>
                 `;
             };
 
-            const allComps = Object.keys(d.topPartners);
+            const allComps = Object.keys(d.topPartners).sort((a, b) => {
+                const premiumA = d.barData.find(x => x.company === a)?.premium || 0;
+                const premiumB = d.barData.find(x => x.company === b)?.premium || 0;
+                return premiumB - premiumA;
+            });
+
             const nlComps = allComps.filter(c => NL_COMPANIES.some(nc => c.includes(nc)));
             const lifeComps = allComps.filter(c => !NL_COMPANIES.some(nc => c.includes(nc)));
 
             container.innerHTML = 
-                renderGroup('손해보험', nlComps, '#F37321') + 
-                renderGroup('생명보험', lifeComps, '#3B82F6');
+                renderGroup('손해보험', nlComps, '#F37321', true) + 
+                renderGroup('생명보험', lifeComps, '#3B82F6', false);
         }
 
         async function fetchHome(key) {
