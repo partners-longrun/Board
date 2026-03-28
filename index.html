@@ -710,6 +710,18 @@
                             <p class="text-[11px] text-gray-400 mt-0.5">통산 13회, 25회 유지율</p>
                         </div>
                     </div>` : ''}
+
+                    <!-- 8. 실적분석 -->
+                    ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `
+                    <div onclick="navigate('performanceAnalysis')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실적분석</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">데이터 기반 생보/손보 분석</p>
+                        </div>
+                    </div>` : ''}
                 </div>
             `;
 
@@ -4679,13 +4691,13 @@
                         </div>
                     </div>
 
-                    <!-- 2. 생보/손보 실적 비율 -->
+                    <!-- 2. 손보/생보 실적 비율 -->
                     <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col">
                         <div class="flex items-center gap-3 mb-8">
                             <div class="p-2 bg-blue-50 rounded-xl text-blue-600">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                             </div>
-                            <h3 class="text-lg font-bold text-gray-800">생보/손보 실적 비율</h3>
+                            <h3 class="text-lg font-bold text-gray-800">손보/생보 실적 비율</h3>
                         </div>
                         <div class="relative flex-grow flex items-center justify-center">
                             <div class="w-full max-w-[280px]">
@@ -5002,9 +5014,10 @@
                 const cards = list.map(comp => {
                     const stats = d.topPartners[comp] || { countTop: { name: '-', value: 0 }, premiumTop: { name: '-', value: 0 } };
                     const bgClass = isNL ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100';
+                    const currentPremium = d.barData.find(x => x.company === comp)?.premium || 0;
                     return `
                         <div class="${bgClass} rounded-3xl p-6 border hover:shadow-md transition">
-                            <h4 class="font-bold text-gray-800 mb-4 ml-1">${comp}</h4>
+                            <h4 class="font-bold text-gray-800 mb-4 ml-1">${comp} <span class="text-sm font-medium text-gray-500 ml-1">(${Math.round(currentPremium/10000).toLocaleString()}만원)</span></h4>
                             <div class="space-y-3">
                                 <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
                                     <div class="flex items-center gap-3">
@@ -5365,6 +5378,24 @@
                     if (res && res.success) {
                         as.data = res;
                         as.loaded = true;
+                    }
+                });
+            }
+
+            // 9. Performance Analysis Prefetch (실적분석 사전 캐싱)
+            if ((state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') &&
+                !state.perfAnalysisLoaded) {
+                const now = new Date();
+                const perfYear = state.perfAnalysisYear || String(now.getFullYear());
+                const perfMonth = state.perfAnalysisMonth || 'All';
+                state.perfAnalysisYear = perfYear;
+                state.perfAnalysisMonth = perfMonth;
+                
+                callApi('getPerformanceAnalysisData', state.user.staffId, perfYear, perfMonth).then(res => {
+                    if (!state.user) return; // 로그아웃 후 콜백 방지
+                    if (res && res.success) {
+                        state.perfAnalysisData = res;
+                        state.perfAnalysisLoaded = true;
                     }
                 });
             }
