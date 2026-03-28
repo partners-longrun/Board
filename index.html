@@ -339,7 +339,11 @@
             mobileMenuOpen: false,
             isLoading: false,
             performanceData: null, // { currentYear: [], prevYear: [], currentYearLabel: '', prevYearLabel: '' }
-            performanceLoaded: false
+            performanceLoaded: false,
+            perfAnalysisData: null,
+            perfAnalysisLoaded: false,
+            perfAnalysisYear: new Date().getFullYear().toString(),
+            perfAnalysisMonth: (new Date().getMonth() + 1).toString().padStart(2, '0')
         };
 
         // 권한1/2/3 중 하나라도 '관리자'인지 확인
@@ -398,6 +402,9 @@
 
                 if (!state.activityState.loaded) loadActivityData();
 
+            }
+            if (view === 'performanceAnalysis' && state.user) {
+                if (!state.perfAnalysisLoaded) fetchPerformanceAnalysisData();
             }
             window.scrollTo(0, 0);
         }
@@ -1034,6 +1041,7 @@
                                     ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
                                     ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('retentionAdmin', '유지율') : ''}
+                                    ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? navLink('performanceAnalysis', '실적분석') : ''}
                                 </div>
                             </div>
                             <div class="hidden md:flex items-center space-x-6">
@@ -1085,6 +1093,7 @@
                             ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'performanceAnalysis' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실적분석</a>` : ''}
                          </div>
                          <div class="p-4 border-t border-gray-100 bg-gray-50/50">
                              <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">마감월 선택</label>
@@ -1123,6 +1132,7 @@
             else if (state.currentView === 'admin') main.appendChild(createAdminView());
             else if (state.currentView === 'lapseAdmin') main.appendChild(createLapseAdminView());
             else if (state.currentView === 'retentionAdmin') main.appendChild(createRetentionAdminView());
+            else if (state.currentView === 'performanceAnalysis') main.appendChild(createPerformanceAnalysisView());
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -4598,6 +4608,411 @@
             else if (state.currentView === 'branch') fetchBranch(cacheKey);
             else if (state.currentView === 'recruitment') fetchRec(cacheKey);
             else if (state.currentView === 'admin') fetchAdmin(cacheKey);
+            else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
+        }
+
+        async function fetchPerformanceAnalysisData() {
+            state.isLoading = true;
+            render();
+            const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth);
+            state.isLoading = false;
+            if (res && res.success) {
+                state.perfAnalysisData = res;
+                state.perfAnalysisLoaded = true;
+                render();
+                setTimeout(renderPerformanceAnalysisCharts, 100);
+            } else {
+                alert('실적분석 데이터 로드 실패: ' + (res?.message || '알 수 없는 오류'));
+                state.perfAnalysisLoaded = true;
+                render();
+            }
+        }
+
+        function createPerformanceAnalysisView() {
+            if (state.isLoading && !state.perfAnalysisLoaded) return getSkeletonUI();
+            const div = document.createElement('div');
+            
+            // 연도/월 선택 옵션 생성
+            const years = [...new Set(state.months.map(m => m.substring(0, 4)))].sort().reverse();
+            const yearOptions = years.map(y => `<option value="${y}" ${y === state.perfAnalysisYear ? 'selected' : ''}>${y}년</option>`).join('');
+            const monthOptions = ['All', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(m => 
+                `<option value="${m}" ${m === state.perfAnalysisMonth ? 'selected' : ''}>${m === 'All' ? '전체 월' : parseInt(m) + '월'}</option>`
+            ).join('');
+
+            div.innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">파트너스본부 실적분석</h2>
+                        <p class="text-gray-500 text-sm mt-1">데이터 기반 생/손보 포트폴리오 및 파트너 성과 관리</p>
+                    </div>
+                    <div class="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-full md:w-auto">
+                        <div class="relative flex-grow md:flex-grow-0">
+                            <select id="perf-year-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-10 pr-4 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition">
+                                ${yearOptions}
+                            </select>
+                            <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                        </div>
+                        <div class="relative flex-grow md:flex-grow-0">
+                            <select id="perf-month-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-4 pr-10 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-center">
+                                ${monthOptions}
+                            </select>
+                            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- 1. 보험사별 실적 분석 -->
+                    <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="p-2 bg-orange-50 rounded-xl text-primary">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800">보험사별 실적 분석 (보험료)</h3>
+                        </div>
+                        <div class="relative h-[400px]">
+                            <canvas id="companyPerfChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. 생보/손보 실적 비율 -->
+                    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 flex flex-col">
+                        <div class="flex items-center gap-3 mb-8">
+                            <div class="p-2 bg-blue-50 rounded-xl text-blue-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800">생보/손보 실적 비율</h3>
+                        </div>
+                        <div class="relative flex-grow flex items-center justify-center">
+                            <div class="w-full max-w-[280px]">
+                                <canvas id="typeRatioChart"></canvas>
+                            </div>
+                        </div>
+                        <div id="ratio-legend" class="mt-6 flex justify-center gap-8"></div>
+                    </div>
+                </div>
+
+                <!-- 3. 월별 환산실적 추이 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mb-8">
+                    <div class="flex items-center gap-3 mb-8">
+                        <div class="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">${state.perfAnalysisYear}년 월별 환산실적 추이</h3>
+                    </div>
+                    <div class="relative h-[300px]">
+                        <canvas id="monthlyTrendChart"></canvas>
+                    </div>
+                    <div class="mt-6 flex justify-center gap-6">
+                        <div class="flex items-center gap-2">
+                             <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                             <span class="text-xs text-gray-500 font-medium">월별 합산실적 (생보+손보)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <span class="w-3 h-3 rounded-full bg-orange-500"></span>
+                             <span class="text-xs text-gray-500 font-medium">분기 누적실적</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 보험사별 우수 파트너 -->
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                    <div class="flex items-center gap-3 mb-8">
+                        <div class="p-2 bg-yellow-50 rounded-xl text-yellow-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">보험사별 우수 파트너 (건수/보험료 1위)</h3>
+                    </div>
+                    
+                    <div id="top-partners-container" class="space-y-12"></div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                div.querySelector('#perf-year-select').onchange = (e) => {
+                    state.perfAnalysisYear = e.target.value;
+                    fetchPerformanceAnalysisData();
+                };
+                div.querySelector('#perf-month-select').onchange = (e) => {
+                    state.perfAnalysisMonth = e.target.value;
+                    fetchPerformanceAnalysisData();
+                };
+                if (state.perfAnalysisLoaded) {
+                    renderPerformanceAnalysisCharts();
+                    renderTopPartners();
+                }
+            }, 0);
+
+            return div;
+        }
+
+        let perfCharts = { bar: null, pie: null, trend: null };
+
+        function renderPerformanceAnalysisCharts() {
+            const d = state.perfAnalysisData;
+            if (!d) return;
+
+            // (1) Bar Chart
+            const barCtx = document.getElementById('companyPerfChart');
+            if (barCtx) {
+                if (perfCharts.bar) perfCharts.bar.destroy();
+                const labels = d.barData.map(x => x.company);
+                const values = d.barData.map(x => Math.round(x.premium / 10000));
+                const colors = d.barData.map(x => x.isNonLife ? '#F37321' : '#3B82F6');
+                
+                perfCharts.bar = new Chart(barCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderRadius: 8,
+                            barThickness: 24,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => `보험료: ${ctx.parsed.y.toLocaleString()}만원`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#f8fafc' },
+                                ticks: { callback: (v) => v.toLocaleString() + '만' }
+                            },
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } }
+                        }
+                    },
+                    plugins: [{
+                        afterDraw: (chart) => {
+                            const ctx = chart.ctx;
+                            chart.data.datasets.forEach((dataset, i) => {
+                                const meta = chart.getDatasetMeta(i);
+                                meta.data.forEach((bar, index) => {
+                                    const data = dataset.data[index];
+                                    if (data > 0) {
+                                        ctx.fillStyle = '#64748b';
+                                        ctx.font = 'bold 9px Pretendard';
+                                        ctx.textAlign = 'center';
+                                        ctx.fillText(data.toLocaleString() + '만', bar.x, bar.y - 8);
+                                    }
+                                });
+                            });
+                        }
+                    }]
+                });
+            }
+
+            // (2) Pie Chart
+            const pieCtx = document.getElementById('typeRatioChart');
+            if (pieCtx) {
+                if (perfCharts.pie) perfCharts.pie.destroy();
+                const total = d.pieData.life + d.pieData.nonLife;
+                const lifePct = total > 0 ? (d.pieData.life / total * 100).toFixed(1) : 0;
+                const nlPct = total > 0 ? (d.pieData.nonLife / total * 100).toFixed(1) : 0;
+
+                perfCharts.pie = new Chart(pieCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['생명보험', '손해보험'],
+                        datasets: [{
+                            data: [d.pieData.life, d.pieData.nonLife],
+                            backgroundColor: ['#3B82F6', '#F37321'],
+                            borderWidth: 0,
+                            cutout: '75%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => `${ctx.label}: ${Math.round(ctx.parsed / 10000).toLocaleString()}만원 (${ctx.label === '생명보험' ? lifePct : nlPct}%)`
+                                }
+                            }
+                        }
+                    }
+                });
+
+                document.getElementById('ratio-legend').innerHTML = `
+                    <div class="text-center">
+                        <p class="text-xs text-blue-500 font-bold mb-1">생명보험 ${lifePct}%</p>
+                        <p class="text-lg font-extrabold text-blue-600">${Math.round(d.pieData.life/10000).toLocaleString()}만</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-orange-500 font-bold mb-1">손해보험 ${nlPct}%</p>
+                        <p class="text-lg font-extrabold text-orange-600">${Math.round(d.pieData.nonLife/10000).toLocaleString()}만</p>
+                    </div>
+                `;
+            }
+
+            // (3) Monthly Trend Chart
+            const trendCtx = document.getElementById('monthlyTrendChart');
+            if (trendCtx) {
+                if (perfCharts.trend) perfCharts.trend.destroy();
+                const labels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                const monthlyValues = d.trendData.map(v => Math.round(v / 10000));
+                
+                // 분기 누적 데이터 계산 (3, 6, 9, 12월)
+                const quarterValues = new Array(12).fill(null);
+                quarterValues[2] = monthlyValues.slice(0, 3).reduce((a, b) => a + b, 0);
+                quarterValues[5] = monthlyValues.slice(3, 6).reduce((a, b) => a + b, 0);
+                quarterValues[8] = monthlyValues.slice(6, 9).reduce((a, b) => a + b, 0);
+                quarterValues[11] = monthlyValues.slice(9, 12).reduce((a, b) => a + b, 0);
+
+                perfCharts.trend = new Chart(trendCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: '월별 합산실적',
+                                data: monthlyValues,
+                                borderColor: '#3B82F6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                                borderWidth: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#3B82F6',
+                                pointBorderWidth: 2,
+                                pointRadius: 4,
+                                tension: 0.3,
+                                fill: true
+                            },
+                            {
+                                label: '분기 누적실적',
+                                data: quarterValues,
+                                borderColor: '#F37321',
+                                borderDash: [5, 5],
+                                pointStyle: 'circle',
+                                pointRadius: 6,
+                                pointHoverRadius: 8,
+                                pointBackgroundColor: '#fff',
+                                pointBorderWidth: 3,
+                                showLine: true,
+                                spanGaps: true,
+                                tension: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { 
+                                mode: 'index', 
+                                intersect: false,
+                                callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}만원` }
+                            }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#f8fafc' },
+                                ticks: { callback: (v) => v.toLocaleString() + '만' }
+                            },
+                            x: { grid: { display: false } }
+                        }
+                    },
+                    plugins: [{
+                        afterDraw: (chart) => {
+                            const ctx = chart.ctx;
+                            chart.data.datasets.forEach((dataset, i) => {
+                                const meta = chart.getDatasetMeta(i);
+                                meta.data.forEach((point, index) => {
+                                    const data = dataset.data[index];
+                                    if (data !== null && data > 0) {
+                                        ctx.fillStyle = i === 1 ? '#F37321' : '#3B82F6';
+                                        ctx.font = 'bold 10px Pretendard';
+                                        ctx.textAlign = 'center';
+                                        if (i === 1) {
+                                            const quarterLabel = '[' + (Math.floor(index / 3) + 1) + '분기]';
+                                            ctx.fillText(quarterLabel, point.x, point.y - 25);
+                                            ctx.fillText(data.toLocaleString() + '만', point.x, point.y - 12);
+                                        } else {
+                                            ctx.fillText(data.toLocaleString() + '만', point.x, point.y - 12);
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                    }]
+                });
+            }
+        }
+
+        function renderTopPartners() {
+            const container = document.getElementById('top-partners-container');
+            if (!container) return;
+            const d = state.perfAnalysisData;
+            if (!d) return;
+
+            const NL_COMPANIES = ['AIG손보', 'DB손보', 'KB손보', 'NH농협손보', '롯데손보', '메리츠화재', '삼성화재', '하나손보', '한화손보', '현대해상', '흥국화재'];
+            
+            const renderGroup = (title, list, color) => {
+                if (list.length === 0) return '';
+                const cards = list.map(comp => {
+                    const stats = d.topPartners[comp] || { countTop: { name: '-', value: 0 }, premiumTop: { name: '-', value: 0 } };
+                    return `
+                        <div class="bg-gray-50/50 rounded-3xl p-6 border border-gray-100 hover:shadow-md transition">
+                            <h4 class="font-bold text-gray-800 mb-4 ml-1">${comp}</h4>
+                            <div class="space-y-3">
+                                <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-green-50 text-green-600 text-[10px] font-bold px-2 py-1 rounded-lg">건수 1위</div>
+                                        <span class="font-bold text-gray-700">${stats.countTop.name}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-sm font-bold text-gray-800">${stats.countTop.value}</span><span class="text-xs text-gray-400 ml-1">건</span>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-lg">보험료 1위</div>
+                                        <span class="font-bold text-gray-700">${stats.premiumTop.name}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-sm font-bold text-gray-800">${Math.round(stats.premiumTop.value/10000).toLocaleString()}</span><span class="text-xs text-gray-400 ml-1">만</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div>
+                        <h4 class="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">
+                            <span class="w-2 h-2 rounded-full" style="background-color: ${color}"></span>
+                            ${title}
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                            ${cards}
+                        </div>
+                    </div>
+                `;
+            };
+
+            const allComps = Object.keys(d.topPartners);
+            const nlComps = allComps.filter(c => NL_COMPANIES.some(nc => c.includes(nc)));
+            const lifeComps = allComps.filter(c => !NL_COMPANIES.some(nc => c.includes(nc)));
+
+            container.innerHTML = 
+                renderGroup('손해보험', nlComps, '#F37321') + 
+                renderGroup('생명보험', lifeComps, '#3B82F6');
         }
 
         async function fetchHome(key) {
