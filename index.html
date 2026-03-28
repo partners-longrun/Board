@@ -403,9 +403,6 @@
                 if (!state.activityState.loaded) loadActivityData();
 
             }
-            if (view === 'performanceAnalysis' && state.user) {
-                if (!state.perfAnalysisLoaded) fetchPerformanceAnalysisData();
-            }
             window.scrollTo(0, 0);
         }
 
@@ -4571,6 +4568,7 @@
             if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
                 state.data.branchCommData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'performanceAnalysis' && state.perfAnalysisLoaded) { return; }
 
             // 2. Check Session Storage
             const cached = sessionStorage.getItem(cacheKey);
