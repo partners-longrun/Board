@@ -4826,12 +4826,12 @@
                 perfCharts.pie = new Chart(pieCtx, {
                     type: 'doughnut',
                     data: {
-                        labels: ['손해보험', '생명보험'],
+                        labels: ['생명보험', '손해보험'],
                         datasets: [{
-                            data: [d.pieData.nonLife, d.pieData.life],
-                            backgroundColor: ['#F37321', '#3B82F6'],
+                            data: [d.pieData.life, d.pieData.nonLife],
+                            backgroundColor: ['#3B82F6', '#F37321'],
                             borderWidth: 0,
-                            cutout: '75%'
+                            cutout: '60%'
                         }]
                     },
                     options: {
@@ -4851,7 +4851,7 @@
                             chart.data.datasets.forEach((dataset, i) => {
                                 chart.getDatasetMeta(i).data.forEach((datapoint, index) => {
                                     const { x, y } = datapoint.tooltipPosition();
-                                    const percent = index === 0 ? nlPct : lifePct;
+                                    const percent = index === 1 ? nlPct : lifePct;
                                     if (percent > 0) {
                                         ctx.fillStyle = '#fff';
                                         ctx.shadowColor = 'rgba(0,0,0,0.3)';
@@ -4884,14 +4884,26 @@
             if (trendCtx) {
                 if (perfCharts.trend) perfCharts.trend.destroy();
                 const labels = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-                const monthlyValues = d.trendData.map(v => Math.round(v / 10000));
+                
+                const now = new Date();
+                const currentYear = now.getFullYear().toString();
+                const currentMonthIdx = now.getMonth(); // 0-11
+                const isCurrentYear = d.year === currentYear;
+
+                const monthlyValues = d.trendData.map((v, i) => {
+                    if (isCurrentYear && i > currentMonthIdx) return null;
+                    return Math.round(v / 10000);
+                });
                 
                 // 분기 누적 데이터 계산 (3, 6, 9, 12월)
                 const quarterValues = new Array(12).fill(null);
-                quarterValues[2] = monthlyValues.slice(0, 3).reduce((a, b) => a + b, 0);
-                quarterValues[5] = monthlyValues.slice(3, 6).reduce((a, b) => a + b, 0);
-                quarterValues[8] = monthlyValues.slice(6, 9).reduce((a, b) => a + b, 0);
-                quarterValues[11] = monthlyValues.slice(9, 12).reduce((a, b) => a + b, 0);
+                [2, 5, 8, 11].forEach(idx => {
+                    if (isCurrentYear && idx > currentMonthIdx) return;
+                    const slice = monthlyValues.slice(idx - 2, idx + 1);
+                    if (slice.every(v => v !== null)) {
+                        quarterValues[idx] = slice.reduce((a, b) => a + b, 0);
+                    }
+                });
 
                 perfCharts.trend = new Chart(trendCtx, {
                     type: 'line',
@@ -5015,10 +5027,10 @@
                 }).join('');
 
                 return `
-                    <div>
-                        <h4 class="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 px-1">
-                            <span class="w-2 h-2 rounded-full" style="background-color: ${color}"></span>
-                            ${title}
+                    <div class="mb-10">
+                        <h4 class="flex items-center gap-2 text-xl font-extrabold text-gray-800 uppercase tracking-tight mb-6 px-1">
+                            <span class="w-3 h-3 rounded-full" style="background-color: ${color}"></span>
+                            ${title} <span class="text-sm font-medium text-gray-400 ml-1">(보험료 실적순)</span>
                         </h4>
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             ${cards}
