@@ -2738,6 +2738,86 @@
             resetActivityRow(nextWeekNum, '예정');
         };
 
+        window.showRecruitmentDetails = function(type) {
+            const list = state.data.recData?.downlines || [];
+            
+            let nlPrem = 0, lComm = 0, nlTarget = 0, lTarget = 0;
+            list.forEach(x => {
+                if (type === 'pay') {
+                    nlPrem += Number(x['손보신계약'] || 0);
+                    lComm += Number(x['생보신계약유지'] || 0);
+                    nlTarget += Number(x['손보월발생분'] || 0);
+                    lTarget += Number(x['생보월발생분'] || 0);
+                } else {
+                    nlPrem += Number(x['손보환수'] || 0);
+                    lComm += Number(x['생보환수'] || 0);
+                    nlTarget += Number(x['손보월환수분'] || 0);
+                    lTarget += Number(x['생보월환수분'] || 0);
+                }
+            });
+
+            const totalTarget = nlTarget + lTarget;
+            const title = type === 'pay' ? '증원수당 지급액 상세내역' : '증원수당 환수액 상세내역';
+            const valueLabel = type === 'pay' ? '지급액' : '환수액';
+
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
+                    <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="text-xl font-bold text-gray-800 tracking-tight flex items-center gap-2">
+                            <span class="w-1.5 h-6 rounded-full ${type==='pay'?'bg-blue-500':'bg-red-500'}"></span>
+                            ${title}
+                        </h3>
+                        <button class="close text-gray-400 hover:text-gray-600 transition p-2 hover:bg-white rounded-xl">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    
+                    <div class="p-6 overflow-y-auto bg-gray-50 flex-grow">
+                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-gray-700 bg-gray-100 border-b border-gray-200">
+                                        <tr>
+                                            <th class="px-4 py-3 font-bold text-center border-r border-gray-200">손보 총보험료</th>
+                                            <th class="px-4 py-3 font-bold text-center border-r border-gray-200">생보 총수수료</th>
+                                            <th class="px-4 py-3 font-bold text-center border-r border-gray-200">손보 ${valueLabel}</th>
+                                            <th class="px-4 py-3 font-bold text-center border-r border-gray-200">생보 ${valueLabel}</th>
+                                            <th class="px-4 py-3 font-bold text-center bg-orange-50 text-primary">${valueLabel} 합계</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        <tr class="hover:bg-gray-50 transition">
+                                            <td class="px-4 py-4 text-center border-r border-gray-100 font-medium text-gray-800">${formatMoney(nlPrem)}</td>
+                                            <td class="px-4 py-4 text-center border-r border-gray-100 font-medium text-gray-800">${formatMoney(lComm)}</td>
+                                            <td class="px-4 py-4 text-center border-r border-gray-100 font-medium text-gray-800">${formatMoney(nlTarget)}</td>
+                                            <td class="px-4 py-4 text-center border-r border-gray-100 font-medium text-gray-800">${formatMoney(lTarget)}</td>
+                                            <td class="px-4 py-4 text-center font-bold text-primary bg-orange-50/30">${formatMoney(totalTarget)}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-4 text-center">※ 위 금액은 해당 월 산하 인원(${list.length}명)의 실적을 합산한 결과입니다.</p>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const closeFn = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            };
+            modal.querySelector('.close').onclick = closeFn;
+            modal.onclick = (e) => {
+                if(e.target === modal) closeFn();
+            };
+        };
+
         function createRecruitmentView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
@@ -2753,8 +2833,8 @@
             let agg = { pay: 0, refund: 0, net: 0 };
             (d.downlines || []).forEach(item => { const res = calcItem(item); agg.pay += res.pay; agg.refund += res.refund; agg.net += res.net; });
 
-            const card = (label, val, color, isRed = false, big = false) => `
-              <div class="bg-white rounded-2xl shadow-sm p-5 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center">
+            const card = (label, val, color, isRed = false, big = false, onClickHandler = null) => `
+              <div ${onClickHandler ? `onclick="${onClickHandler}" class="cursor-pointer hover:shadow-md hover:bg-gray-50 transition bg-white rounded-2xl shadow-sm p-5 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center"` : `class="bg-white rounded-2xl shadow-sm p-5 border-l-4 ${color} flex flex-col justify-between h-full items-center text-center"`}>
                  <p class="text-gray-400 text-xs w-full text-center font-bold uppercase">${label}</p>
                  <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} mt-2">${formatMoney(val)}</p>
               </div>`;
@@ -2790,8 +2870,8 @@
              </div>
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                 <div class="col-span-2 md:col-span-1">${card('나의 증원수당 (세전)', agg.net, 'border-primary', false, true)}</div>
-                <div class="col-span-1 md:col-span-1">${card('총 지급액', agg.pay, 'border-blue-500')}</div>
-                <div class="col-span-1 md:col-span-1">${card('총 환수액', agg.refund, 'border-red-500', true)}</div>
+                <div class="col-span-1 md:col-span-1 relative custom-tooltip" data-tooltip="클릭하여 상세내역 확인">${card('총 지급액', agg.pay, 'border-blue-500', false, false, "showRecruitmentDetails('pay')")}</div>
+                <div class="col-span-1 md:col-span-1 relative custom-tooltip" data-tooltip="클릭하여 상세내역 확인">${card('총 환수액', agg.refund, 'border-red-500', true, false, "showRecruitmentDetails('refund')")}</div>
              </div>
              ${listHtml}
              <div class="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-600 leading-relaxed shadow-inner">
