@@ -53,11 +53,13 @@
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance: none;
+            appearance: none;
             margin: 0;
         }
 
         input[type="number"] {
             -moz-appearance: textfield;
+            appearance: textfield;
         }
 
         body {
@@ -4677,9 +4679,9 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
                     <!-- 1. 보험사별 실적 분석 -->
-                    <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                    <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-5 md:p-8">
                         <div class="flex justify-between items-center mb-8">
                             <div class="flex items-center gap-3">
                                 <div class="p-2 bg-orange-50 rounded-xl text-primary">
@@ -4721,7 +4723,7 @@
                 </div>
 
                 <!-- 3. 월별 환산실적 추이 -->
-                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mb-8">
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 md:p-8 mb-8">
                     <div class="flex items-center gap-3 mb-8">
                         <div class="p-2 bg-indigo-50 rounded-xl text-indigo-600">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
@@ -4744,7 +4746,7 @@
                 </div>
 
                 <!-- 4. 보험사별 우수 파트너 -->
-                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
+                <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 md:p-8">
                     <div class="flex items-center gap-3 mb-8">
                         <div class="p-2 bg-yellow-50 rounded-xl text-yellow-600">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
@@ -5040,9 +5042,19 @@
                     const bgClass = isNL ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100';
                     const currentPremium = d.barData.find(x => x.company === comp)?.premium || 0;
                     return `
-                        <div class="${bgClass} rounded-3xl p-6 border hover:shadow-md transition">
+                        <div class="${bgClass} rounded-3xl p-4 md:p-6 border hover:shadow-md transition">
                             <h4 class="font-bold text-gray-800 mb-4 ml-1">${comp} <span class="text-sm font-medium text-gray-500 ml-1">(${Math.round(currentPremium/10000).toLocaleString()}만원)</span></h4>
                             <div class="space-y-3">
+                                <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">보험료 1위</div>
+                                        <span class="font-bold text-gray-700">${stats.premiumTop.name}</span>
+                                    </div>
+                                    <div class="text-right flex items-center">
+                                        <span class="text-sm font-bold text-gray-800">${Math.round(stats.premiumTop.value/10000).toLocaleString()}</span><span class="text-xs text-gray-400 ml-0.5 mr-1.5">만원</span>
+                                        <span class="text-xs font-semibold text-gray-500">(${stats.premiumTop.count||0}건)</span>
+                                    </div>
+                                </div>
                                 <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
                                     <div class="flex items-center gap-3">
                                         <div class="bg-green-50 text-green-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">건수 1위</div>
@@ -5051,16 +5063,6 @@
                                     <div class="text-right flex items-center">
                                         <span class="text-sm font-bold text-gray-800">${stats.countTop.value}</span><span class="text-xs text-gray-400 ml-0.5 mr-1.5">건</span>
                                         <span class="text-xs font-semibold text-gray-500">(${Math.round((stats.countTop.premium||0)/10000).toLocaleString()}만원)</span>
-                                    </div>
-                                </div>
-                                <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
-                                    <div class="flex items-center gap-3">
-                                        <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">보험료 1위</div>
-                                        <span class="font-bold text-gray-700">${stats.premiumTop.name}</span>
-                                    </div>
-                                    <div class="text-right flex items-center">
-                                        <span class="text-sm font-bold text-gray-800">${Math.round(stats.premiumTop.value/10000).toLocaleString()}</span><span class="text-xs text-gray-400 ml-0.5 mr-1.5">만</span>
-                                        <span class="text-xs font-semibold text-gray-500">(${stats.premiumTop.count||0}건)</span>
                                     </div>
                                 </div>
                             </div>
