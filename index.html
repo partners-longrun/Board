@@ -4680,11 +4680,23 @@
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                     <!-- 1. 보험사별 실적 분석 -->
                     <div class="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
-                        <div class="flex items-center gap-3 mb-8">
-                            <div class="p-2 bg-orange-50 rounded-xl text-primary">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                        <div class="flex justify-between items-center mb-8">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-orange-50 rounded-xl text-primary">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                                </div>
+                                <h3 class="text-lg font-bold text-gray-800">보험사별 실적 분석 (보험료)</h3>
                             </div>
-                            <h3 class="text-lg font-bold text-gray-800">보험사별 실적 분석 (보험료)</h3>
+                            <div class="relative w-32 md:w-36">
+                                <select id="company-type-select" class="appearance-none w-full bg-gray-50 border-none text-gray-700 font-bold py-2 pl-4 pr-8 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-sm">
+                                    <option value="all">전체 보험사</option>
+                                    <option value="nonlife">손해보험사</option>
+                                    <option value="life">생명보험사</option>
+                                </select>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                            </div>
                         </div>
                         <div class="relative h-[400px]">
                             <canvas id="companyPerfChart"></canvas>
@@ -4753,6 +4765,14 @@
                     state.perfAnalysisMonth = e.target.value;
                     fetchPerformanceAnalysisData();
                 };
+                const companyTypeSelect = div.querySelector('#company-type-select');
+                if (companyTypeSelect) {
+                    if (state.perfCompanyType) companyTypeSelect.value = state.perfCompanyType;
+                    companyTypeSelect.onchange = (e) => {
+                        state.perfCompanyType = e.target.value;
+                        renderPerformanceAnalysisCharts();
+                    };
+                }
                 if (state.perfAnalysisLoaded) {
                     renderPerformanceAnalysisCharts();
                     renderTopPartners();
@@ -4772,9 +4792,13 @@
             const barCtx = document.getElementById('companyPerfChart');
             if (barCtx) {
                 if (perfCharts.bar) perfCharts.bar.destroy();
-                const labels = d.barData.map(x => x.company);
-                const values = d.barData.map(x => Math.round(x.premium / 10000));
-                const colors = d.barData.map(x => x.isNonLife ? '#F37321' : '#3B82F6');
+                const filterType = state.perfCompanyType || 'all';
+                let barDataFiltered = d.barData;
+                if (filterType === 'nonlife') barDataFiltered = d.barData.filter(x => x.isNonLife);
+                if (filterType === 'life') barDataFiltered = d.barData.filter(x => !x.isNonLife);
+                const labels = barDataFiltered.map(x => x.company);
+                const values = barDataFiltered.map(x => Math.round(x.premium / 10000));
+                const colors = barDataFiltered.map(x => x.isNonLife ? '#F37321' : '#3B82F6');
                 
                 perfCharts.bar = new Chart(barCtx, {
                     type: 'bar',
@@ -5012,7 +5036,7 @@
             const renderGroup = (title, list, color, isNL) => {
                 if (list.length === 0) return '';
                 const cards = list.map(comp => {
-                    const stats = d.topPartners[comp] || { countTop: { name: '-', value: 0 }, premiumTop: { name: '-', value: 0 } };
+                    const stats = d.topPartners[comp] || { countTop: { name: '-', value: 0, premium: 0 }, premiumTop: { name: '-', value: 0, count: 0 } };
                     const bgClass = isNL ? 'bg-orange-50/50 border-orange-100' : 'bg-blue-50/50 border-blue-100';
                     const currentPremium = d.barData.find(x => x.company === comp)?.premium || 0;
                     return `
@@ -5024,8 +5048,9 @@
                                         <div class="bg-green-50 text-green-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">건수 1위</div>
                                         <span class="font-bold text-gray-700">${stats.countTop.name}</span>
                                     </div>
-                                    <div class="text-right">
-                                        <span class="text-sm font-bold text-gray-800">${stats.countTop.value}</span><span class="text-xs text-gray-400 ml-1">건</span>
+                                    <div class="text-right flex items-center">
+                                        <span class="text-sm font-bold text-gray-800">${stats.countTop.value}</span><span class="text-xs text-gray-400 ml-0.5 mr-1.5">건</span>
+                                        <span class="text-xs font-semibold text-gray-500">(${Math.round((stats.countTop.premium||0)/10000).toLocaleString()}만원)</span>
                                     </div>
                                 </div>
                                 <div class="bg-white p-4 rounded-2xl flex items-center justify-between border border-gray-50">
@@ -5033,8 +5058,9 @@
                                         <div class="bg-indigo-50 text-indigo-600 text-[10px] font-bold w-20 py-1.5 rounded-lg text-center">보험료 1위</div>
                                         <span class="font-bold text-gray-700">${stats.premiumTop.name}</span>
                                     </div>
-                                    <div class="text-right">
-                                        <span class="text-sm font-bold text-gray-800">${Math.round(stats.premiumTop.value/10000).toLocaleString()}</span><span class="text-xs text-gray-400 ml-1">만</span>
+                                    <div class="text-right flex items-center">
+                                        <span class="text-sm font-bold text-gray-800">${Math.round(stats.premiumTop.value/10000).toLocaleString()}</span><span class="text-xs text-gray-400 ml-0.5 mr-1.5">만</span>
+                                        <span class="text-xs font-semibold text-gray-500">(${stats.premiumTop.count||0}건)</span>
                                     </div>
                                 </div>
                             </div>
