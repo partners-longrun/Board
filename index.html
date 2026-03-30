@@ -4922,6 +4922,9 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: { top: 25 } // 막대 위 텍스트가 잘리지 않도록 상단 여백 추가
+                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
@@ -4934,7 +4937,8 @@
                             y: { 
                                 beginAtZero: true, 
                                 grid: { color: '#f8fafc' },
-                                ticks: { callback: (v) => v.toLocaleString() + '만' }
+                                ticks: { callback: (v) => v.toLocaleString() + '만' },
+                                grace: '5%' // 상단 여유 공간 확보
                             },
                             x: { grid: { display: false }, ticks: { font: { size: 10 } } }
                         }
@@ -5007,6 +5011,20 @@
                                     }
                                 });
                             });
+
+                            // [NEW] 가운데 총 보험료 텍스트
+                            const centerX = (left + right) / 2;
+                            const centerY = (top + bottom) / 2;
+                            ctx.fillStyle = '#64748b'; // text-gray-500
+                            ctx.font = '500 12px Pretendard';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText('총 보험료', centerX, centerY - 10);
+                            
+                            ctx.fillStyle = '#1e293b'; // text-gray-800
+                            ctx.font = '900 18px Pretendard';
+                            const totalVal = Math.round(total / 10000).toLocaleString() + '만';
+                            ctx.fillText(totalVal, centerX, centerY + 10);
                         }
                     }]
                 });
@@ -5086,6 +5104,9 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: { top: 35 } // 텍스트가 위에서 잘리지 않도록 충분한 여백 확보
+                        },
                         plugins: {
                             legend: { display: false },
                             tooltip: { 
@@ -5098,7 +5119,8 @@
                             y: { 
                                 beginAtZero: true, 
                                 grid: { color: '#f8fafc' },
-                                ticks: { callback: (v) => v.toLocaleString() + '만' }
+                                ticks: { callback: (v) => v.toLocaleString() + '만' },
+                                grace: '10%' // 데이터 최대치 위에 공간 확보
                             },
                             x: { 
                                 grid: { display: false },
