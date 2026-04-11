@@ -375,6 +375,20 @@
             return r;
         }
 
+        function maskPolicyNo(policyNo) {
+            if (!policyNo) return '';
+            const str = String(policyNo).trim();
+            if (str.length < 5) return str;
+            return str.substring(0, 4) + '***' + str.substring(7);
+        }
+
+        function maskContractor(name) {
+            if (!name) return '';
+            const str = String(name).trim();
+            if (str.length < 2) return str;
+            return str.substring(0, 1) + '**' + str.substring(2);
+        }
+
         // --- 2. Navigation & History ---
         window.handleFabBack = function () {
             if (state.currentView === 'home') {
@@ -1297,7 +1311,7 @@
                <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
                <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
                <td class="p-3 text-gray-700">${x['보험사']}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
                <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
                <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
@@ -1424,7 +1438,7 @@
                              <span class="px-2 py-1 text-[11px] font-bold rounded-md ${badgeClass}">${data['계약상태']}</span>
                         </div>
                         <div class="text-sm font-medium text-gray-700 leading-snug">${data['상품명']}</div>
-                        <div class="text-[11px] font-mono text-gray-400 mt-1">${data['증권번호']} · ${data['보험사']}</div>
+                        <div class="text-[11px] font-mono text-gray-400 mt-1">${maskPolicyNo(data['증권번호'])} · ${data['보험사']}</div>
                     </div>
                     
                     <div class="px-1 text-sm text-gray-800 mb-6">
@@ -3550,7 +3564,7 @@
                <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
                <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
                <td class="p-3 text-gray-700 max-w-[80px] truncate">${x['보험사']}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+               <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
                <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['계속보험료'])}</td>
                <td class="p-3 text-xs text-gray-500 min-w-[85px]">${x['계약일']}</td>
@@ -3733,7 +3747,7 @@
                             <td>${x['모집인명']}</td>
                             <td class="font-bold">${x['수금인명']}</td>
                             <td>${x['보험사']}</td>
-                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td style="font-family: monospace;">${maskPolicyNo(x['증권번호'])}</td>
                             <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                             <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
                             <td style="min-width: 85px;">${x['계약일']}</td>
@@ -3779,7 +3793,7 @@
                             <td>${x['모집인명']}</td>
                             <td class="font-bold">${x['수금인명']}</td>
                             <td>${x['보험사']}</td>
-                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td style="font-family: monospace;">${maskPolicyNo(x['증권번호'])}</td>
                             <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                             <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
                             <td style="min-width: 85px;">${x['계약일']}</td>
@@ -3823,7 +3837,7 @@
                                 <td>${x['모집인명']}</td>
                                 <td class="font-bold">${x['수금인명']}</td>
                                 <td>${x['보험사']}</td>
-                                <td style="font-family: monospace;">${x['증권번호']}</td>
+                                <td style="font-family: monospace;">${maskPolicyNo(x['증권번호'])}</td>
                                 <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                                 <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['계속보험료'])}</td>
                                 <td style="min-width: 85px;">${x['계약일']}</td>
@@ -3894,13 +3908,13 @@
     <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
                 '-'}</td>
     <td class="p-3 text-gray-700">${x.company}</td>
-    <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x.policyNo)}</td>
     <td class="p-3 font-medium text-gray-800">
         <div class="truncate-product" title="${x.product}">${x.product}</div>
     </td>
     <td class="p-3 text-xs text-gray-500">${x.date}</td>
     <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
-    <td class="p-3 text-center text-gray-700">${x.customer}</td>
+    <td class="p-3 text-center text-gray-700">${maskContractor(x.customer)}</td>
     <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
     </td>
     <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
@@ -3916,7 +3930,7 @@
         <div>
             <p class="font-bold text-gray-900">${x.recruiter || '-'} <span
                     class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
-            <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${maskPolicyNo(x.policyNo)}</p>
         </div>
         <div class="text-right flex flex-col items-end">
             <span
@@ -3939,7 +3953,7 @@
         </div>
     </div>
     <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
-        <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
+        <span>계약자: <span class="text-gray-600">${maskContractor(x.customer)}</span></span>
         <span>계약일: <span class="text-gray-600">${x.date}</span></span>
     </div>
     <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate"
@@ -4089,13 +4103,13 @@
     <td class="p-3 font-medium text-gray-800 text-center bg-gray-50/50 border-r border-gray-100/50">${x.recruiter ||
                     name}</td>
     <td class="p-3 text-gray-700">${x.company}</td>
-    <td class="p-3 text-xs text-gray-500 font-mono">${x.policyNo}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x.policyNo)}</td>
     <td class="p-3 font-medium text-gray-800">
         <div class="truncate-product" title="${x.product}">${x.product}</div>
     </td>
     <td class="p-3 text-xs text-gray-500">${x.date}</td>
     <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
-    <td class="p-3 text-center text-gray-700">${x.customer}</td>
+    <td class="p-3 text-center text-gray-700">${maskContractor(x.customer)}</td>
     <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
     </td>
     <td class="p-3 text-right text-xs bg-gray-50 font-mono text-gray-600">${calcRate(Math.abs(x.amount), x.premium)}
@@ -4111,7 +4125,7 @@
         <div>
             <p class="font-bold text-gray-900">${x.recruiter || name} <span
                     class="text-xs text-gray-400 font-normal">(${x.company})</span></p>
-            <p class="text-xs text-gray-500 font-mono mt-0.5">${x.policyNo}</p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${maskPolicyNo(x.policyNo)}</p>
         </div>
         <div class="text-right flex flex-col items-end">
             <span
@@ -4134,7 +4148,7 @@
         </div>
     </div>
     <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
-        <span>계약자: <span class="text-gray-600">${x.customer}</span></span>
+        <span>계약자: <span class="text-gray-600">${maskContractor(x.customer)}</span></span>
         <span>계약일: <span class="text-gray-600">${x.date}</span></span>
     </div>
     <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate"
@@ -4488,7 +4502,7 @@
     <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
     <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
     <td class="p-3 text-gray-700">${x['보험사']}</td>
-    <td class="p-3 text-xs text-gray-500 font-mono">${x['증권번호']}</td>
+    <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
     <td class="p-3 font-medium text-gray-800">
         <div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div>
     </td>
@@ -4507,7 +4521,7 @@
         <div>
             <p class="font-bold text-gray-900">${x['계약자']} <span
                     class="text-xs text-gray-400 font-normal">(${x['모집인명']})</span></p>
-            <p class="text-xs text-gray-500 font-mono mt-0.5">${x['증권번호']}</p>
+            <p class="text-xs text-gray-500 font-mono mt-0.5">${maskPolicyNo(x['증권번호'])}</p>
         </div>
         <div class="text-right flex flex-col items-end">
             <span
