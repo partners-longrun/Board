@@ -2961,8 +2961,18 @@
             const as = state.activityState;
             const curWeekNum = parseInt(as.week);
             const nextWeekNum = curWeekNum + 1;
+            const prevWeekNum = curWeekNum > 1 ? curWeekNum - 1 : 0;
+
+            const now = new Date();
+            const timestamp = now.getFullYear() + '-' + 
+                String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                String(now.getDate()).padStart(2, '0') + ' ' + 
+                String(now.getHours()).padStart(2, '0') + ':' + 
+                String(now.getMinutes()).padStart(2, '0') + ':' + 
+                String(now.getSeconds()).padStart(2, '0');
 
             function collectRow(week, type) {
+                if (week <= 0) return null;
                 const prefix = `act_${week}_${type}`;
                 const fields = ['TA', 'AP', 'P', 'C', 'N', '소개', '보험료'];
                 const data = {};
@@ -2972,14 +2982,20 @@
                     data[f] = Number(rawVal) || 0;
                 });
                 data['활동계'] = (data['TA'] || 0) + (data['AP'] || 0) + (data['P'] || 0) + (data['C'] || 0) + (data['N'] || 0) + (data['소개'] || 0);
+                data['입력시간'] = timestamp;
                 return { year: as.year, week: String(week), type: type, data: data };
             }
 
             const batchData = [
+                collectRow(prevWeekNum, '결과'),
                 collectRow(curWeekNum, '예정'),
                 collectRow(curWeekNum, '결과'),
                 collectRow(nextWeekNum, '예정')
-            ];
+            ].filter(item => item !== null && item.data['활동계'] >= 1);
+
+            if (batchData.length === 0) {
+                return;
+            }
 
             showLoading(true);
             const res = await callApi('saveActivityDataBatch',
