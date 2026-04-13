@@ -2278,7 +2278,9 @@
             const fields = ['TA', 'AP', 'P', 'C', 'N', '소개', '보험료'];
             const data = {};
             fields.forEach(f => {
-                const el = document.getElementById(`${prefix}_${f}`);
+                const dEl = document.getElementById(`${prefix}_${f}`);
+                const mEl = document.getElementById(`mob_${prefix}_${f}`);
+                const el = (mEl && mEl.offsetParent !== null) ? mEl : dEl;
                 const rawVal = el ? String(el.value).replace(/,/g, '') : '0';
                 data[f] = Number(rawVal) || 0;
             });
@@ -2304,11 +2306,15 @@
         function resetActivityRow(week, type) {
             const prefix = `act_${week}_${type}`;
             ['TA', 'AP', 'P', 'C', 'N', '소개', '보험료'].forEach(f => {
-                const el = document.getElementById(`${prefix}_${f}`);
-                if (el) el.value = '';
+                const dEl = document.getElementById(`${prefix}_${f}`);
+                const mEl = document.getElementById(`mob_${prefix}_${f}`);
+                if (dEl) dEl.value = '';
+                if (mEl) mEl.value = '';
             });
-            const totalEl = document.getElementById(`${prefix}_활동계`);
-            if (totalEl) totalEl.textContent = '';
+            const dTot = document.getElementById(`${prefix}_활동계`);
+            const mTot = document.getElementById(`mob_${prefix}_활동계`);
+            if (dTot) dTot.textContent = '';
+            if (mTot) mTot.textContent = '';
         }
 
         function updateActivityTotal(week, type) {
@@ -2316,12 +2322,23 @@
             const fields = ['TA', 'AP', 'P', 'C', 'N', '소개'];
             let total = 0;
             fields.forEach(f => {
-                const el = document.getElementById(`${prefix}_${f}`);
+                const dEl = document.getElementById(`${prefix}_${f}`);
+                const mEl = document.getElementById(`mob_${prefix}_${f}`);
+                const el = (mEl && mEl.offsetParent !== null) ? mEl : dEl;
                 const rawVal = el ? String(el.value).replace(/,/g, '') : '0';
                 total += Number(rawVal) || 0;
             });
-            const totalEl = document.getElementById(`${prefix}_활동계`);
-            if (totalEl) totalEl.textContent = total > 0 ? total : '';
+            const dTot = document.getElementById(`${prefix}_활동계`);
+            const mTot = document.getElementById(`mob_${prefix}_활동계`);
+            if (dTot) dTot.textContent = total > 0 ? total : '';
+            if (mTot) mTot.textContent = total > 0 ? total : '';
+        }
+        
+        function syncActInput(wk, tp, field, val) {
+            const dEl = document.getElementById(`act_${wk}_${tp}_${field}`);
+            const mEl = document.getElementById(`mob_act_${wk}_${tp}_${field}`);
+            if (dEl && dEl.value !== val) dEl.value = val;
+            if (mEl && mEl.value !== val) mEl.value = val;
         }
 
         function createActivityView() {
@@ -2443,6 +2460,97 @@
                 }).join('');
             }
 
+            // 소속원 테이블 모바일 뷰 빌드
+            function buildTeamMobileRows() {
+                const others = teamData.filter(m => String(m.staffId) !== String(state.user.staffId));
+                if (!others.length) return `<div class="text-center text-xs text-gray-400 py-4">소속원 데이터가 없습니다.</div>`;
+                return others.map(m => {
+                    const wp = m.thisWeekPlan || {};
+                    const wr = m.thisWeekResult || {};
+                    const items = ['TA', 'AP', 'P', 'C', 'N', '소개'];
+                    const rowHtml = items.map(k => `
+                        <div class="px-1 py-1.5 border-r border-gray-100 last:border-0 text-center">
+                            <p class="text-[9px] text-gray-500 mb-0.5">${k}</p>
+                            <p class="text-[11px] text-blue-600 font-medium leading-tight">${wp[k] > 0 ? wp[k] : '-'}</p>
+                            <p class="text-[11px] text-orange-600 font-medium leading-tight">${wr[k] > 0 ? wr[k] : '-'}</p>
+                        </div>
+                    `).join('');
+                    
+                    return `
+                    <div class="bg-white border border-gray-200 rounded-xl mb-3 shadow-sm overflow-hidden">
+                        <div class="bg-gray-50 px-3 py-2 flex justify-between items-center border-b border-gray-200">
+                            <span class="font-bold text-gray-700 text-sm">${m.name} <span class="text-xs font-normal text-gray-500 ml-1">(${m.week}주차)</span></span>
+                        </div>
+                        <div class="flex">
+                            <div class="w-10 flex flex-col justify-end items-end text-right pr-1 pb-1.5 border-r border-gray-100 shrink-0">
+                                <p class="text-[9px] text-blue-600 mb-0.5 leading-tight">예정</p>
+                                <p class="text-[9px] text-orange-600 leading-tight">결과</p>
+                            </div>
+                            <div class="grid grid-cols-6 flex-grow">
+                                ${rowHtml}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50/50 px-3 py-2 flex justify-between items-center border-t border-gray-100">
+                            <div class="text-xs"><span class="text-gray-500 text-[10px]">활동계(예/결) :</span> <span class="font-bold text-gray-700 text-[11px] ml-1">${wp['활동계'] || 0} / ${wr['활동계'] || 0}</span></div>
+                            <div class="text-xs"><span class="text-gray-500 text-[10px]">보험료 :</span> <span class="font-bold text-gray-700 text-[11px] ml-1">${Number(wp['보험료'] || 0).toLocaleString()} / ${Number(wr['보험료'] || 0).toLocaleString()}</span></div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            function mobileInputCell(wk, tp, field, val) {
+                const id = `mob_act_${wk}_${tp}_${field}`;
+                const alignClass = field === '보험료' ? 'text-right' : 'text-center';
+
+                if (field === '활동계') {
+                    const dispVal = val > 0 ? (field === '보험료' ? val.toLocaleString() : val) : '';
+                    return `<div class="flex flex-col border border-gray-200 rounded-lg p-2 bg-green-50">
+                        <label class="text-[10px] font-bold text-gray-500 mb-1 text-center">${field}</label>
+                        <div class="text-sm font-bold text-gray-800 text-center flex-grow flex items-center justify-center" id="${id}">${dispVal}</div>
+                    </div>`;
+                }
+
+                const typeStr = field === '보험료' ? 'type="text"' : 'type="number" min="0"';
+                const dispVal = val > 0 ? (field === '보험료' ? val.toLocaleString() : val) : '';
+                const formatScript = field === '보험료' ? `this.value = this.value.replace(/[^0-9]/g, '').replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); ` : '';
+
+                return `<div class="flex flex-col">
+                    <label class="text-[10px] font-bold text-gray-500 mb-1 text-center">${field}</label>
+                    <input ${typeStr} id="${id}" value="${dispVal}" placeholder=""
+                        class="w-full h-10 px-2 py-1 text-sm ${alignClass} border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-400 outline-none transition"
+                        oninput="${formatScript}syncActInput(${wk},'${tp}','${field}',this.value); updateActivityTotal(${wk},'${tp}')">
+                </div>`;
+            }
+
+            function mobileInputGroup(wk, startDate, tp, dataObj) {
+                const titleColor = tp === '예정' ? 'text-blue-600' : 'text-orange-600';
+                const bgColors = tp === '결과' ? '' : 'bg-gray-50';
+                return `
+                <div class="mb-4 rounded-xl border border-gray-200 overflow-hidden shadow-sm ${bgColors}">
+                    <div class="bg-gray-100/60 px-3 py-2 flex justify-between items-center border-b border-gray-200">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-gray-700">${wk}주차</span>
+                            <span class="text-xs text-gray-500">${startDate}</span>
+                        </div>
+                        <span class="text-sm font-bold ${titleColor}">${tp}</span>
+                    </div>
+                    <div class="p-3">
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            ${mobileInputCell(wk, tp, 'TA', Number(dataObj['TA'] || 0))}
+                            ${mobileInputCell(wk, tp, 'AP', Number(dataObj['AP'] || 0))}
+                            ${mobileInputCell(wk, tp, 'P', Number(dataObj['P'] || 0))}
+                            ${mobileInputCell(wk, tp, 'C', Number(dataObj['C'] || 0))}
+                            ${mobileInputCell(wk, tp, 'N', Number(dataObj['N'] || 0))}
+                            ${mobileInputCell(wk, tp, '소개', Number(dataObj['소개'] || 0))}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100">
+                            ${mobileInputCell(wk, tp, '활동계', Number(dataObj['활동계'] || 0))}
+                            ${mobileInputCell(wk, tp, '보험료', Number(dataObj['보험료'] || 0))}
+                        </div>
+                    </div>
+                </div>`;
+            }
+
             div.innerHTML = `
             <div class="animate-fadeIn">
                 <!-- 헤더 -->
@@ -2461,10 +2569,18 @@
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
                         </div>
-                        <span class="text-sm text-gray-600 font-medium">${state.user.name}님의 주간 활동 예정 및 결과를 입력해 주세요.</span>
+                        <!-- 모바일 전용 주차 선택 -->
+                        <div class="relative md:hidden">
+                            <select id="mob_act_week_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-gray-800 text-sm font-bold rounded-lg px-3 py-2 pr-8 cursor-pointer focus:ring-2 focus:ring-yellow-300 outline-none">
+                                ${weekOptions.join('')}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
+                        </div>
+                        <span class="text-sm text-gray-600 font-medium block md:inline">${state.user.name}님의 주간 활동 예정 및 결과를 입력해 주세요.</span>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <!-- 데스크탑 뷰 -->
+                    <div class="overflow-x-auto hidden md:block">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
@@ -2533,6 +2649,13 @@
                         </table>
                     </div>
 
+                    <!-- 모바일 뷰 -->
+                    <div class="block md:hidden">
+                        ${mobileInputGroup(curWeekNum, curStartDate, '예정', curPlan)}
+                        ${mobileInputGroup(curWeekNum, curStartDate, '결과', curResult)}
+                        ${mobileInputGroup(nextWeekNum, nextStartDate, '예정', nextPlan)}
+                    </div>
+
                     <!-- 버튼 -->
                     <div class="flex justify-end gap-2 mt-3">
                         <button onclick="resetActivityInputs()" class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition font-medium">초기화</button>
@@ -2540,7 +2663,7 @@
                     </div>
 
                     <!-- 연간 총 활동 결과 -->
-                    <div class="mt-5 overflow-x-auto">
+                    <div class="mt-5 overflow-x-auto hidden md:block">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
@@ -2563,6 +2686,28 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- 연간 총 활동 결과 모바일 뷰 -->
+                    <div class="mt-5 block md:hidden">
+                        <h4 class="text-sm font-bold text-gray-700 mb-3 ml-1">연간 총 활동 결과</h4>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${['TA', 'AP', 'P', 'C', 'N', '소개'].map(k => `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 text-center">
+                                <p class="text-[11px] font-bold text-gray-500 mb-1">${k}</p>
+                                <p class="text-sm font-bold text-gray-800">${yt[k] > 0 ? yt[k].toLocaleString() : '-'}</p>
+                            </div>
+                            `).join('')}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mt-2">
+                            ${['활동계', '보험료'].map(k => `
+                            <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-2 text-center">
+                                <p class="text-[11px] font-bold text-indigo-500 mb-1">${k}</p>
+                                <p class="text-sm font-bold text-indigo-700">${yt[k] > 0 ? yt[k].toLocaleString() : '-'}</p>
+                            </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
                 </div>
 
                 <!-- 나의 활동 결과 통계 -->
@@ -2582,7 +2727,7 @@
                     </div>
                     
                     <!-- 예정과 결과 간 확률 -->
-                    <div class="overflow-x-auto mb-4">
+                    <div class="overflow-x-auto mb-4 hidden md:block">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
@@ -2624,7 +2769,37 @@
                         </table>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <!-- 예정과 결과 간 확률 모바일 뷰 -->
+                    <div class="mb-6 block md:hidden">
+                        <div class="grid grid-cols-2 gap-3">
+                            ${['TA', 'AP', 'P', 'C', 'N', '소개'].map(k => {
+                                const plan = d.filteredYearlyPlanTotal ? Number(d.filteredYearlyPlanTotal[k] || 0) : 0;
+                                const result = d.filteredYearlyTotal ? Number(d.filteredYearlyTotal[k] || 0) : 0;
+                                const prob = plan > 0 ? Math.round(result / plan * 100) + '%' : '-';
+                                return `
+                                <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                    <h4 class="text-xs font-bold text-gray-700 bg-gray-50 border-b border-gray-200 p-2 text-center">${k}</h4>
+                                    <div class="p-2">
+                                        <div class="flex justify-between items-center mb-1">
+                                            <span class="text-[10px] text-gray-500 font-medium">총 예정</span>
+                                            <span class="text-[11px] font-bold text-gray-700">${plan > 0 ? plan.toLocaleString() : '-'}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <span class="text-[10px] text-gray-500 font-medium">총 결과</span>
+                                            <span class="text-[11px] font-bold text-gray-800">${result > 0 ? result.toLocaleString() : '-'}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center bg-blue-50/50 -mx-2 -mb-2 p-2 border-t border-blue-100">
+                                            <span class="text-[10px] text-blue-600 font-bold">확률</span>
+                                            <span class="text-xs font-bold text-blue-700">${prob}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto hidden md:block">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
@@ -2656,6 +2831,32 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- 활동 간 확률 모바일 뷰 -->
+                    <div class="block md:hidden mt-2">
+                        <h4 class="text-sm font-bold text-gray-700 mb-3 ml-1">활동 간 확률</h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${[
+                                { label: 'TA / AP', val: safeDiv(statData.AP, statData.TA) },
+                                { label: 'AP / P', val: safeDiv(statData.P, statData.AP) },
+                                { label: 'P / C', val: safeDiv(statData.C, statData.P) },
+                                { label: 'TA / N', val: safeDiv(statData.N, statData.TA) },
+                                { label: 'AP / N', val: safeDiv(statData.N, statData.AP) },
+                                { label: 'P / N', val: safeDiv(statData.N, statData.P) },
+                                { label: 'C / N', val: safeDiv(statData.N, statData.C) },
+                                { label: 'AP / 소개', val: safeDiv(statData.AP, statData.소개) }
+                            ].map(item => `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 flex justify-between items-center">
+                                <span class="text-[11px] font-bold text-gray-500">${item.label}</span>
+                                <span class="text-xs font-bold text-gray-800">${item.val}</span>
+                            </div>
+                            `).join('')}
+                        </div>
+                        <div class="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3 flex justify-between items-center">
+                            <span class="text-xs font-bold text-blue-700">주간 유실적률</span>
+                            <span class="text-sm font-bold text-blue-800">${avgN > 0 ? Math.round(avgN * 100) + '%' : '-'}</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 소속원들의 주간 활동 -->
@@ -2664,7 +2865,7 @@
                         <span class="w-1.5 h-4 bg-primary rounded-full"></span>
                         <h3 class="text-sm font-bold text-gray-700">소속원들의 주간 활동은?</h3>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto hidden md:block">
                         <table class="w-full border-collapse text-xs min-w-[600px] table-fixed">
                             <thead>
                                 <tr class="bg-blue-50">
@@ -2686,6 +2887,11 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- 소속원 모바일 뷰 -->
+                    <div class="block md:hidden">
+                        ${buildTeamMobileRows()}
+                    </div>
                 </div>
             </div>`;
 
@@ -2695,6 +2901,13 @@
                 const yearSel = div.querySelector('#act_year_sel');
                 if (yearSel) yearSel.addEventListener('change', e => {
                     state.activityState.year = e.target.value;
+                    state.activityState.loaded = false;
+                    loadActivityData();
+                });
+                // 모바일 주차 선택
+                const mobWeekSel = div.querySelector('#mob_act_week_sel');
+                if (mobWeekSel) mobWeekSel.addEventListener('change', e => {
+                    state.activityState.week = e.target.value;
                     state.activityState.loaded = false;
                     loadActivityData();
                 });
