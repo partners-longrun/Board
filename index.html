@@ -2362,15 +2362,30 @@
             const maxWeek = getWeeksInYear(parseInt(as.year));
             const weekOptions = [];
             for (let w = 1; w <= maxWeek; w++) {
-                weekOptions.push(`<option value="${w}" ${String(w) === as.week ? 'selected' : ''}>${w}주차</option>`);
+                let labelExtra = '';
+                if (w === todayW.week) {
+                    labelExtra = ' (이번주)';
+                } else if (w === todayW.week - 1) {
+                    labelExtra = ' (지난주)';
+                } else if (w === todayW.week + 1) {
+                    labelExtra = ' (다음주)';
+                } else {
+                    const sd = getMonday(parseInt(as.year), w);
+                    labelExtra = ` (${formatDateYMD(sd)})`;
+                }
+                const isSelected = String(w) === as.week ? 'selected' : '';
+                weekOptions.push(`<option value="${w}" ${isSelected}>${w}주${labelExtra}</option>`);
             }
 
             const curWeekNum = parseInt(as.week);
             const nextWeekNum = curWeekNum + 1;
+            const prevWeekNum = curWeekNum - 1;
             const curMonday = getMonday(parseInt(as.year), curWeekNum);
             const nextMonday = getMonday(parseInt(as.year), nextWeekNum);
+            const prevMonday = getMonday(parseInt(as.year), prevWeekNum);
             const curStartDate = formatDateYMD(curMonday);
             const nextStartDate = formatDateYMD(nextMonday);
+            const prevStartDate = prevWeekNum > 0 ? formatDateYMD(prevMonday) : '';
 
             // 기존 데이터 추출
             const d = as.data || {};
@@ -2378,6 +2393,7 @@
             function getRow(wk, tp) {
                 return myRows.find(r => String(r['주차']) === String(wk) && r['예정결과'] === tp) || {};
             }
+            const prevResult = getRow(prevWeekNum, '결과');
             const curPlan = getRow(curWeekNum, '예정');
             const curResult = getRow(curWeekNum, '결과');
             const nextPlan = getRow(nextWeekNum, '예정');
@@ -2569,9 +2585,9 @@
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
                         </div>
-                        <!-- 모바일 전용 주차 선택 -->
-                        <div class="relative md:hidden">
-                            <select id="mob_act_week_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-gray-800 text-sm font-bold rounded-lg px-3 py-2 pr-8 cursor-pointer focus:ring-2 focus:ring-yellow-300 outline-none">
+                        <!-- 주차 선택 -->
+                        <div class="relative">
+                            <select id="act_week_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-gray-800 text-sm font-bold rounded-lg px-3 py-2 pr-8 cursor-pointer focus:ring-2 focus:ring-yellow-300 outline-none">
                                 ${weekOptions.join('')}
                             </select>
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
@@ -2598,17 +2614,26 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <!-- 지난주 결과 -->
+                                <tr class="bg-gray-50/50 h-10">
+                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-gray-500 text-xs">${prevWeekNum}주 (지난주)</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs">${prevStartDate}</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs font-medium">결과</td>
+                                    ${inputCell(prevWeekNum, '결과', 'TA', Number(prevResult['TA'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', 'AP', Number(prevResult['AP'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', 'P', Number(prevResult['P'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', 'C', Number(prevResult['C'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', 'N', Number(prevResult['N'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', '소개', Number(prevResult['소개'] || 0), 'bg-gray-100')}
+                                    ${inputCell(prevWeekNum, '결과', '활동계', Number(prevResult['활동계'] || 0))}
+                                    ${inputCell(prevWeekNum, '결과', '보험료', Number(prevResult['보험료'] || 0), 'bg-gray-100')}
+                                </tr>
                                 <!-- 이번주 예정 -->
                                 <tr class="h-10">
-                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50" rowspan="2">
-                                        <div class="relative">
-                                            <select id="act_week_sel" class="appearance-none bg-yellow-100 border border-yellow-300 text-xs font-bold rounded px-1 py-1 pr-5 cursor-pointer focus:ring-1 focus:ring-yellow-300 outline-none w-20">
-                                                ${weekOptions.join('')}
-                                            </select>
-                                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-gray-600"><svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div>
-                                        </div>
+                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50 text-xs" rowspan="2">
+                                        ${curWeekNum}주 (이번주)
                                     </td>
-                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600" rowspan="2" id="act_cur_start">${curStartDate}</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600 text-xs" rowspan="2" id="act_cur_start">${curStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-blue-600 font-medium">예정</td>
                                     ${inputCell(curWeekNum, '예정', 'TA', Number(curPlan['TA'] || 0))}
                                     ${inputCell(curWeekNum, '예정', 'AP', Number(curPlan['AP'] || 0))}
@@ -2633,7 +2658,7 @@
                                 </tr>
                                 <!-- 다음주 예정 -->
                                 <tr class="bg-gray-50/50 h-10">
-                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs" id="act_next_week">${nextWeekNum}주차</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs">${nextWeekNum}주 (다음주)</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs" id="act_next_start">${nextStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-blue-500 text-xs">예정</td>
                                     ${inputCell(nextWeekNum, '예정', 'TA', Number(nextPlan['TA'] || 0), 'bg-green-50/70')}
@@ -2651,6 +2676,7 @@
 
                     <!-- 모바일 뷰 -->
                     <div class="block md:hidden">
+                        ${prevWeekNum > 0 ? mobileInputGroup(prevWeekNum, prevStartDate, '결과', prevResult) : ''}
                         ${mobileInputGroup(curWeekNum, curStartDate, '예정', curPlan)}
                         ${mobileInputGroup(curWeekNum, curStartDate, '결과', curResult)}
                         ${mobileInputGroup(nextWeekNum, nextStartDate, '예정', nextPlan)}
@@ -2901,13 +2927,6 @@
                 const yearSel = div.querySelector('#act_year_sel');
                 if (yearSel) yearSel.addEventListener('change', e => {
                     state.activityState.year = e.target.value;
-                    state.activityState.loaded = false;
-                    loadActivityData();
-                });
-                // 모바일 주차 선택
-                const mobWeekSel = div.querySelector('#mob_act_week_sel');
-                if (mobWeekSel) mobWeekSel.addEventListener('change', e => {
-                    state.activityState.week = e.target.value;
                     state.activityState.loaded = false;
                     loadActivityData();
                 });
