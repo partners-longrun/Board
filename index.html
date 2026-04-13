@@ -2844,14 +2844,14 @@
                             <tbody>
                                 <tr class="hover:bg-gray-50">
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">활동 간 확률</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.AP, statData.TA)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs bg-yellow-50/50">${safeDiv(statData.AP, statData.TA)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.P, statData.AP)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.C, statData.P)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.TA)}</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.AP)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs bg-yellow-50/50">${safeDiv(statData.N, statData.AP)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.P)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.C)}</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.AP, statData.소개)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs bg-yellow-50/50">${safeDiv(statData.소개, statData.AP)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? Math.round(avgN * 100) + '%' : '-'}</td>
                                 </tr>
                             </tbody>
@@ -2863,18 +2863,18 @@
                         <h4 class="text-sm font-bold text-gray-700 mb-3 ml-1">활동 간 확률</h4>
                         <div class="grid grid-cols-2 gap-2">
                             ${[
-                                { label: 'TA / AP', val: safeDiv(statData.AP, statData.TA) },
-                                { label: 'AP / P', val: safeDiv(statData.P, statData.AP) },
-                                { label: 'P / C', val: safeDiv(statData.C, statData.P) },
-                                { label: 'TA / N', val: safeDiv(statData.N, statData.TA) },
-                                { label: 'AP / N', val: safeDiv(statData.N, statData.AP) },
-                                { label: 'P / N', val: safeDiv(statData.N, statData.P) },
-                                { label: 'C / N', val: safeDiv(statData.N, statData.C) },
-                                { label: 'AP / 소개', val: safeDiv(statData.AP, statData.소개) }
+                                { label: 'TA / AP', val: safeDiv(statData.AP, statData.TA), highlight: true },
+                                { label: 'AP / P', val: safeDiv(statData.P, statData.AP), highlight: false },
+                                { label: 'P / C', val: safeDiv(statData.C, statData.P), highlight: false },
+                                { label: 'TA / N', val: safeDiv(statData.N, statData.TA), highlight: false },
+                                { label: 'AP / N', val: safeDiv(statData.N, statData.AP), highlight: true },
+                                { label: 'P / N', val: safeDiv(statData.N, statData.P), highlight: false },
+                                { label: 'C / N', val: safeDiv(statData.N, statData.C), highlight: false },
+                                { label: 'AP / 소개', val: safeDiv(statData.소개, statData.AP), highlight: true }
                             ].map(item => `
-                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 flex justify-between items-center">
-                                <span class="text-[11px] font-bold text-gray-500">${item.label}</span>
-                                <span class="text-xs font-bold text-gray-800">${item.val}</span>
+                            <div class="${item.highlight ? 'bg-yellow-50/70 border-yellow-200' : 'bg-gray-50 border-gray-200'} border rounded-lg p-2 flex justify-between items-center">
+                                <span class="text-[11px] font-bold ${item.highlight ? 'text-yellow-700' : 'text-gray-500'}">${item.label}</span>
+                                <span class="text-xs font-bold ${item.highlight ? 'text-yellow-800' : 'text-gray-800'}">${item.val}</span>
                             </div>
                             `).join('')}
                         </div>
