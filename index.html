@@ -2547,34 +2547,51 @@
                 </div>`;
             }
 
-            function mobileInputGroup(wk, startDate, tp, dataObj) {
+            function mobileInputGroup(wk, startDate, tp, dataObj, key, expanded) {
                 const titleColor = tp === '예정' ? 'text-blue-600' : 'text-orange-600';
                 const bgColors = tp === '결과' ? '' : 'bg-gray-50';
+                const arrowIcon = expanded ? '\u25b2' : '\u25bc';
                 return `
                 <div class="mb-4 rounded-xl border border-gray-200 overflow-hidden shadow-sm ${bgColors}">
-                    <div class="bg-gray-100/60 px-3 py-2 flex justify-between items-center border-b border-gray-200">
+                    <div class="bg-gray-100/60 px-3 py-2 flex justify-between items-center border-b border-gray-200 cursor-pointer select-none" onclick="toggleActRow('${key}')">
                         <div class="flex items-center gap-2">
                             <span class="text-sm font-bold text-gray-700">${wk}주차</span>
                             <span class="text-xs text-gray-500">${startDate}</span>
                         </div>
-                        <span class="text-sm font-bold ${titleColor}">${tp}</span>
-                    </div>
-                    <div class="p-3">
-                        <div class="grid grid-cols-3 gap-2 mb-2">
-                            ${mobileInputCell(wk, tp, 'TA', Number(dataObj['TA'] || 0))}
-                            ${mobileInputCell(wk, tp, 'AP', Number(dataObj['AP'] || 0))}
-                            ${mobileInputCell(wk, tp, 'P', Number(dataObj['P'] || 0))}
-                            ${mobileInputCell(wk, tp, 'C', Number(dataObj['C'] || 0))}
-                            ${mobileInputCell(wk, tp, 'N', Number(dataObj['N'] || 0))}
-                            ${mobileInputCell(wk, tp, '소개', Number(dataObj['소개'] || 0))}
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold ${titleColor}">${tp}</span>
+                            <span id="mob_arrow_${key}" class="text-gray-400 text-xs ml-1">${arrowIcon}</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100">
-                            ${mobileInputCell(wk, tp, '활동계', Number(dataObj['활동계'] || 0))}
-                            ${mobileInputCell(wk, tp, '보험료', Number(dataObj['보험료'] || 0))}
+                    </div>
+                    <div id="mob_body_${key}" style="display:${expanded ? 'block' : 'none'}">
+                        <div class="p-3">
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                ${mobileInputCell(wk, tp, 'TA', Number(dataObj['TA'] || 0))}
+                                ${mobileInputCell(wk, tp, 'AP', Number(dataObj['AP'] || 0))}
+                                ${mobileInputCell(wk, tp, 'P', Number(dataObj['P'] || 0))}
+                                ${mobileInputCell(wk, tp, 'C', Number(dataObj['C'] || 0))}
+                                ${mobileInputCell(wk, tp, 'N', Number(dataObj['N'] || 0))}
+                                ${mobileInputCell(wk, tp, '소개', Number(dataObj['소개'] || 0))}
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-100">
+                                ${mobileInputCell(wk, tp, '활동계', Number(dataObj['활동계'] || 0))}
+                                ${mobileInputCell(wk, tp, '보험료', Number(dataObj['보험료'] || 0))}
+                            </div>
                         </div>
                     </div>
                 </div>`;
             }
+
+            // 요일 기반 기본 펼침 상태 결정 (1=월요일)
+            const isMonday = new Date().getDay() === 1;
+            const actExpanded = {
+                prevResult: isMonday,
+                curPlan:    isMonday,
+                curResult:  !isMonday,
+                nextPlan:   !isMonday
+            };
+            const actArrow = (key) => actExpanded[key] ? '\u25bc' : '\u25b6';
+            const actDisplay = (key) => actExpanded[key] ? 'table-row' : 'none';
 
             div.innerHTML = `
             <div class="animate-fadeIn">
@@ -2623,8 +2640,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- 지난주 결과 -->
-                                <tr class="bg-gray-50/50 h-10">
+                                <!-- [토글헤더] 지난주 결과 -->
+                                <tr class="cursor-pointer select-none hover:bg-gray-200 transition-colors bg-gray-100" onclick="toggleActRow('prevResult')">
+                                    <td colspan="11" class="border border-gray-200 px-3 py-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-gray-600">${prevWeekNum}주 (지난주)</span>
+                                                <span class="text-xs font-semibold text-orange-500">결과</span>
+                                            </div>
+                                            <span id="act_arrow_prevResult" class="text-gray-400 text-xs">${actArrow('prevResult')}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- [데이터] 지난주 결과 -->
+                                <tr id="act_row_prevResult" class="bg-gray-50/50 h-10" style="display:${actDisplay('prevResult')}">
                                     <td class="border border-gray-200 px-2 py-1 text-center font-bold text-gray-500 text-xs">${prevWeekNum}주 (지난주)</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs">${prevStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs font-medium">결과</td>
@@ -2637,12 +2666,22 @@
                                     ${inputCell(prevWeekNum, '결과', '활동계', Number(prevResult['활동계'] || 0))}
                                     ${inputCell(prevWeekNum, '결과', '보험료', Number(prevResult['보험료'] || 0), 'bg-gray-100')}
                                 </tr>
-                                <!-- 이번주 예정 -->
-                                <tr class="h-10">
-                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50 text-xs" rowspan="2">
-                                        ${curWeekNum}주 (이번주)
+                                <!-- [토글헤더] 이번주 예정 -->
+                                <tr class="cursor-pointer select-none hover:bg-yellow-100 transition-colors bg-yellow-50" onclick="toggleActRow('curPlan')">
+                                    <td colspan="11" class="border border-gray-200 px-3 py-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-yellow-700">${curWeekNum}주 (이번주)</span>
+                                                <span class="text-xs font-semibold text-blue-500">예정</span>
+                                            </div>
+                                            <span id="act_arrow_curPlan" class="text-gray-400 text-xs">${actArrow('curPlan')}</span>
+                                        </div>
                                     </td>
-                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600 text-xs" rowspan="2" id="act_cur_start">${curStartDate}</td>
+                                </tr>
+                                <!-- [데이터] 이번주 예정 -->
+                                <tr id="act_row_curPlan" class="h-10" style="display:${actDisplay('curPlan')}">
+                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50 text-xs">${curWeekNum}주 (이번주)</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600 text-xs" id="act_cur_start">${curStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-blue-600 font-medium">예정</td>
                                     ${inputCell(curWeekNum, '예정', 'TA', Number(curPlan['TA'] || 0))}
                                     ${inputCell(curWeekNum, '예정', 'AP', Number(curPlan['AP'] || 0))}
@@ -2653,8 +2692,22 @@
                                     ${inputCell(curWeekNum, '예정', '활동계', Number(curPlan['활동계'] || 0))}
                                     ${inputCell(curWeekNum, '예정', '보험료', Number(curPlan['보험료'] || 0))}
                                 </tr>
-                                <!-- 이번주 결과 -->
-                                <tr class="h-10">
+                                <!-- [토글헤더] 이번주 결과 -->
+                                <tr class="cursor-pointer select-none hover:bg-yellow-100 transition-colors bg-yellow-50" onclick="toggleActRow('curResult')">
+                                    <td colspan="11" class="border border-gray-200 px-3 py-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-yellow-700">${curWeekNum}주 (이번주)</span>
+                                                <span class="text-xs font-semibold text-orange-500">결과</span>
+                                            </div>
+                                            <span id="act_arrow_curResult" class="text-gray-400 text-xs">${actArrow('curResult')}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- [데이터] 이번주 결과 -->
+                                <tr id="act_row_curResult" class="h-10" style="display:${actDisplay('curResult')}">
+                                    <td class="border border-gray-200 px-2 py-1 text-center font-bold text-yellow-700 bg-yellow-50 text-xs">${curWeekNum}주 (이번주)</td>
+                                    <td class="border border-gray-200 px-2 py-1 text-center text-gray-600 text-xs">${curStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-orange-600 font-medium">결과</td>
                                     ${inputCell(curWeekNum, '결과', 'TA', Number(curResult['TA'] || 0))}
                                     ${inputCell(curWeekNum, '결과', 'AP', Number(curResult['AP'] || 0))}
@@ -2665,8 +2718,20 @@
                                     ${inputCell(curWeekNum, '결과', '활동계', Number(curResult['활동계'] || 0))}
                                     ${inputCell(curWeekNum, '결과', '보험료', Number(curResult['보험료'] || 0))}
                                 </tr>
-                                <!-- 다음주 예정 -->
-                                <tr class="bg-gray-50/50 h-10">
+                                <!-- [토글헤더] 다음주 예정 -->
+                                <tr class="cursor-pointer select-none hover:bg-gray-200 transition-colors bg-gray-100" onclick="toggleActRow('nextPlan')">
+                                    <td colspan="11" class="border border-gray-200 px-3 py-1.5">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-bold text-gray-600">${nextWeekNum}주 (다음주)</span>
+                                                <span class="text-xs font-semibold text-blue-500">예정</span>
+                                            </div>
+                                            <span id="act_arrow_nextPlan" class="text-gray-400 text-xs">${actArrow('nextPlan')}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- [데이터] 다음주 예정 -->
+                                <tr id="act_row_nextPlan" class="bg-gray-50/50 h-10" style="display:${actDisplay('nextPlan')}">
                                     <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs">${nextWeekNum}주 (다음주)</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-gray-500 text-xs" id="act_next_start">${nextStartDate}</td>
                                     <td class="border border-gray-200 px-2 py-1 text-center text-blue-500 text-xs">예정</td>
@@ -2685,10 +2750,10 @@
 
                     <!-- 모바일 뷰 -->
                     <div class="block md:hidden">
-                        ${prevWeekNum > 0 ? mobileInputGroup(prevWeekNum, prevStartDate, '결과', prevResult) : ''}
-                        ${mobileInputGroup(curWeekNum, curStartDate, '예정', curPlan)}
-                        ${mobileInputGroup(curWeekNum, curStartDate, '결과', curResult)}
-                        ${mobileInputGroup(nextWeekNum, nextStartDate, '예정', nextPlan)}
+                        ${prevWeekNum > 0 ? mobileInputGroup(prevWeekNum, prevStartDate, '결과', prevResult, 'prevResult', actExpanded.prevResult) : ''}
+                        ${mobileInputGroup(curWeekNum, curStartDate, '예정', curPlan, 'curPlan', actExpanded.curPlan)}
+                        ${mobileInputGroup(curWeekNum, curStartDate, '결과', curResult, 'curResult', actExpanded.curResult)}
+                        ${mobileInputGroup(nextWeekNum, nextStartDate, '예정', nextPlan, 'nextPlan', actExpanded.nextPlan)}
                     </div>
 
                     <!-- 버튼 -->
@@ -2991,11 +3056,7 @@
                 collectRow(curWeekNum, '예정'),
                 collectRow(curWeekNum, '결과'),
                 collectRow(nextWeekNum, '예정')
-            ].filter(item => item !== null && item.data['활동계'] >= 1);
-
-            if (batchData.length === 0) {
-                return;
-            }
+            ].filter(item => item !== null);
 
             showLoading(true);
             const res = await callApi('saveActivityDataBatch',
@@ -3021,6 +3082,32 @@
             resetActivityRow(curWeekNum, '예정');
             resetActivityRow(curWeekNum, '결과');
             resetActivityRow(nextWeekNum, '예정');
+        };
+
+        window.toggleActRow = function(key) {
+            // 데스크탑: table row
+            const row = document.getElementById('act_row_' + key);
+            const arrow = document.getElementById('act_arrow_' + key);
+            // 모바일: div body
+            const mobBody = document.getElementById('mob_body_' + key);
+            const mobArrow = document.getElementById('mob_arrow_' + key);
+
+            const isCurrentlyHidden =
+                (row && row.style.display === 'none') ||
+                (mobBody && mobBody.style.display === 'none');
+
+            if (row) {
+                row.style.display = isCurrentlyHidden ? 'table-row' : 'none';
+            }
+            if (arrow) {
+                arrow.textContent = isCurrentlyHidden ? '\u25bc' : '\u25b6';
+            }
+            if (mobBody) {
+                mobBody.style.display = isCurrentlyHidden ? 'block' : 'none';
+            }
+            if (mobArrow) {
+                mobArrow.textContent = isCurrentlyHidden ? '\u25b2' : '\u25bc';
+            }
         };
 
         window.showRecruitmentDetails = function(type) {
