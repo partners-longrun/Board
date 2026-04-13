@@ -2397,6 +2397,7 @@
             const curResult = getRow(curWeekNum, '결과');
             const nextPlan = getRow(nextWeekNum, '예정');
 
+            const yt = d.yearlyTotal || {};
             const teamData = d.teamData || [];
 
             // 통계 계산 (직전 N주 필터링 추가)
