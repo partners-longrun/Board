@@ -2599,10 +2599,24 @@
                             </thead>
                             <tbody>
                                 <tr class="hover:bg-gray-50">
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">총 예정</td>
+                                    ${['TA', 'AP', 'P', 'C', 'N', '소개', '활동계', '보험료'].map(k => {
+                const plan = d.filteredYearlyPlanTotal ? Number(d.filteredYearlyPlanTotal[k] || 0) : 0;
+                return `<td class="border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-700 ${k === '보험료' ? 'text-right pr-2' : 'text-center'}">${plan > 0 ? plan.toLocaleString() : '-'}</td>`;
+            }).join('')}
+                                </tr>
+                                <tr class="bg-gray-100 hover:bg-gray-200">
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">총 결과</td>
+                                    ${['TA', 'AP', 'P', 'C', 'N', '소개', '활동계', '보험료'].map(k => {
+                const result = d.filteredYearlyTotal ? Number(d.filteredYearlyTotal[k] || 0) : 0;
+                return `<td class="border border-gray-200 px-2 py-2 text-xs font-semibold text-gray-700 ${k === '보험료' ? 'text-right pr-2' : 'text-center'}">${result > 0 ? result.toLocaleString() : '-'}</td>`;
+            }).join('')}
+                                </tr>
+                                <tr class="hover:bg-gray-50">
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs font-medium text-gray-600">예정과 결과 간 확률</td>
                                     ${['TA', 'AP', 'P', 'C', 'N', '소개', '활동계', '보험료'].map(k => {
-                const plan = d.yearlyPlanTotal ? Number(d.yearlyPlanTotal[k] || 0) : 0;
-                const result = yt ? Number(yt[k] || 0) : 0;
+                const plan = d.filteredYearlyPlanTotal ? Number(d.filteredYearlyPlanTotal[k] || 0) : 0;
+                const result = d.filteredYearlyTotal ? Number(d.filteredYearlyTotal[k] || 0) : 0;
                 return `<td class="border border-gray-200 px-2 py-2 text-xs text-center">${plan > 0 ? Math.round(result / plan * 100) + '%' : '-'}</td>`;
             }).join('')}
                                 </tr>
@@ -2622,7 +2636,7 @@
                                     <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">AP / N</th>
                                     <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">P / N</th>
                                     <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">C / N</th>
-                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">소개 / N</th>
+                                    <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">AP / 소개</th>
                                     <th class="border border-gray-200 px-2 py-2 text-center font-bold text-gray-700 w-[10%]">주간 유실적률</th>
                                 </tr>
                             </thead>
@@ -2636,7 +2650,7 @@
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.AP)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.P)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.N, statData.C)}</td>
-                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.소개, statData.N)}</td>
+                                    <td class="border border-gray-200 px-2 py-2 text-center text-xs">${safeDiv(statData.AP, statData.소개)}</td>
                                     <td class="border border-gray-200 px-2 py-2 text-center text-xs">${avgN > 0 ? Math.round(avgN * 100) + '%' : '-'}</td>
                                 </tr>
                             </tbody>
