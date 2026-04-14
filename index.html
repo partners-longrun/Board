@@ -691,7 +691,7 @@
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">계약관리(관리)</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체관리</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">수금인별 실효/연체 현황</p>
                         </div>
                     </div>
@@ -1192,7 +1192,7 @@
                                 <span class="mr-4">${icons.branch}</span> 지사대표
                             </a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
-                                <span class="mr-4">${icons.lapseAdmin}</span> 계약관리(관리)
+                                <span class="mr-4">${icons.lapseAdmin}</span> 실효연체관리
                             </a>` : ''}
                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.retentionAdmin}</span> 유지율
@@ -3850,7 +3850,7 @@
             div.innerHTML = `
                 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약관리(관리)${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
