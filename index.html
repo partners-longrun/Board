@@ -1117,7 +1117,23 @@
                             <div class="hidden lg:flex items-center text-sm font-medium text-gray-500">
                                 <span class="hover:text-primary cursor-pointer" onclick="navigate('home')">Dashboard</span>
                                 <svg class="w-4 h-4 mx-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                <span class="text-gray-900 font-bold">${state.currentView === 'home' ? 'Home' : state.currentView.charAt(0).toUpperCase() + state.currentView.slice(1)}</span>
+                                <span class="text-gray-900 font-bold">
+                                    ${(() => {
+                                        const viewMap = {
+                                            home: '홈',
+                                            lapse: '계약관리',
+                                            dashboard: '시상금',
+                                            recruitment: '증원수당',
+                                            activity: '활동관리',
+                                            admin: '관리자',
+                                            branch: '지사대표',
+                                            lapseAdmin: '계약관리(관리)',
+                                            retentionAdmin: '유지율',
+                                            performanceAnalysis: '실적분석'
+                                        };
+                                        return viewMap[state.currentView] || '시스템';
+                                    })()}
+                                </span>
                             </div>
                         </div>
 
