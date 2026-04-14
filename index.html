@@ -1579,117 +1579,89 @@
             const div = document.createElement('div');
 
             const canViewMembers = isDashboardMemberViewable();
-            // 현재 표시할 데이터 결정
             const selectedMember = state.dashboardSelectedMember;
             const displayName = selectedMember ? selectedMember.name : state.user.name;
             const displayData = state.data.rewardData;
 
-            // 감독자 권한일 때 소속원 목록
-            const memberList = canViewMembers ? getDashboardMemberList() : [];
-
-            // 소속원 선택 콤보박스 (커스텀 서치 드롭다운)
+            // 소속원 선택 콤보박스 HTML (단순화된 버전)
             const memberSelectorHtml = canViewMembers ? `
-            <div class="mb-6">
-                <div class="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-4">
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            </div>
-                            <span class="text-sm font-bold text-indigo-700 whitespace-nowrap">소속원 조회</span>
-                        </div>
-                        <div class="relative flex-grow w-full sm:w-auto" id="dashboard-member-dropdown-wrapper">
-                            <div class="relative">
-                                <input
-                                    type="text"
-                                    id="dashboard-member-search"
-                                    placeholder="이름 검색 또는 선택..."
-                                    value="${selectedMember ? selectedMember.name : ''}"
-                                    autocomplete="off"
-                                    class="w-full pl-10 pr-10 py-2.5 bg-white border border-indigo-200 rounded-xl text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition cursor-pointer"
-                                    id="dashboard-member-search"
-                                    readonly
-                                />
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                </div>
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                            <div id="dashboard-member-list" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 hidden max-h-64 overflow-hidden">
-                                <div class="p-2 border-b border-gray-100">
-                                    <div class="relative">
-                                        <input
-                                            type="text"
-                                            id="dashboard-member-filter"
-                                            placeholder="이름 검색..."
-                                            autocomplete="off"
-                                            class="w-full pl-8 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"
-                                        />
-                                        <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                            <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="dashboard-member-options" class="overflow-y-auto max-h-48">
-                                    <!-- 옵션들이 여기에 렌더링됨 -->
-                                </div>
-                            </div>
-                        </div>
-                        ${selectedMember ? `
-                        <button id="dashboard-member-clear-btn"
-                            class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition whitespace-nowrap"
-                        >
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            내 시상금 보기
-                        </button>` : ''}
+            <div class="relative w-full md:w-[350px]" id="dashboard-member-dropdown-wrapper">
+                <div class="relative">
+                    <input
+                        type="text"
+                        id="dashboard-member-search"
+                        placeholder="소속원 검색 및 선택..."
+                        value="${selectedMember ? selectedMember.name : ''}"
+                        autocomplete="off"
+                        class="w-full pl-9 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition cursor-pointer shadow-sm"
+                        readonly
+                    />
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
-                    ${selectedMember ? `<div class="mt-2 text-xs text-indigo-600 font-medium flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span> 현재 <span class="font-bold">${selectedMember.name}</span>님의 시상금을 조회 중입니다.</div>` : `<div class="mt-2 text-xs text-gray-400">현재 나의 시상금을 보고 있습니다. 소속원을 선택하면 해당자의 시상금을 조회할 수 있습니다.</div>`}
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center gap-1">
+                        ${selectedMember ? `
+                        <button id="dashboard-member-clear-btn" class="p-1 hover:bg-red-50 rounded-full text-red-400 hover:text-red-600 transition" title="내 시상금 보기">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>` : ''}
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                </div>
+                <!-- 드롭다운 목록 -->
+                <div id="dashboard-member-list" class="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 hidden max-h-80 overflow-hidden">
+                    <div class="p-2 border-b border-gray-100 bg-gray-50/50">
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="dashboard-member-filter"
+                                placeholder="이름으로 찾기..."
+                                autocomplete="off"
+                                class="w-full pl-8 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 transition"
+                            />
+                            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dashboard-member-options" class="overflow-y-auto max-h-60 scrollbar-elegant">
+                        <div class="px-4 py-8 text-center"><div class="inline-block w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+                    </div>
                 </div>
             </div>` : '';
 
             div.innerHTML = `
-             <div class="mb-6">
-                <h2 class="text-xl font-bold text-gray-800 tracking-tight" id="dashboard-title">${displayName}님의 시상금 (${state.currentMonth})</h2>
-                <p class="text-gray-500 text-sm mt-1">해당 월의 시상금 지급 및 환수 현황입니다.</p>
+             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+                <div>
+                   <h2 class="text-xl font-bold text-gray-800 tracking-tight" id="dashboard-title">${displayName}님의 시상금 (${state.currentMonth})</h2>
+                   <p class="text-gray-500 text-sm mt-1">해당 월의 시상금 지급 및 환수 현황입니다.</p>
+                </div>
+                ${memberSelectorHtml}
              </div>
-             ${memberSelectorHtml}
+
              <div id="dashboard-data-container">
                 <div class="flex items-center justify-center h-48">
                     <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                 </div>
              </div>`;
 
-            // 전역에 현재 상세 데이터 저장 (openDetail 연동)
+            // 전역 상숫값 저장
             window._dashboardCurrentDetails = null;
 
-            // 초기 렌더링
             const renderCurrentData = (rewardData, loading = false) => {
                 window._dashboardCurrentDetails = rewardData?.details || null;
                 renderDashboardContent(div, rewardData, displayName, loading);
-                // 타이틀 업데이트
                 const titleEl = div.querySelector('#dashboard-title');
                 if (titleEl) titleEl.textContent = `${displayName}님의 시상금 (${state.currentMonth})`;
             };
 
-            // 소속원이 선택된 경우 해당 소속원의 데이터 로딩
+            // 데이터 로딩 로직
             if (selectedMember) {
                 const cacheKey = `DATA_${selectedMember.id}_${state.currentMonth}_dashboard`;
                 const cached = sessionStorage.getItem(cacheKey);
                 if (cached) {
-                    try {
-                        renderCurrentData(JSON.parse(cached));
-                    } catch(e) {
-                        renderCurrentData(null, true);
-                        callApi('getRewardData', selectedMember.id, state.currentMonth).then(d => {
-                            if (!state.user) return;
-                            if (d && !d.error) { d.month = state.currentMonth; sessionStorage.setItem(cacheKey, JSON.stringify(d)); }
-                            renderCurrentData(d && !d.error ? d : null);
-                        });
-                    }
-                } else {
-                    renderCurrentData(null, true);
+                    try { renderCurrentData(JSON.parse(cached)); } catch(e) { renderCurrentData(null, true); fetchM(); }
+                } else { renderCurrentData(null, true); fetchM(); }
+                function fetchM() {
                     callApi('getRewardData', selectedMember.id, state.currentMonth).then(d => {
                         if (!state.user) return;
                         if (d && !d.error) { d.month = state.currentMonth; sessionStorage.setItem(cacheKey, JSON.stringify(d)); }
@@ -1700,7 +1672,7 @@
                 renderCurrentData(displayData);
             }
 
-            // 드롭다운 이벤트 설정
+            // 드롭다운 기능 설정
             if (canViewMembers) {
                 setTimeout(() => {
                     const searchInput = div.querySelector('#dashboard-member-search');
@@ -1709,25 +1681,22 @@
                     const optionsContainer = div.querySelector('#dashboard-member-options');
                     const clearBtn = div.querySelector('#dashboard-member-clear-btn');
 
-                    // 소속원 목록 렌더링
                     const renderOptions = (filterText = '') => {
+                        const mList = getDashboardMemberList(); // 최신 데이터 기반
                         const fText = filterText.toLowerCase();
-                        const filtered = memberList.filter(m => {
-                            const name = String(m.name || m['이름'] || '');
-                            return name.toLowerCase().includes(fText);
-                        });
+                        const filtered = mList.filter(m => String(m.name || m['이름'] || '').toLowerCase().includes(fText));
 
                         if (!optionsContainer) return;
 
-                        // 나 자신 항목
+                        // 본인 항목
                         const mySelfHtml = (!filterText || state.user.name.toLowerCase().includes(fText)) ?
-                            `<div class="dash-member-option px-4 py-2.5 cursor-pointer hover:bg-orange-50 text-sm flex items-center gap-2 transition ${!selectedMember ? 'bg-orange-50 font-bold text-primary' : 'text-gray-600'}" data-id="__self__" data-name="${state.user.name}">
-                                <span class="w-1.5 h-1.5 rounded-full ${!selectedMember ? 'bg-primary' : 'bg-gray-300'}"></span>
-                                ${state.user.name} <span class="text-xs text-gray-400 font-normal ml-1">(나)</span>
+                            `<div class="dash-member-option px-4 py-2.5 cursor-pointer hover:bg-gray-50 text-sm flex items-center gap-2 transition ${!selectedMember ? 'bg-primary/5 font-bold text-primary' : 'text-gray-600'}" data-id="__self__" data-name="${state.user.name}">
+                                <div class="w-1.5 h-1.5 rounded-full ${!selectedMember ? 'bg-primary' : 'bg-gray-300'}"></div>
+                                ${state.user.name} <span class="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded ml-auto">ME</span>
                             </div>` : '';
 
                         if (filtered.length === 0 && !mySelfHtml) {
-                            optionsContainer.innerHTML = `<div class="px-4 py-6 text-center text-gray-400 text-sm">검색 결과가 없습니다.</div>`;
+                            optionsContainer.innerHTML = `<div class="px-4 py-8 text-center text-gray-400 text-sm italic">검색 결과가 없습니다.</div>`;
                             return;
                         }
 
@@ -1735,97 +1704,71 @@
                             const id = String(m.id || m['사번'] || '');
                             const name = String(m.name || m['이름'] || '');
                             const isSelected = selectedMember && String(selectedMember.id) === id;
-                            return `<div class="dash-member-option px-4 py-2.5 cursor-pointer hover:bg-indigo-50 text-sm flex items-center gap-2 transition ${isSelected ? 'bg-indigo-50 font-bold text-indigo-700' : 'text-gray-700'}" data-id="${id}" data-name="${name}">
-                                <span class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-indigo-500' : 'bg-gray-200'}"></span>
+                            return `<div class="dash-member-option px-4 py-2.5 cursor-pointer hover:bg-gray-50 text-sm flex items-center gap-2 transition ${isSelected ? 'bg-primary/5 font-bold text-primary' : 'text-gray-700'}" data-id="${id}" data-name="${name}">
+                                <div class="w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary' : 'bg-gray-200'}"></div>
                                 ${name}
                             </div>`;
                         }).join('');
 
-                        // 옵션 클릭 이벤트
                         optionsContainer.querySelectorAll('.dash-member-option').forEach(el => {
-                            el.addEventListener('click', () => {
+                            el.onclick = () => {
                                 const id = el.getAttribute('data-id');
                                 const name = el.getAttribute('data-name');
                                 dropdownList.classList.add('hidden');
-                                if (id === '__self__') {
-                                    state.dashboardSelectedMember = null;
-                                    state.data.rewardData = null; // 내 데이터 재로딩
-                                } else {
-                                    state.dashboardSelectedMember = { id, name };
-                                }
-                                // 현재 뷰 재렌더링
+                                if (id === '__self__') { state.dashboardSelectedMember = null; }
+                                else { state.dashboardSelectedMember = { id, name }; }
                                 const mainView = document.getElementById('main-view');
-                                if (mainView) {
-                                    mainView.innerHTML = '';
-                                    if (state.dashboardSelectedMember === null) {
-                                        // 내 데이터 다시 로딩
-                                        refresh();
-                                    } else {
-                                        mainView.appendChild(createDashboardView());
-                                    }
-                                }
-                            });
+                                if (mainView) { mainView.innerHTML = ''; mainView.appendChild(createDashboardView()); }
+                            };
                         });
                     };
 
-                    // 드롭다운 열기/닫기
-                    if (searchInput) {
-                        searchInput.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            dropdownList.classList.toggle('hidden');
-                            if (!dropdownList.classList.contains('hidden')) {
-                                renderOptions();
-                                if (filterInput) { filterInput.focus(); filterInput.value = ''; }
-                            }
-                        });
-                    }
+                    // 이벤트 리스너들
+                    if (searchInput) searchInput.onclick = (e) => {
+                        e.stopPropagation();
+                        dropdownList.classList.toggle('hidden');
+                        if (!dropdownList.classList.contains('hidden')) {
+                            renderOptions();
+                            if (filterInput) { filterInput.value = ''; filterInput.focus(); }
+                        }
+                    };
+                    if (filterInput) filterInput.oninput = (e) => renderOptions(e.target.value);
+                    if (filterInput) filterInput.onclick = (e) => e.stopPropagation();
+                    if (clearBtn) clearBtn.onclick = (e) => {
+                         e.stopPropagation();
+                         state.dashboardSelectedMember = null;
+                         const mainView = document.getElementById('main-view');
+                         if (mainView) { mainView.innerHTML = ''; mainView.appendChild(createDashboardView()); }
+                    };
 
-                    // 검색 필터 입력
-                    if (filterInput) {
-                        filterInput.addEventListener('input', (e) => {
-                            renderOptions(e.target.value.trim());
-                        });
-                        filterInput.addEventListener('click', (e) => e.stopPropagation());
-                    }
-
-                    // 내 시상금 보기 버튼
-                    if (clearBtn) {
-                        clearBtn.addEventListener('click', () => {
-                            state.dashboardSelectedMember = null;
-                            state.data.rewardData = null;
-                            const mainView = document.getElementById('main-view');
-                            if (mainView) { mainView.innerHTML = ''; }
-                            refresh();
-                        });
-                    }
-
-                    // 바깥 클릭 시 닫기
-                    document.addEventListener('click', function closeDashboardDropdown(e) {
+                    document.addEventListener('click', function hideD(e) {
                         const wrapper = div.querySelector('#dashboard-member-dropdown-wrapper');
                         if (wrapper && !wrapper.contains(e.target)) {
-                            if (dropdownList) dropdownList.classList.add('hidden');
-                            document.removeEventListener('click', closeDashboardDropdown);
+                            dropdownList.classList.add('hidden');
+                            document.removeEventListener('click', hideD);
                         }
                     });
 
-                    // adminSummary가 없으면 로딩
+                    // [핵심] adminSummary 로드 로직
                     if (!state.data.adminSummary) {
                         const adminKey = `DATA_${state.user.staffId}_${state.currentMonth}_admin`;
                         const cachedAdmin = sessionStorage.getItem(adminKey);
                         if (cachedAdmin) {
-                            try { state.data.adminSummary = JSON.parse(cachedAdmin); } catch(e) {}
-                        } else {
-                            callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
-                                if (!state.user) return;
-                                let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch(e) { return d; } })() : d;
-                                if (!parsed.error) {
-                                    state.data.adminSummary = parsed;
-                                    sessionStorage.setItem(adminKey, JSON.stringify(parsed));
-                                }
-                            });
+                            try { state.data.adminSummary = JSON.parse(cachedAdmin); renderOptions(); } catch(e) {}
                         }
+                        callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
+                            if (!state.user) return;
+                            let parsed = typeof d === 'string' ? JSON.parse(d) : d;
+                            if (!parsed.error) {
+                                state.data.adminSummary = parsed;
+                                sessionStorage.setItem(adminKey, JSON.stringify(parsed));
+                                renderOptions(); // 데이터가 오면 목록을 즉시 갱신
+                            }
+                        });
+                    } else {
+                        renderOptions();
                     }
-                }, 0);
+                }, 10);
             }
 
             return div;
