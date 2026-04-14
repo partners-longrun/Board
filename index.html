@@ -73,107 +73,88 @@
             animation: spinner 1.5s linear infinite;
         }
 
-        /* Custom Tooltip for Mobile & Desktop */
-        .custom-tooltip {
-            position: relative;
-            cursor: pointer;
+        /* Sidebar Styles */
+        .sidebar-fixed {
+            width: 260px;
+            transition: all 0.3s ease;
         }
 
-        /* tooltip text area */
-        .custom-tooltip::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(17, 24, 39, 0.95);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 500;
-            white-space: pre-line;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 50;
-            pointer-events: none;
-            width: max-content;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            text-align: left;
-            line-height: 1.5;
-            margin-bottom: 4px;
-            /* Offset from text */
+        .nav-sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            color: #94a3b8; /* slate-400 */
         }
 
-        /* tooltip arrow */
-        .custom-tooltip::before {
-            content: '';
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px;
-            border-style: solid;
-            border-color: rgba(17, 24, 39, 0.95) transparent transparent transparent;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 50;
-            margin-bottom: -6px;
-            /* Align arrow with tooltip body */
+        .nav-sidebar-link:hover {
+            background-color: rgba(243, 115, 33, 0.1);
+            color: #f37321;
         }
 
-        /* Show tooltip on hover or focus (mobile tap) */
-        .custom-tooltip:hover::after,
-        .custom-tooltip:hover::before,
-        .custom-tooltip:active::after,
-        .custom-tooltip:active::before,
-        .custom-tooltip:focus::after,
-        .custom-tooltip:focus::before {
-            opacity: 1;
-            visibility: visible;
+        .nav-sidebar-link.active {
+            background-color: #f37321;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(243, 115, 33, 0.25);
+        }
+
+        /* Custom Scrollbar for Sidebar */
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        /* Responsive Main Content Adjustment */
+        @media (min-width: 1024px) {
+            .main-content-with-sidebar {
+                margin-left: 260px;
+            }
+            .header-with-sidebar {
+                left: 260px;
+                width: calc(100% - 260px);
+            }
         }
 
         @keyframes spinner {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .truncate-product {
-            max-width: 140px;
+            max-width: 200px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* 숫자 자릿수 고정 폭 (흔들림 방지, 고급스러움) */
         .tabular-nums {
             font-variant-numeric: tabular-nums;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #f8fafc;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 3px;
+            background: #cbd5e1;
+            border-radius: 10px;
+            border: 2px solid #f8fafc;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #9ca3af;
+            background: #94a3b8;
         }
 
         /* Mobile FAB (Floating Action Button) */
@@ -188,44 +169,44 @@
         }
 
         .fab-btn {
-            width: 40px;
-            height: 40px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             background-color: #F37321;
             color: #FFFFFF;
             border: none;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 16px rgba(243, 115, 33, 0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            transition: transform 0.2s, background-color 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
 
         .fab-btn:hover {
             background-color: #d96316;
-            transform: translateY(-2px);
+            transform: scale(1.1);
+            box-shadow: 0 12px 20px rgba(243, 115, 33, 0.3);
         }
 
         .fab-btn:active {
-            background-color: #d96316;
-            transform: translateY(0);
+            transform: scale(0.95);
         }
 
         .fab-icon {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
-            margin-bottom: 2px;
             line-height: 1;
         }
 
         .fab-text {
             font-size: 10px;
-            line-height: 1;
+            margin-top: 2px;
+            font-weight: 700;
         }
 
-        @media (min-width: 769px) {
+        @media (min-width: 1024px) {
             .mobile-fab-container {
                 display: none !important;
             }
@@ -637,14 +618,14 @@
                 <div class="mb-5 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
-                    <!-- 1. 실효연체 -->
+                    <!-- 1. 계약관리 -->
                     ${state.user.role !== '실장' ? `
                     <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">계약관리</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">당월 실효 및 연체계약 관리</p>
                         </div>
                     </div>` : ''}
@@ -710,14 +691,14 @@
                         </div>
                     </div>` : ''}
                     
-                    <!-- 6. 실효연체관리 (Admin) -->
+                    <!-- 6. 계약관리(관리) -->
                     ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `
                     <div onclick="navigate('lapseAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실효연체관리</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">계약관리(관리)</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">수금인별 실효/연체 현황</p>
                         </div>
                     </div>
@@ -1032,122 +1013,194 @@
 
         function createLayout() {
             const container = document.createElement('div');
-            container.className = 'flex flex-col min-h-screen bg-[#f8fafc]';
+            container.className = 'flex flex-col md:flex-row min-h-screen bg-[#f8fafc]';
 
             const monthOptions = state.months.map(m => `<option value="${m}" ${m === state.currentMonth ? 'selected' : ''}>${m}</option>`).join('');
 
-            // Desktop Selector
-            const monthSel = `<div class="relative"><select id="commonMonthSelect" class="appearance-none bg-white border border-gray-200 text-gray-700 text-sm font-medium rounded-lg shadow-sm hover:border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary block pl-3 pr-8 py-2 cursor-pointer transition">
+            // Desktop Month Selector
+            const monthSel = `<div class="relative"><select id="commonMonthSelect" class="appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-sm font-bold rounded-xl shadow-sm hover:border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary block pl-3 pr-8 py-2 cursor-pointer transition">
                 ${monthOptions}
             </select><div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div></div>`;
 
-            // Mobile Selector
+            // Mobile Month Selector
             const mobileMonthSel = `<div class="relative w-full"><select id="mobileMonthSelect" class="appearance-none w-full bg-white border border-gray-200 text-gray-900 text-base rounded-xl shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary block pl-4 pr-10 py-3 cursor-pointer transition">
                 ${monthOptions}
             </select><div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></div></div>`;
 
-            const navLink = (v, l) => `
-                <a href="#" data-nav="${v}" class="${state.currentView === v
-                    ? 'text-primary border-b-2 border-primary font-bold'
-                    : 'text-gray-500 hover:text-gray-800 hover:border-b-2 hover:border-gray-300 font-medium'}
-                    px-1 py-5 text-sm transition-all duration-200 select-none">
-                    ${l}
+            const sidebarLink = (v, l, icon) => `
+                <a href="#" data-nav="${v}" class="nav-sidebar-link ${state.currentView === v ? 'active' : ''}">
+                    <span class="mr-3">${icon}</span>
+                    <span>${l}</span>
                 </a>`;
 
+            const icons = {
+                home: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>',
+                lapse: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                dashboard: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                recruitment: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>',
+                activity: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>',
+                admin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>',
+                branch: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>',
+                lapseAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                retentionAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                performanceAnalysis: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>'
+            };
+
             container.innerHTML = `
-                <header class="bg-white shadow-sm sticky top-0 z-40 transition-shadow duration-300">
-                    <div class="${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'md:w-max max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'}">
-                        <div class="flex justify-between h-16 relative">
-                            <div class="flex">
-                                <div class="absolute inset-x-0 h-16 flex items-center justify-center pointer-events-none md:static md:h-auto md:justify-start z-10">
-                                    <div class="flex-shrink-0 flex items-center cursor-pointer pointer-events-auto" onclick="navigate('home')">
-                                        ${LOGO_TEXT}
-                                    </div>
-                                </div>
-                                <div class="hidden md:ml-10 md:flex md:space-x-8">
-                                    ${navLink('home', '홈')}
-                                    ${state.user.role !== '실장' ? navLink('lapse', '실효연체') : ''}
-                                    ${state.user.role !== '실장' ? navLink('dashboard', '시상금') : ''}
-                                    ${(state.user.isRecruiter && state.user.role !== '실장') ? navLink('recruitment', '증원수당') : ''}
-                                    ${state.user.role !== '실장' ? navLink('activity', '활동관리') : ''}
-                                    ${(isBranchRepAny() || isAdminAny()) ? navLink('admin', '관리자') : ''}
-                                    ${state.user.role === '지사대표' ? navLink('branch', '지사대표') : ''}
-                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('lapseAdmin', '실효연체관리') : ''}
-                                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? navLink('retentionAdmin', '유지율') : ''}
-                                    ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? navLink('performanceAnalysis', '실적분석') : ''}
-                                </div>
+                <!-- PC Sidebar -->
+                <aside class="hidden lg:flex flex-col w-64 bg-secondary text-white fixed h-full z-50 shadow-2xl sidebar-fixed">
+                    <div class="p-6 mb-4">
+                        <div class="flex items-center gap-3 cursor-pointer" onclick="navigate('home')">
+                            <div class="bg-primary/20 p-2 rounded-xl">
+                                <svg class="w-6 h-6 text-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path></svg>
                             </div>
-                            <div class="hidden md:flex items-center space-x-6">
-                                <div class="flex items-center">
-                                    <span class="text-sm font-bold text-gray-700 mr-2">마감월:</span>
-                                    ${monthSel}
-                                </div>
-                                <div class="flex items-center space-x-3 pl-3 border-l">
-                                   <div class="text-right leading-tight">
-                                       <div class="text-sm font-bold text-gray-900">${state.user.name}<span class="font-normal text-gray-500">님</span></div>
-                                       <div class="text-[11px] text-gray-400">${state.user.organization || '소속'}</div>
-                                   </div>
-                                   <div class="flex space-x-1">
-                                       <button id="changePwBtn" class="p-2 rounded-full text-gray-400 hover:text-primary hover:bg-orange-50 transition tooltip" title="비밀번호 변경">
-                                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                                       </button>
-                                       <button id="logout" class="p-2 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition" title="로그아웃">
-                                          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                                       </button>
-                                   </div>
-                                </div>
-                            </div>
-                            <div class="-mr-2 flex items-center md:hidden">
-                                <button id="mb-btn" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none transition">
-                                    <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                                </button>
-                            </div>
+                            <span class="text-xl font-black tracking-tighter">PARTNERS <span class="text-primary">BOARD</span></span>
                         </div>
                     </div>
-
-                    <div id="mobile-menu" class="md:hidden bg-white border-b border-gray-100 overflow-hidden transition-all duration-300 ease-in-out h-0 relative z-30 flex flex-col max-h-[85vh]">
-                         <div class="px-4 py-4 bg-gray-50 flex items-center justify-between flex-shrink-0">
-                            <div>
-                                <div class="font-bold text-gray-900">${state.user.name}님</div>
-                                <div class="text-xs text-gray-500">${state.user.organization || '소속 미지정'}</div>
-                            </div>
-                            <div class="flex space-x-2">
-                                <button onclick="openChangePasswordModal(true)" class="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 shadow-sm font-bold">PW변경</button>
-                                <button id="logoutM" class="text-xs bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg text-red-600 shadow-sm font-bold">로그아웃</button>
-                            </div>
-                         </div>
-                         <!-- 마감월 선택을 상단으로 이동 -->
-                         <div class="px-4 py-3 border-b border-gray-100 bg-white">
-                             <label class="block text-[11px] font-bold text-primary mb-1 ml-1 uppercase tracking-wider">마감월 선택</label>
-                             ${mobileMonthSel}
-                         </div>
-                         <!-- 메뉴 리스트 (스크롤 영역) -->
-                         <div class="px-2 pt-2 pb-5 space-y-1 overflow-y-auto scrollbar-elegant flex-grow">
-                            <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>` : ''}
-                            ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="activity" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'activity' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">활동관리</a>` : ''}
-                            ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
-                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실적분석</a>` : ''}
-                         </div>
-                    </div>
                     
-                    <!-- Mobile Backdrop -->
-                    <div id="mobile-backdrop" class="fixed inset-0 bg-black/50 z-20 hidden transition-opacity duration-300 md:hidden"></div>
-                </header>
+                    <nav class="flex-grow space-y-1 overflow-y-auto sidebar-scroll pb-20">
+                        <div class="px-6 py-2">
+                             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Main Menu</p>
+                             ${sidebarLink('home', '홈', icons.home)}
+                             ${state.user.role !== '실장' ? sidebarLink('lapse', '계약관리', icons.lapse) : ''}
+                             ${state.user.role !== '실장' ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
+                             ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
+                             ${state.user.role !== '실장' ? sidebarLink('activity', '활동관리', icons.activity) : ''}
+                        </div>
 
-                <main class="flex-grow ${(state.currentView === 'admin' && state.user.role === '지사대표') ? 'md:w-max max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8' : 'max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8'} py-8 animate-fadeIn">
-                     <div id="main-view"></div>
-                </main>
+                        ${(isBranchRepAny() || isAdminAny() || state.user.role === '실장' || state.user.role === '운영진') ? `
+                        <div class="px-6 py-4 mt-2">
+                             <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
+                             ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
+                             ${state.user.role === '지사대표' ? sidebarLink('branch', '지사대표', icons.branch) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '계약관리(관리)', icons.lapseAdmin) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
+                        </div>` : ''}
+                    </nav>
+
+                    <div class="p-6 bg-slate-900/50 mt-auto border-t border-white/5">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-white shadow-lg">
+                                ${state.user.name.substring(0, 1)}
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="text-sm font-bold truncate">${state.user.name}</p>
+                                <p class="text-[10px] text-slate-400 truncate">${state.user.organization || '파트너스본부'}</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="changePwBtn" class="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition group" title="비밀번호 변경">
+                                <svg class="w-4 h-4 text-slate-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                            </button>
+                            <button id="logout" class="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-red-500/20 transition group" title="로그아웃">
+                                <svg class="w-4 h-4 text-slate-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <div class="flex flex-col flex-1 w-full lg:main-content-with-sidebar">
+                    <!-- Top Navigation Bar (Mobile Toggle + PC Breadcrumb/UserInfo) -->
+                    <header class="bg-white/80 backdrop-blur-md shadow-sm h-16 sticky top-0 z-40 flex items-center justify-between px-4 lg:px-8">
+                        <div class="flex items-center gap-4">
+                            <!-- Mobile Menu Toggle -->
+                            <button id="mb-btn" class="lg:hidden p-2 rounded-xl text-gray-600 hover:bg-gray-100 transition active:scale-95">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                            </button>
+                            <!-- Logo for Mobile only in Header -->
+                            <div class="lg:hidden flex items-center gap-2 cursor-pointer" onclick="navigate('home')">
+                                <span class="text-lg font-black tracking-tighter">PARTNERS <span class="text-primary">BOARD</span></span>
+                            </div>
+                            <!-- Breadcrumb-like for Desktop -->
+                            <div class="hidden lg:flex items-center text-sm font-medium text-gray-500">
+                                <span class="hover:text-primary cursor-pointer" onclick="navigate('home')">Dashboard</span>
+                                <svg class="w-4 h-4 mx-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                <span class="text-gray-900 font-bold">${state.currentView === 'home' ? 'Home' : state.currentView.charAt(0).toUpperCase() + state.currentView.slice(1)}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 md:gap-6">
+                            <div class="flex items-center">
+                                <span class="hidden md:inline-block text-xs font-bold text-slate-400 mr-3 uppercase tracking-wider">마감월</span>
+                                ${monthSel}
+                            </div>
+                            <div class="h-8 w-px bg-gray-100 hidden md:block"></div>
+                            <div class="hidden md:flex items-center gap-3">
+                                <div class="text-right leading-none">
+                                    <p class="text-sm font-bold text-gray-900">${state.user.name}</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">${state.user.organization || '파트너스본부'}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Page View Container -->
+                    <main class="flex-1 p-4 md:p-8 lg:p-10 animate-fadeIn">
+                        <div id="main-view" class="max-w-7xl mx-auto"></div>
+                    </main>
+
+                    <!-- Mobile Bottom Spacer for FAB -->
+                    <div class="h-20 md:hidden"></div>
+                </div>
+
+                <!-- Mobile Navigation (Bottom Drawer or Full Screen) -->
+                <div id="mobile-menu" class="lg:hidden fixed inset-0 z-50 transform translate-x-full transition-transform duration-300 pointer-events-none">
+                    <div class="absolute inset-0 bg-black/50 pointer-events-auto" id="mobile-backdrop"></div>
+                    <nav class="absolute top-0 right-0 h-full w-[80%] max-w-sm bg-white shadow-2xl flex flex-col pointer-events-auto">
+                        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+                            <span class="text-xl font-black">MENU</span>
+                            <button id="mobile-close" class="p-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                        </div>
+                        <div class="p-4 border-b border-gray-100 bg-orange-50/50">
+                             <p class="text-xs font-bold text-primary mb-3 ml-1 uppercase">마감월 선택</p>
+                             ${mobileMonthSel}
+                        </div>
+                        <div class="flex-grow overflow-y-auto p-4 space-y-2">
+                            <a href="#" data-nav="home" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'home' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.home}</span> 홈
+                            </a>
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapse' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.lapse}</span> 계약관리
+                            </a>` : ''}
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'dashboard' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.dashboard}</span> 시상금
+                            </a>` : ''}
+                            ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.recruitment}</span> 증원수당
+                            </a>` : ''}
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="activity" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'activity' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.activity}</span> 활동관리
+                            </a>` : ''}
+                            <div class="h-px bg-gray-100 my-4"></div>
+                            ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.admin}</span> 관리자
+                            </a>` : ''}
+                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'branch' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.branch}</span> 지사대표
+                            </a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.lapseAdmin}</span> 계약관리(관리)
+                            </a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.retentionAdmin}</span> 유지율
+                            </a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.performanceAnalysis}</span> 실적분석
+                            </a>` : ''}
+                        </div>
+                        <div class="p-6 border-t border-gray-100 grid grid-cols-2 gap-3">
+                             <button id="logoutM" class="p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100">LOGOUT</button>
+                             <button onclick="navigate('home')" class="p-4 bg-primary text-white font-bold rounded-2xl shadow-lg">HOME</button>
+                        </div>
+                    </nav>
+                </div>
 
                 <!-- Mobile FAB -->
                 <div class="mobile-fab-container">
                     <button type="button" class="fab-btn" onclick="navigate('home')">
-                        <span class="fab-text" style="font-size: 13px; font-weight: bold;">홈</span>
+                        <span class="fab-text">홈</span>
                     </button>
                     <button type="button" class="fab-btn" onclick="handleFabBack()">
                         <span class="fab-icon">←</span>
@@ -1184,21 +1237,21 @@
                 const mbBtn = container.querySelector('#mb-btn');
                 const mMenu = container.querySelector('#mobile-menu');
                 const backdrop = container.querySelector('#mobile-backdrop');
+                const closeBtn = container.querySelector('#mobile-close');
 
-                const toggleMenu = () => {
-                    const isOpen = mMenu.style.height === 'auto';
-                    mMenu.style.height = isOpen ? '0' : 'auto';
-                    if (isOpen) {
-                        mMenu.classList.remove('shadow-xl', 'border-b-2', 'border-primary/10');
-                        backdrop.classList.add('hidden');
+                const toggleMenu = (open) => {
+                    if (open) {
+                        mMenu.classList.remove('pointer-events-none');
+                        mMenu.classList.remove('translate-x-full');
                     } else {
-                        mMenu.classList.add('shadow-xl', 'border-b-2', 'border-primary/10');
-                        backdrop.classList.remove('hidden');
+                        mMenu.classList.add('translate-x-full');
+                        setTimeout(() => mMenu.classList.add('pointer-events-none'), 300);
                     }
                 };
 
-                if (mbBtn) mbBtn.onclick = toggleMenu;
-                if (backdrop) backdrop.onclick = toggleMenu;
+                if (mbBtn) mbBtn.onclick = () => toggleMenu(true);
+                if (backdrop) backdrop.onclick = () => toggleMenu(false);
+                if (closeBtn) closeBtn.onclick = () => toggleMenu(false);
 
                 container.querySelector('#logout')?.addEventListener('click', () => logout());
                 container.querySelector('#logoutM')?.addEventListener('click', () => logout());
@@ -1252,7 +1305,7 @@
 
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
@@ -3780,7 +3833,7 @@
             div.innerHTML = `
                 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약관리(관리)${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
