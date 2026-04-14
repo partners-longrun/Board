@@ -1105,32 +1105,34 @@
                         </div>
                     </div>
 
-                    <div id="mobile-menu" class="md:hidden bg-white border-b border-gray-100 overflow-hidden transition-all duration-300 ease-in-out h-0 relative z-30">
-                         <div class="px-4 py-4 bg-gray-50 flex items-center justify-between">
+                    <div id="mobile-menu" class="md:hidden bg-white border-b border-gray-100 overflow-hidden transition-all duration-300 ease-in-out h-0 relative z-30 flex flex-col max-h-[85vh]">
+                         <div class="px-4 py-4 bg-gray-50 flex items-center justify-between flex-shrink-0">
                             <div>
                                 <div class="font-bold text-gray-900">${state.user.name}님</div>
                                 <div class="text-xs text-gray-500">${state.user.organization || '소속 미지정'}</div>
                             </div>
                             <div class="flex space-x-2">
-                                <button onclick="openChangePasswordModal(true)" class="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 shadow-sm">PW변경</button>
-                                <button id="logoutM" class="text-xs bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg text-red-600 shadow-sm">로그아웃</button>
+                                <button onclick="openChangePasswordModal(true)" class="text-xs bg-white border border-gray-200 px-3 py-1.5 rounded-lg text-gray-600 shadow-sm font-bold">PW변경</button>
+                                <button id="logoutM" class="text-xs bg-red-50 border border-red-100 px-3 py-1.5 rounded-lg text-red-600 shadow-sm font-bold">로그아웃</button>
                             </div>
                          </div>
-                         <div class="px-2 pt-2 pb-3 space-y-1">
-                            <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>` : ''}
-                            ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="activity" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'activity' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">활동관리</a>` : ''}
-                            ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
-                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="block px-3 py-3 rounded-xl text-base font-medium ${state.currentView === 'performanceAnalysis' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실적분석</a>` : ''}
-                         </div>
-                         <div class="p-4 border-t border-gray-100 bg-gray-50/50">
-                             <label class="block text-sm font-bold text-gray-700 mb-2 ml-1">마감월 선택</label>
+                         <!-- 마감월 선택을 상단으로 이동 -->
+                         <div class="px-4 py-3 border-b border-gray-100 bg-white">
+                             <label class="block text-[11px] font-bold text-primary mb-1 ml-1 uppercase tracking-wider">마감월 선택</label>
                              ${mobileMonthSel}
+                         </div>
+                         <!-- 메뉴 리스트 (스크롤 영역) -->
+                         <div class="px-2 pt-2 pb-5 space-y-1 overflow-y-auto scrollbar-elegant flex-grow">
+                            <a href="#" data-nav="home" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'home' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">홈</a>
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'lapse' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체</a>` : ''}
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'dashboard' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">시상금</a>` : ''}
+                            ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'recruitment' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">증원수당</a>` : ''}
+                            ${state.user.role !== '실장' ? `<a href="#" data-nav="activity" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'activity' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">활동관리</a>` : ''}
+                            ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'admin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">관리자</a>` : ''}
+                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'branch' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">지사대표</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'lapseAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실효연체관리</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'retentionAdmin' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">유지율</a>` : ''}
+                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="block px-3 py-3 rounded-xl text-base font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-orange-50 text-primary' : 'text-gray-600 hover:bg-gray-50'}">실적분석</a>` : ''}
                          </div>
                     </div>
                     
