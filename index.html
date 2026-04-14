@@ -1083,11 +1083,13 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <button id="changePwBtn" class="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition group" title="비밀번호 변경">
+                            <button id="changePwBtn" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition group" title="비밀번호 변경">
                                 <svg class="w-4 h-4 text-slate-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                                <span class="text-[10px] font-bold text-slate-300 group-hover:text-white">비밀번호 변경</span>
                             </button>
-                            <button id="logout" class="flex items-center justify-center p-2 rounded-lg bg-white/5 hover:bg-red-500/20 transition group" title="로그아웃">
+                            <button id="logout" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 transition group" title="로그아웃">
                                 <svg class="w-4 h-4 text-slate-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                <span class="text-[10px] font-bold text-slate-300 group-hover:text-white">로그아웃</span>
                             </button>
                         </div>
                     </div>
@@ -1155,9 +1157,9 @@
                 </div>
 
                 <!-- Mobile Navigation (Bottom Drawer or Full Screen) -->
-                <div id="mobile-menu" class="lg:hidden fixed inset-0 z-50 transform translate-x-full transition-transform duration-300 pointer-events-none">
+                <div id="mobile-menu" class="lg:hidden fixed inset-0 z-50 transform -translate-x-full transition-transform duration-300 pointer-events-none">
                     <div class="absolute inset-0 bg-black/50 pointer-events-auto" id="mobile-backdrop"></div>
-                    <nav class="absolute top-0 right-0 h-full w-[80%] max-w-sm bg-white shadow-2xl flex flex-col pointer-events-auto">
+                    <nav class="absolute top-0 left-0 h-full w-[80%] max-w-sm bg-white shadow-2xl flex flex-col pointer-events-auto">
                         <div class="p-6 border-b border-gray-100 flex items-center justify-between">
                             <span class="text-xl font-black">MENU</span>
                             <button id="mobile-close" class="p-2"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
@@ -1200,8 +1202,12 @@
                             </a>` : ''}
                         </div>
                         <div class="p-6 border-t border-gray-100 grid grid-cols-2 gap-3">
-                             <button id="logoutM" class="p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100">LOGOUT</button>
-                             <button onclick="navigate('home')" class="p-4 bg-primary text-white font-bold rounded-2xl shadow-lg">HOME</button>
+                             <button id="changePwBtnM" class="flex items-center justify-center p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100 text-sm">
+                                비밀번호 변경
+                             </button>
+                             <button id="logoutM" class="flex items-center justify-center p-4 bg-primary text-white font-bold rounded-2xl shadow-lg text-sm">
+                                로그아웃
+                             </button>
                         </div>
                     </nav>
                 </div>
@@ -1252,9 +1258,9 @@
                 const toggleMenu = (open) => {
                     if (open) {
                         mMenu.classList.remove('pointer-events-none');
-                        mMenu.classList.remove('translate-x-full');
+                        mMenu.classList.remove('-translate-x-full');
                     } else {
-                        mMenu.classList.add('translate-x-full');
+                        mMenu.classList.add('-translate-x-full');
                         setTimeout(() => mMenu.classList.add('pointer-events-none'), 300);
                     }
                 };
@@ -1266,6 +1272,7 @@
                 container.querySelector('#logout')?.addEventListener('click', () => logout());
                 container.querySelector('#logoutM')?.addEventListener('click', () => logout());
                 container.querySelector('#changePwBtn')?.addEventListener('click', () => openChangePasswordModal(true));
+                container.querySelector('#changePwBtnM')?.addEventListener('click', () => openChangePasswordModal(true));
 
                 // Always try to ensure Lapse data is synced visually if loaded
                 if (state.lapseLoaded) {
