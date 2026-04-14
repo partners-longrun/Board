@@ -1066,7 +1066,7 @@
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
                              ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
                              ${state.user.role === '지사대표' ? sidebarLink('branch', '지사대표', icons.branch) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '계약관리(관리)', icons.lapseAdmin) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
                              ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
                              ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
                         </div>` : ''}
@@ -1085,7 +1085,7 @@
                         <div class="grid grid-cols-2 gap-2">
                             <button id="changePwBtn" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition group" title="비밀번호 변경">
                                 <svg class="w-4 h-4 text-slate-400 group-hover:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
-                                <span class="text-[10px] font-bold text-slate-300 group-hover:text-white">비밀번호 변경</span>
+                                <span class="text-[10px] font-bold text-slate-300 group-hover:text-white">비밀번호</span>
                             </button>
                             <button id="logout" class="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 transition group" title="로그아웃">
                                 <svg class="w-4 h-4 text-slate-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
@@ -1122,7 +1122,7 @@
                                             activity: '활동관리',
                                             admin: '관리자',
                                             branch: '지사대표',
-                                            lapseAdmin: '계약관리(관리)',
+                                            lapseAdmin: '실효연체관리',
                                             retentionAdmin: '유지율',
                                             performanceAnalysis: '실적분석'
                                         };
@@ -1203,7 +1203,7 @@
                         </div>
                         <div class="p-6 border-t border-gray-100 grid grid-cols-2 gap-3">
                              <button id="changePwBtnM" class="flex items-center justify-center p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100 text-sm">
-                                비밀번호 변경
+                                비밀번호
                              </button>
                              <button id="logoutM" class="flex items-center justify-center p-4 bg-primary text-white font-bold rounded-2xl shadow-lg text-sm">
                                 로그아웃
