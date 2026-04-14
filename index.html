@@ -1247,7 +1247,8 @@
                 // Using event delegation for nav items to handle dynamic content safety
                 container.querySelectorAll('[data-nav]').forEach(e => e.addEventListener('click', ev => {
                     ev.preventDefault();
-                    navigate(ev.target.getAttribute('data-nav'));
+                    const view = ev.currentTarget.getAttribute('data-nav');
+                    if (view) navigate(view);
                 }));
 
                 const mbBtn = container.querySelector('#mb-btn');
