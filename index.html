@@ -612,14 +612,14 @@
                 <div class="mb-5 text-lg font-bold text-gray-800 border-b border-gray-100 pb-2">빠른 메뉴</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
-                    <!-- 1. 계약관리 -->
+                    <!-- 1. 계약유지관리 -->
                     ${state.user.role !== '실장' ? `
                     <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                         </div>
                         <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">계약관리</h3>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">계약유지관리</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">당월 실효 및 연체계약 관리</p>
                         </div>
                     </div>` : ''}
@@ -1056,7 +1056,7 @@
                         <div class="px-6 py-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Main Menu</p>
                              ${sidebarLink('home', '홈', icons.home)}
-                             ${state.user.role !== '실장' ? sidebarLink('lapse', '계약관리', icons.lapse) : ''}
+                             ${state.user.role !== '실장' ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${state.user.role !== '실장' ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                              ${state.user.role !== '실장' ? sidebarLink('activity', '활동관리', icons.activity) : ''}
@@ -1117,7 +1117,7 @@
                                     ${(() => {
                                         const viewMap = {
                                             home: '홈',
-                                            lapse: '계약관리',
+                                            lapse: '계약유지관리',
                                             dashboard: '시상금',
                                             recruitment: '증원수당',
                                             activity: '활동관리',
@@ -1174,7 +1174,7 @@
                                 <span class="mr-4">${icons.home}</span> 홈
                             </a>
                             ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapse' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
-                                <span class="mr-4">${icons.lapse}</span> 계약관리
+                                <span class="mr-4">${icons.lapse}</span> 계약유지관리
                             </a>` : ''}
                             ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'dashboard' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.dashboard}</span> 시상금
@@ -1323,7 +1323,7 @@
 
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약유지관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
