@@ -3624,7 +3624,12 @@
                  ${listHtml}
                  <div class="mt-8 p-6 bg-gray-50 rounded-xl border border-gray-200 text-sm text-gray-600 leading-relaxed shadow-inner">
                     <p class="font-bold mb-2 text-gray-800">※ 증원수당 관련 안내</p>
-                    <p class="mb-3">증원수당은 관리자수당이 아닙니다. 산하인원의 실적과 연계되어 계산됩니다.</p>
+                    <p class="mb-1">증원수당은 관리자수당이 아닙니다.</p>
+                    <p class="mb-1">산하인원의 해당월 실적이 10만원 미만인 경우에는 산하실적에 포함되지 않습니다.</p>
+                    <p class="mb-1">실손보험, 재물성보험 등은 산하실적에 포함되지 않습니다. (장기 인보험만 포함)</p>
+                    <p class="mb-1">증원수당은 산하인원의 실적과 연계되어 정확하게 계산되고 있음을 안내드립니다.</p>
+                    <p class="mb-4">증원수당과 관련하여 궁금하신 부분이 있으시면 언제든 박용수 본부장에게 연락주시기 바랍니다.</p>
+                    
                     <p class="font-bold mb-2 text-gray-800">※ 증원수당 계산식</p>
                     <ul class="list-disc list-inside space-y-1 ml-1 text-gray-600">
                         <li><span class="font-semibold text-gray-700">손해보험</span> : 신계약보험료 X 30%</li>
@@ -3638,16 +3643,24 @@
                 const cacheKey = `DATA_${selectedMember.id}_${state.currentMonth}_recruitment`;
                 const cached = sessionStorage.getItem(cacheKey);
                 if (cached) {
-                    try { renderContent(JSON.parse(cached)); } catch (e) { renderContent(null, true); fetchR(); }
+                    try { 
+                        const parsed = JSON.parse(cached);
+                        state.data.recData = parsed; 
+                        renderContent(parsed); 
+                    } catch (e) { renderContent(null, true); fetchR(); }
                 } else { renderContent(null, true); fetchR(); }
                 function fetchR() {
                     callApi('getRecruitmentData', selectedMember.id, state.currentMonth).then(d => {
                         if (!state.user) return;
-                        if (d && !d.error) { sessionStorage.setItem(cacheKey, JSON.stringify(d)); }
+                        if (d && !d.error) { 
+                            sessionStorage.setItem(cacheKey, JSON.stringify(d)); 
+                            state.data.recData = d;
+                        }
                         renderContent(d && !d.error ? d : null);
                     });
                 }
             } else {
+                // 본인 데이터인 경우: 초기 로딩 시 이미 state.data.recData에 있을 수 있으나, 명시적으로 처리
                 renderContent(state.data.recData);
             }
 
