@@ -15,6 +15,42 @@
         const API_URL = 'https://script.google.com/macros/s/AKfycbzLj2pOu3gG1p8HhPC-t36bEwImkIFNfb9FAcO7WI3F_UP9wp6DsnCyUKUGBGtOT6BpTA/exec';
     </script>
 
+    <!-- 카카오톡 인앱 브라우저 감지 및 기본 브라우저 강제 이동 -->
+    <script>
+        (function() {
+            var ua = navigator.userAgent.toLowerCase();
+            if (ua.indexOf('kakaotalk') > -1) {
+                var targetUrl = window.location.href;
+                if (ua.indexOf('android') > -1) {
+                    // 안드로이드: 크롬 또는 기본 브라우저로 강제 이동
+                    var rawUrl = targetUrl.replace(/^https?:\/\//, '');
+                    window.location.href = 'intent://' + rawUrl + '#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end';
+                } else if (ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1 || ua.indexOf('ipod') > -1) {
+                    // iOS: 외부 브라우저(Safari 등) 호출 시도
+                    window.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(targetUrl);
+                    
+                    // iOS의 경우 팝업이 차단되거나 멈출 수 있으므로 우회 안내 레이어를 화면에 표시
+                    document.write(`
+                        <div id="kakao-ios-guide" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: #fff; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-family: sans-serif; padding: 20px; box-sizing: border-box;">
+                            <div style="background: #fff; color: #333; padding: 30px; border-radius: 20px; max-width: 90%; width: 360px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+                                <div style="font-size: 40px; margin-bottom: 15px;">🧭</div>
+                                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 12px; color: #F37321;">Safari 브라우저로 이동 중...</h3>
+                                <p style="font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 20px;">
+                                    화면이 자동으로 이동하지 않는다면,<br>
+                                    우측 상단 <strong>더보기 (···)</strong> 버튼을 누른 후<br>
+                                    <strong>'다른 브라우저로 열기'</strong> 또는 <strong>'Safari로 열기'</strong>를 선택해 주세요.
+                                </p>
+                                <div style="font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 12px;">
+                                    기본 브라우저에서 정상적으로 로그인 및 앱 설치(PWA)가 가능합니다.
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+            }
+        })();
+    </script>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -650,17 +686,7 @@
 
 
 
-                    <!-- 3-1. 활동관리 -->
-                    ${state.user.role !== '실장' ? `
-                    <div onclick="navigate('activity')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-green-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
-                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">활동관리</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">주간 활동 예정 및 결과 입력</p>
-                        </div>
-                    </div>` : ''}
+
                     <!-- 4. 관리자 대시보드 -->
                     ${(isBranchRepAny() || isAdminAny()) ? `
                     <div onclick="navigate('admin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
@@ -1059,7 +1085,6 @@
                              ${state.user.role !== '실장' ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${state.user.role !== '실장' ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
-                             ${state.user.role !== '실장' ? sidebarLink('activity', '활동관리', icons.activity) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || state.user.role === '실장' || state.user.role === '운영진') ? `
@@ -1120,7 +1145,6 @@
                                             lapse: '계약유지관리',
                                             dashboard: '시상금',
                                             recruitment: '증원수당',
-                                            activity: '활동관리',
                                             admin: '관리자',
                                             branch: '지사대표',
                                             lapseAdmin: '실효연체관리',
@@ -1181,9 +1205,6 @@
                             </a>` : ''}
                             ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
-                            </a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="activity" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'activity' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
-                                <span class="mr-4">${icons.activity}</span> 활동관리
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
                             ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
