@@ -406,6 +406,18 @@
             return str.substring(0, 1) + '**' + str.substring(2);
         }
 
+        function formatBaseDate(dateStr) {
+            if (!dateStr) return '';
+            const cleanStr = String(dateStr).trim().replace(/\./g, '-');
+            const parts = cleanStr.split('-');
+            if (parts.length >= 3) {
+                const month = parseInt(parts[1], 10);
+                const day = parseInt(parts[2], 10);
+                return `${month}월 ${day}일`;
+            }
+            return dateStr;
+        }
+
         // --- 2. Navigation & History ---
         window.handleFabBack = function () {
             if (state.currentView === 'home') {
@@ -594,7 +606,7 @@
                         <div class="bg-gradient-to-br from-white to-red-50/30 rounded-2xl shadow-sm border border-red-50 p-6 flex flex-col justify-center cursor-pointer hover:border-red-100 transition group" onclick="state.lapseCurrentTab='lapsed'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-red-400 rounded-full inline-block"></span>
-                                <p id="home-lapsed-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수${state.lapseLoaded && state.lapseData.lapsedDate ? ' <span class="text-xs font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</p>
+                                <p id="home-lapsed-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-red-500 transition">당월 실효 건수${state.lapseLoaded && state.lapseData.lapsedDate ? ' <span class="text-xs font-normal text-gray-400">(' + formatBaseDate(state.lapseData.lapsedDate) + ' 기준)</span>' : ''}</p>
                             </div>
                             <div class="text-2xl font-extrabold text-red-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-lapsed-count">
                                 ${state.lapseLoaded ? (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-red-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -605,7 +617,7 @@
                         <div class="bg-gradient-to-br from-white to-orange-50/30 rounded-2xl shadow-sm border border-orange-50 p-6 flex flex-col justify-center cursor-pointer hover:border-orange-100 transition group" onclick="state.lapseCurrentTab='arrears'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-orange-400 rounded-full inline-block"></span>
-                                <p id="home-arrears-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수${state.lapseLoaded && state.lapseData.arrearsDate ? ' <span class="text-xs font-normal text-gray-400">(' + state.lapseData.arrearsDate + ' 기준)</span>' : ''}</p>
+                                <p id="home-arrears-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-orange-500 transition">당월 연체 건수${state.lapseLoaded && state.lapseData.arrearsDate ? ' <span class="text-xs font-normal text-gray-400">(' + formatBaseDate(state.lapseData.arrearsDate) + ' 기준)</span>' : ''}</p>
                             </div>
                             <div class="text-2xl font-extrabold text-orange-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-arrears-count">
                                 ${state.lapseLoaded ? (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-orange-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -616,7 +628,7 @@
                         <div class="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-sm border border-blue-50 p-6 flex flex-col justify-center cursor-pointer hover:border-blue-100 transition group" onclick="state.lapseCurrentTab='unpaid'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-blue-400 rounded-full inline-block"></span>
-                                <p id="home-unpaid-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-blue-500 transition">당월 미납 건수${state.lapseLoaded && state.lapseData.unpaidDate ? ' <span class="text-xs font-normal text-gray-400">(' + state.lapseData.unpaidDate + ' 기준)</span>' : ''}</p>
+                                <p id="home-unpaid-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-blue-500 transition">당월 미납 건수${state.lapseLoaded && state.lapseData.unpaidDate ? ' <span class="text-xs font-normal text-gray-400">(' + formatBaseDate(state.lapseData.unpaidDate) + ' 기준)</span>' : ''}</p>
                             </div>
                             <div class="text-2xl font-extrabold text-blue-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unpaid-count">
                                 ${state.lapseLoaded ? (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-blue-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -627,7 +639,7 @@
                         <div class="bg-gradient-to-br from-white to-indigo-50/30 rounded-2xl shadow-sm border border-indigo-50 p-6 flex flex-col justify-center cursor-pointer hover:border-indigo-100 transition group" onclick="state.lapseCurrentTab='unsubmitted'; navigate('lapse')">
                             <div class="flex items-center gap-2 mb-4 w-full">
                                 <span class="w-1.5 h-4 bg-indigo-400 rounded-full inline-block"></span>
-                                <p id="home-unsubmitted-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-indigo-500 transition">확인서 미제출 건수${state.lapseLoaded && state.lapseData.unsubmittedDate ? ' <span class="text-xs font-normal text-gray-400">(' + state.lapseData.unsubmittedDate + ' 기준)</span>' : ''}</p>
+                                <p id="home-unsubmitted-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-indigo-500 transition">확인서 미제출 건수${state.lapseLoaded && state.lapseData.unsubmittedDate ? ' <span class="text-xs font-normal text-gray-400">(' + formatBaseDate(state.lapseData.unsubmittedDate) + ' 기준)</span>' : ''}</p>
                             </div>
                             <div class="text-2xl font-extrabold text-indigo-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unsubmitted-count">
                                 ${state.lapseLoaded ? (state.lapseData.unsubmitted?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
@@ -778,10 +790,10 @@
             if (uEl) uEl.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
             if (unsEl) unsEl.innerHTML = (state.lapseData.unsubmitted?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
 
-            if (lTitleEl && state.lapseData.lapsedDate) lTitleEl.innerHTML = `당월 실효 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.lapsedDate} 기준)</span>`;
-            if (aTitleEl && state.lapseData.arrearsDate) aTitleEl.innerHTML = `당월 연체 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.arrearsDate} 기준)</span>`;
-            if (uTitleEl && state.lapseData.unpaidDate) uTitleEl.innerHTML = `당월 미납 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.unpaidDate} 기준)</span>`;
-            if (unsTitleEl && state.lapseData.unsubmittedDate) unsTitleEl.innerHTML = `확인서 미제출 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.unsubmittedDate} 기준)</span>`;
+            if (lTitleEl && state.lapseData.lapsedDate) lTitleEl.innerHTML = `당월 실효 건수 <span class="text-xs font-normal text-gray-400">(${formatBaseDate(state.lapseData.lapsedDate)} 기준)</span>`;
+            if (aTitleEl && state.lapseData.arrearsDate) aTitleEl.innerHTML = `당월 연체 건수 <span class="text-xs font-normal text-gray-400">(${formatBaseDate(state.lapseData.arrearsDate)} 기준)</span>`;
+            if (uTitleEl && state.lapseData.unpaidDate) uTitleEl.innerHTML = `당월 미납 건수 <span class="text-xs font-normal text-gray-400">(${formatBaseDate(state.lapseData.unpaidDate)} 기준)</span>`;
+            if (unsTitleEl && state.lapseData.unsubmittedDate) unsTitleEl.innerHTML = `확인서 미제출 건수 <span class="text-xs font-normal text-gray-400">(${formatBaseDate(state.lapseData.unsubmittedDate)} 기준)</span>`;
         }
 
         async function fetchPerformanceTrend() {
@@ -1335,6 +1347,17 @@
             else data = state.lapseData.lapsed;
             renderLapseContents(container, data);
 
+            // Update Base Date Text in Title
+            const dateEl = document.querySelector('h2.text-xl.font-bold span.text-gray-400') || document.querySelector('h2.tracking-tight span.text-gray-400');
+            if (dateEl) {
+                let dateStr = '';
+                if (tab === 'arrears') dateStr = state.lapseData.arrearsDate;
+                else if (tab === 'unpaid') dateStr = state.lapseData.unpaidDate;
+                else if (tab === 'unsubmitted') dateStr = state.lapseData.unsubmittedDate;
+                else dateStr = state.lapseData.lapsedDate;
+                dateEl.innerText = dateStr ? `(${formatBaseDate(dateStr)} 기준)` : '';
+            }
+
             // Update Tab UI
             const btnLapsed = document.getElementById('tab-btn-lapsed');
             const btnArrears = document.getElementById('tab-btn-arrears');
@@ -1357,13 +1380,21 @@
             }
         };
 
-                function createLapseView() {
+        function createLapseView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
 
+            // 현재 선택된 탭에 맞춰 초기 기준일 결정
+            let initialDate = '';
+            const curTab = state.lapseCurrentTab || 'lapsed';
+            if (curTab === 'arrears') initialDate = state.lapseData.arrearsDate;
+            else if (curTab === 'unpaid') initialDate = state.lapseData.unpaidDate;
+            else if (curTab === 'unsubmitted') initialDate = state.lapseData.unsubmittedDate;
+            else initialDate = state.lapseData.lapsedDate;
+
             div.innerHTML = `
                 <div class="mb-4">
-                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약유지관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 tracking-tight">계약유지관리${initialDate ? ' <span class="text-sm font-normal text-gray-400">(' + formatBaseDate(initialDate) + ' 기준)</span>' : ''}</h2>
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
@@ -1394,6 +1425,18 @@
                         return;
                     }
                     state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [], unsubmitted: res.unsubmitted || [], lapsedDate: res.lapsedDate, arrearsDate: res.arrearsDate, unpaidDate: res.unpaidDate, unsubmittedDate: res.unsubmittedDate };
+                    
+                    // API 로드 후 헤더의 기준일 다시 업데이트
+                    const dateEl = div.querySelector('h2.text-xl.font-bold span.text-gray-400');
+                    if (dateEl) {
+                        let dateStr = '';
+                        const curTab = state.lapseCurrentTab || 'lapsed';
+                        if (curTab === 'arrears') dateStr = state.lapseData.arrearsDate;
+                        else if (curTab === 'unpaid') dateStr = state.lapseData.unpaidDate;
+                        else if (curTab === 'unsubmitted') dateStr = state.lapseData.unsubmittedDate;
+                        else dateStr = state.lapseData.lapsedDate;
+                        dateEl.innerText = dateStr ? `(${formatBaseDate(dateStr)} 기준)` : '';
+                    }
                 }
 
                 let dataToRender = [];
@@ -4237,18 +4280,22 @@
                                  </span>
                              </div>
                          </div>
-                         <div class="grid grid-cols-3 gap-2 text-center">
-                            <div class="cursor-pointer hover:bg-red-50 p-2 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 실효</p>
-                                <p class="text-lg font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-[10px] font-medium ml-0.5">건</span></p>
+                         <div class="grid grid-cols-4 gap-1.5 text-center">
+                            <div class="cursor-pointer hover:bg-red-50 p-1.5 rounded-xl transition border border-transparent hover:border-red-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'lapsed')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 whitespace-nowrap">당월 실효</p>
+                                <p class="text-base font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-300'}">${item.lapsed}<span class="text-[9px] font-medium ml-0.5">건</span></p>
                             </div>
-                            <div class="cursor-pointer hover:bg-orange-50 p-2 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 연체</p>
-                                <p class="text-lg font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-[10px] font-medium ml-0.5">건</span></p>
+                            <div class="cursor-pointer hover:bg-orange-50 p-1.5 rounded-xl transition border border-transparent hover:border-orange-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'arrears')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 whitespace-nowrap">당월 연체</p>
+                                <p class="text-base font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-300'}">${item.arrears}<span class="text-[9px] font-medium ml-0.5">건</span></p>
                             </div>
-                            <div class="cursor-pointer hover:bg-blue-50 p-2 rounded-xl transition border border-transparent hover:border-blue-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'unpaid')">
-                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">당월 미납</p>
-                                <p class="text-lg font-extrabold ${item.unpaid > 0 ? 'text-blue-600' : 'text-gray-300'}">${item.unpaid || 0}<span class="text-[10px] font-medium ml-0.5">건</span></p>
+                            <div class="cursor-pointer hover:bg-blue-50 p-1.5 rounded-xl transition border border-transparent hover:border-blue-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'unpaid')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 whitespace-nowrap">당월 미납</p>
+                                <p class="text-base font-extrabold ${item.unpaid > 0 ? 'text-blue-600' : 'text-gray-300'}">${item.unpaid || 0}<span class="text-[9px] font-medium ml-0.5">건</span></p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-purple-50 p-1.5 rounded-xl transition border border-transparent hover:border-purple-100" onclick="fetchAndShowLapseAdminDetail('${item.id}', '${item.name}', 'unsubmitted')">
+                                <p class="text-[10px] text-gray-400 font-bold uppercase mb-1 whitespace-nowrap">미제출</p>
+                                <p class="text-base font-extrabold ${item.unsubmitted > 0 ? 'text-purple-600' : 'text-gray-300'}">${item.unsubmitted || 0}<span class="text-[9px] font-medium ml-0.5">건</span></p>
                             </div>
                          </div>
                     </div>
@@ -5752,6 +5799,30 @@
             }
             const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth);
             state.isLoading = false;
+
+            // 데이터 존재 여부 검증
+            const hasData = res && res.success && (res.barData.length > 0 || (res.pieData && (res.pieData.life > 0 || res.pieData.nonLife > 0)));
+
+            if (res && res.success && !hasData && state.perfAnalysisMonth !== 'All') {
+                state.perfAnalysisRetryCount = state.perfAnalysisRetryCount || 0;
+                if (state.perfAnalysisRetryCount < 12) {
+                    state.perfAnalysisRetryCount++;
+                    let currentYear = parseInt(state.perfAnalysisYear, 10);
+                    let currentMonth = parseInt(state.perfAnalysisMonth, 10);
+                    currentMonth--;
+                    if (currentMonth < 1) {
+                        currentMonth = 12;
+                        currentYear--;
+                    }
+                    state.perfAnalysisYear = String(currentYear);
+                    state.perfAnalysisMonth = String(currentMonth).padStart(2, '0');
+                    fetchPerformanceAnalysisData();
+                    return;
+                }
+            }
+
+            state.perfAnalysisRetryCount = 0;
+
             if (res && res.success) {
                 state.perfAnalysisData = res;
                 state.perfAnalysisLoaded = true;
