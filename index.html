@@ -578,7 +578,7 @@
                 </div>
                 
                 <div class="mb-8">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <!-- 1. 유지율 카드 -->
                         <div class="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col justify-center cursor-pointer hover:border-gray-300 transition group" onclick="fetchAndShowLapsedContracts()">
                             <div class="flex items-center gap-2 mb-4 w-full">
@@ -620,6 +620,17 @@
                             </div>
                             <div class="text-2xl font-extrabold text-blue-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unpaid-count">
                                 ${state.lapseLoaded ? (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-blue-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
+                            </div>
+                        </div>
+
+                        <!-- 5. 확인서 미제출 건수 카드 -->
+                        <div class="bg-gradient-to-br from-white to-indigo-50/30 rounded-2xl shadow-sm border border-indigo-50 p-6 flex flex-col justify-center cursor-pointer hover:border-indigo-100 transition group" onclick="state.lapseCurrentTab='unsubmitted'; navigate('lapse')">
+                            <div class="flex items-center gap-2 mb-4 w-full">
+                                <span class="w-1.5 h-4 bg-indigo-400 rounded-full inline-block"></span>
+                                <p id="home-unsubmitted-title" class="text-xs font-bold text-gray-700 tracking-wide group-hover:text-indigo-500 transition">확인서 미제출 건수${state.lapseLoaded && state.lapseData.unsubmittedDate ? ' <span class="text-xs font-normal text-gray-400">(' + state.lapseData.unsubmittedDate + ' 기준)</span>' : ''}</p>
+                            </div>
+                            <div class="text-2xl font-extrabold text-indigo-500 tracking-tight drop-shadow-sm text-center w-full group-hover:scale-105 transition-transform duration-300 flex justify-center items-center h-8" id="home-unsubmitted-count">
+                                ${state.lapseLoaded ? (state.lapseData.unsubmitted?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>' : '<svg class="animate-spin w-6 h-6 text-indigo-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>'}
                             </div>
                         </div>
                     </div>
@@ -755,18 +766,22 @@
             const lEl = document.getElementById('home-lapsed-count');
             const aEl = document.getElementById('home-arrears-count');
             const uEl = document.getElementById('home-unpaid-count');
+            const unsEl = document.getElementById('home-unsubmitted-count');
 
             const lTitleEl = document.getElementById('home-lapsed-title');
             const aTitleEl = document.getElementById('home-arrears-title');
             const uTitleEl = document.getElementById('home-unpaid-title');
+            const unsTitleEl = document.getElementById('home-unsubmitted-title');
 
             if (lEl) lEl.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
             if (aEl) aEl.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
             if (uEl) uEl.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+            if (unsEl) unsEl.innerHTML = (state.lapseData.unsubmitted?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
 
             if (lTitleEl && state.lapseData.lapsedDate) lTitleEl.innerHTML = `당월 실효 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.lapsedDate} 기준)</span>`;
             if (aTitleEl && state.lapseData.arrearsDate) aTitleEl.innerHTML = `당월 연체 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.arrearsDate} 기준)</span>`;
             if (uTitleEl && state.lapseData.unpaidDate) uTitleEl.innerHTML = `당월 미납 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.unpaidDate} 기준)</span>`;
+            if (unsTitleEl && state.lapseData.unsubmittedDate) unsTitleEl.innerHTML = `확인서 미제출 건수 <span class="text-xs font-normal text-gray-400">(${state.lapseData.unsubmittedDate} 기준)</span>`;
         }
 
         async function fetchPerformanceTrend() {
@@ -1316,6 +1331,7 @@
             let data = [];
             if (tab === 'arrears') data = state.lapseData.arrears;
             else if (tab === 'unpaid') data = state.lapseData.unpaid;
+            else if (tab === 'unsubmitted') data = state.lapseData.unsubmitted;
             else data = state.lapseData.lapsed;
             renderLapseContents(container, data);
 
@@ -1323,22 +1339,25 @@
             const btnLapsed = document.getElementById('tab-btn-lapsed');
             const btnArrears = document.getElementById('tab-btn-arrears');
             const btnUnpaid = document.getElementById('tab-btn-unpaid');
+            const btnUnsubmitted = document.getElementById('tab-btn-unsubmitted');
 
-            [btnLapsed, btnArrears, btnUnpaid].forEach(btn => {
+            [btnLapsed, btnArrears, btnUnpaid, btnUnsubmitted].forEach(btn => {
                 if (!btn) return;
                 btn.className = 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition';
             });
 
             if (tab === 'lapsed') {
-                btnLapsed.className = 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition';
+                if (btnLapsed) btnLapsed.className = 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition';
             } else if (tab === 'arrears') {
-                btnArrears.className = 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition';
+                if (btnArrears) btnArrears.className = 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition';
             } else if (tab === 'unpaid') {
-                btnUnpaid.className = 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 shadow-sm rounded-xl transition';
+                if (btnUnpaid) btnUnpaid.className = 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 shadow-sm rounded-xl transition';
+            } else if (tab === 'unsubmitted') {
+                if (btnUnsubmitted) btnUnsubmitted.className = 'flex-1 py-3 text-sm font-bold bg-white text-indigo-600 shadow-sm rounded-xl transition';
             }
         };
 
-        function createLapseView() {
+                function createLapseView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
 
@@ -1348,10 +1367,11 @@
                     <p class="text-gray-500 text-sm mt-1">당월 실효 및 연체계약 관리 페이지입니다.</p>
                 </div>
                 
-                <div class="bg-gray-100 p-1.5 rounded-2xl flex mb-6 max-w-md mx-auto md:mx-0">
+                <div class="bg-gray-100 p-1.5 rounded-2xl flex mb-6 max-w-lg mx-auto md:mx-0">
                     <button id="tab-btn-lapsed" onclick="switchLapseTab('lapsed')" class="${state.lapseCurrentTab === 'lapsed' ? 'flex-1 py-3 text-sm font-bold bg-white text-red-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 실효</button>
                     <button id="tab-btn-arrears" onclick="switchLapseTab('arrears')" class="${state.lapseCurrentTab === 'arrears' ? 'flex-1 py-3 text-sm font-bold bg-white text-orange-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 연체</button>
                     <button id="tab-btn-unpaid" onclick="switchLapseTab('unpaid')" class="${state.lapseCurrentTab === 'unpaid' ? 'flex-1 py-3 text-sm font-bold bg-white text-blue-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">당월 미납</button>
+                    <button id="tab-btn-unsubmitted" onclick="switchLapseTab('unsubmitted')" class="${state.lapseCurrentTab === 'unsubmitted' ? 'flex-1 py-3 text-sm font-bold bg-white text-indigo-600 shadow-sm rounded-xl transition' : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 transition'}">확인서 미제출</button>
                 </div>
                 
                 <div id="lapse-container" class="min-h-[400px]">
@@ -1365,7 +1385,7 @@
             setTimeout(async () => {
                 const container = div.querySelector('#lapse-container');
 
-                if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length && !state.lapseData.unpaid?.length)) {
+                if (!state.lapseData || (!state.lapseData.lapsed?.length && !state.lapseData.arrears?.length && !state.lapseData.unpaid?.length && !state.lapseData.unsubmitted?.length)) {
                     container.innerHTML = getSkeletonUI().innerHTML;
                     const res = await callApi('getLapseManagementData', state.user.staffId, 'collector');
 
@@ -1373,12 +1393,13 @@
                         container.innerHTML = `<div class="p-8 text-center text-red-500 bg-red-50 rounded-2xl border border-red-100">데이터를 불러오지 못했습니다.<br><span class="text-sm">${res.message || '네트워크 오류'}</span></div>`;
                         return;
                     }
-                    state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [] };
+                    state.lapseData = { lapsed: res.lapsed || [], arrears: res.arrears || [], unpaid: res.unpaid || [], unsubmitted: res.unsubmitted || [], lapsedDate: res.lapsedDate, arrearsDate: res.arrearsDate, unpaidDate: res.unpaidDate, unsubmittedDate: res.unsubmittedDate };
                 }
 
                 let dataToRender = [];
                 if (state.lapseCurrentTab === 'arrears') dataToRender = state.lapseData.arrears;
                 else if (state.lapseCurrentTab === 'unpaid') dataToRender = state.lapseData.unpaid;
+                else if (state.lapseCurrentTab === 'unsubmitted') dataToRender = state.lapseData.unsubmitted;
                 else dataToRender = state.lapseData.lapsed;
 
                 renderLapseContents(container, dataToRender);
@@ -1390,8 +1411,9 @@
         function renderLapseContents(container, data) {
             const isArrears = state.lapseCurrentTab === 'arrears';
             const isUnpaid = state.lapseCurrentTab === 'unpaid';
-            const colorClass = isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red');
-            const titleText = isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트');
+            const isUnsubmitted = state.lapseCurrentTab === 'unsubmitted';
+            const colorClass = isUnsubmitted ? 'indigo' : (isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red'));
+            const titleText = isUnsubmitted ? '신계약 확인서 미제출 리스트' : (isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트'));
 
             if (!data || data.length === 0) {
                 container.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</div>`;
@@ -1403,23 +1425,71 @@
             const hasMore = data.length > limit;
 
             // Desktop Table Layout
-            const desktopRows = limitedData.map((x, idx) => `
-             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-               <td class="p-3 text-center">
-                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
-               </td>
-               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
-               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
-               <td class="p-3 text-gray-700">${x['보험사']}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
-               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-               <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
-               <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
-               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
-               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
-               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-               <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
-             </tr>`).join('');
+            const desktopRows = limitedData.map((x, idx) => {
+                if (isUnsubmitted) {
+                    return `
+                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                       <td class="p-3 text-center">
+                           <span class="px-2 py-1 text-[10px] font-bold rounded-lg bg-red-50 text-red-600 border border-red-100">미제출</span>
+                       </td>
+                       <td class="p-3 text-center text-gray-700">${x['모집인']}</td>
+                       <td class="p-3 text-gray-700">${x['보험사']}</td>
+                       <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
+                       <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                       <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['보험료'])}</td>
+                       <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+                       <td class="p-3 text-center font-medium text-gray-700">${maskContractor(x['계약자'])}</td>
+                       <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+                     </tr>`;
+                } else {
+                    return `
+                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                       <td class="p-3 text-center">
+                           <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+                       </td>
+                       <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+                       <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+                       <td class="p-3 text-gray-700">${x['보험사']}</td>
+                       <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
+                       <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                       <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
+                       <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+                       <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+                       <td class="p-3 text-center font-semibold bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+                       <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+                       <td class="p-3 text-xs text-gray-400 text-center">${x['데이터기준일']}</td>
+                     </tr>`;
+                }
+            }).join('');
+
+            const theadHtml = isUnsubmitted ? `
+                <thead class="bg-gray-50 border-b border-gray-100"><tr class="text-left text-gray-600">
+                    <th class="p-3 font-semibold text-center">제출여부</th>
+                    <th class="p-3 font-semibold text-center">모집인</th>
+                    <th class="p-3 font-semibold">보험사</th>
+                    <th class="p-3 font-semibold">증권번호</th>
+                    <th class="p-3 font-semibold">상품명</th>
+                    <th class="p-3 text-right font-semibold">보험료</th>
+                    <th class="p-3 font-semibold">계약일</th>
+                    <th class="p-3 text-center font-semibold">계약자</th>
+                    <th class="p-3 text-center font-semibold">데이터기준일</th>
+                </tr></thead>
+            ` : `
+                <thead class="bg-gray-50 border-b border-gray-100"><tr class="text-left text-gray-600">
+                    <th class="p-3 font-semibold text-center">상태</th>
+                    <th class="p-3 font-semibold text-center">모집인</th>
+                    <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                    <th class="p-3 font-semibold">보험사</th>
+                    <th class="p-3 font-semibold">증권번호</th>
+                    <th class="p-3 font-semibold">상품명</th>
+                    <th class="p-3 text-right font-semibold">계속보험료</th>
+                    <th class="p-3 font-semibold">계약일</th>
+                    <th class="p-3 text-center font-semibold">납입회차</th>
+                    <th class="p-3 text-center font-semibold">최종납입월</th>
+                    <th class="p-3 text-center font-semibold">계약자</th>
+                    <th class="p-3 text-center font-semibold">데이터기준일</th>
+                </tr></thead>
+            `;
 
             const desktopTable = `
                 <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1431,20 +1501,7 @@
                     </div>
                     <div class="overflow-x-auto w-full">
                         <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
-                            <thead class="bg-gray-50 border-b border-gray-100"><tr class="text-left text-gray-600">
-                                <th class="p-3 font-semibold text-center">상태</th>
-                                <th class="p-3 font-semibold text-center">모집인</th>
-                                <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
-                                <th class="p-3 font-semibold">보험사</th>
-                                <th class="p-3 font-semibold">증권번호</th>
-                                <th class="p-3 font-semibold">상품명</th>
-                                <th class="p-3 text-right font-semibold">계속보험료</th>
-                                <th class="p-3 font-semibold">계약일</th>
-                                <th class="p-3 text-center font-semibold">납입회차</th>
-                                <th class="p-3 text-center font-semibold">최종납입월</th>
-                                <th class="p-3 text-center font-semibold">계약자</th>
-                                <th class="p-3 text-center font-semibold">데이터기준일</th>
-                            </tr></thead>
+                            ${theadHtml}
                             <tbody class="divide-y divide-gray-100">${desktopRows}</tbody>
                         </table>
                     </div>
@@ -1452,24 +1509,45 @@
             `;
 
             // Mobile Card Layout
-            const mobileCards = limitedData.map((x, idx) => `
-                <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : (String(x['계약상태']) === '미납' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-100 text-gray-600'))}">${x['계약상태']}</span>
-                        <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
-                    </div>
-                    <div class="flex justify-between items-end mb-2">
-                        <div class="flex-grow pr-3">
-                            <h4 class="font-bold text-gray-800 text-lg mb-0.5">${x['계약자']} <span class="text-xs font-normal text-gray-500 ml-1">고객님</span></h4>
-                            <p class="text-sm text-gray-600 truncate-product leading-snug w-full max-w-[200px]" title="${x['상품명']}">${x['상품명']}</p>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center pt-3 border-t border-gray-50 mt-1">
-                         <div class="text-xs text-gray-400">최종납: <span class="font-mono">${x['최종납입월']}</span></div>
-                         <div class="font-bold text-blue-600 text-[15px]">${formatMoney(x['계속보험료'])}</div>
-                    </div>
-                </div>
-            `).join('');
+            const mobileCards = limitedData.map((x, idx) => {
+                if (isUnsubmitted) {
+                    return `
+                        <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="px-2 py-1 text-[10px] font-bold rounded-lg bg-red-50 text-red-600 border border-red-100">미제출</span>
+                                <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
+                            </div>
+                            <div class="flex justify-between items-end mb-2">
+                                <div class="flex-grow pr-3">
+                                    <h4 class="font-bold text-gray-800 text-lg mb-0.5">${maskContractor(x['계약자'])} <span class="text-xs font-normal text-gray-500 ml-1">고객님</span></h4>
+                                    <p class="text-sm text-gray-600 truncate-product leading-snug w-full max-w-[200px]" title="${x['상품명']}">${x['상품명']}</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center pt-3 border-t border-gray-50 mt-1">
+                                 <div class="text-xs text-gray-400">모집: <span>${x['모집인']}</span></div>
+                                 <div class="font-bold text-blue-600 text-[15px]">${formatMoney(x['보험료'])}</div>
+                            </div>
+                        </div>`;
+                } else {
+                    return `
+                        <div onclick="openMobileLapseDetail(${idx})" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 active:scale-[0.98] transition cursor-pointer">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : (String(x['계약상태']) === '미납' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-gray-100 text-gray-600'))}">${x['계약상태']}</span>
+                                <span class="text-xs font-medium text-gray-500">${x['보험사']}</span>
+                            </div>
+                            <div class="flex justify-between items-end mb-2">
+                                <div class="flex-grow pr-3">
+                                    <h4 class="font-bold text-gray-800 text-lg mb-0.5">${x['계약자']} <span class="text-xs font-normal text-gray-500 ml-1">고객님</span></h4>
+                                    <p class="text-sm text-gray-600 truncate-product leading-snug w-full max-w-[200px]" title="${x['상품명']}">${x['상품명']}</p>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center pt-3 border-t border-gray-50 mt-1">
+                                 <div class="text-xs text-gray-400">최종납: <span class="font-mono">${x['최종납입월']}</span></div>
+                                 <div class="font-bold text-blue-600 text-[15px]">${formatMoney(x['계속보험료'])}</div>
+                            </div>
+                        </div>`;
+                }
+            }).join('');
 
             const mobileContainer = `
                 <div class="md:hidden flex flex-col gap-3 pb-4">
@@ -1499,6 +1577,7 @@
             let data = [];
             if (state.lapseCurrentTab === 'arrears') data = state.lapseData.arrears;
             else if (state.lapseCurrentTab === 'unpaid') data = state.lapseData.unpaid;
+            else if (state.lapseCurrentTab === 'unsubmitted') data = state.lapseData.unsubmitted;
             else data = state.lapseData.lapsed;
             renderLapseContents(container, data);
         };
@@ -1507,6 +1586,7 @@
             let dataList = [];
             if (state.lapseCurrentTab === 'arrears') dataList = state.lapseData.arrears;
             else if (state.lapseCurrentTab === 'unpaid') dataList = state.lapseData.unpaid;
+            else if (state.lapseCurrentTab === 'unsubmitted') dataList = state.lapseData.unsubmitted;
             else dataList = state.lapseData.lapsed;
             const data = dataList[idx];
             if (!data) return;
@@ -1523,7 +1603,10 @@
                 </div>
             `;
 
-            const badgeClass = String(data['계약상태']).includes('실효') ? 'bg-red-50 text-red-600' : (String(data['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600' : 'bg-gray-200 text-gray-700');
+            const isUnsubmitted = state.lapseCurrentTab === 'unsubmitted';
+            const badgeClass = isUnsubmitted ? 'bg-red-50 text-red-600' : (String(data['계약상태']).includes('실효') ? 'bg-red-50 text-red-600' : (String(data['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600' : 'bg-gray-200 text-gray-700'));
+            const badgeText = isUnsubmitted ? '미제출' : data['계약상태'];
+            const clientName = isUnsubmitted ? maskContractor(data['계약자']) : data['계약자'];
 
             modal.innerHTML = `
             <div class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transform transition-transform translate-y-0 slide-up">
@@ -1534,22 +1617,31 @@
                 <div class="p-5 overflow-y-auto custom-scrollbar flex-grow">
                     <div class="bg-gray-50/50 rounded-xl p-4 border border-gray-100/50 space-y-1 mb-4">
                         <div class="flex justify-between items-start mb-2">
-                             <div class="font-bold text-gray-900 text-xl">${data['계약자']}</div>
-                             <span class="px-2 py-1 text-[11px] font-bold rounded-md ${badgeClass}">${data['계약상태']}</span>
+                             <div class="font-bold text-gray-900 text-xl">${clientName}</div>
+                             <span class="px-2 py-1 text-[11px] font-bold rounded-md ${badgeClass}">${badgeText}</span>
                         </div>
                         <div class="text-sm font-medium text-gray-700 leading-snug">${data['상품명']}</div>
                         <div class="text-[11px] font-mono text-gray-400 mt-1">${maskPolicyNo(data['증권번호'])} · ${data['보험사']}</div>
                     </div>
                     
                     <div class="px-1 text-sm text-gray-800 mb-6">
-                         <div class="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">납입 및 담당 정보</div>
-                         ${detailRow('계속보험료', formatMoney(data['계속보험료']), true)}
-                         ${detailRow('최종납입월', data['최종납입월'])}
-                         ${detailRow('납입회차', data['납입회차'])}
-                         ${detailRow('계약일', data['계약일'])}
-                         ${detailRow('수금인명 (담당)', `<span class="font-bold">${data['수금인명']}</span>`)}
-                         ${detailRow('모집인명', data['모집인명'])}
-                         ${detailRow('데이터기준일', `<span class="text-xs text-gray-400">${data['데이터기준일']}</span>`)}
+                         <div class="font-bold text-gray-900 mb-2 border-b border-gray-100 pb-2">${isUnsubmitted ? '계약 및 확인서 정보' : '납입 및 담당 정보'}</div>
+                         ${isUnsubmitted ? `
+                             ${detailRow('보험료', formatMoney(data['보험료']), true)}
+                             ${detailRow('모집인', `<span class="font-bold">${data['모집인']}</span>`)}
+                             ${detailRow('보험사', data['보험사'])}
+                             ${detailRow('계약일', data['계약일'])}
+                             ${detailRow('제출여부', '미제출')}
+                             ${detailRow('데이터기준일', `<span class="text-xs text-gray-400">${data['데이터기준일']}</span>`)}
+                         ` : `
+                             ${detailRow('계속보험료', formatMoney(data['계속보험료']), true)}
+                             ${detailRow('최종납입월', data['최종납입월'])}
+                             ${detailRow('납입회차', data['납입회차'])}
+                             ${detailRow('계약일', data['계약일'])}
+                             ${detailRow('수금인명 (담당)', `<span class="font-bold">${data['수금인명']}</span>`)}
+                             ${detailRow('모집인명', data['모집인명'])}
+                             ${detailRow('데이터기준일', `<span class="text-xs text-gray-400">${data['데이터기준일']}</span>`)}
+                         `}
                     </div>
                 </div>
                 <div class="p-4 bg-white border-t border-gray-100 safe-area-pb">
@@ -4384,6 +4476,7 @@
             if (type === 'lapsed') dataToRender = (res.lapsed || []);
             else if (type === 'arrears') dataToRender = (res.arrears || []);
             else if (type === 'unpaid') dataToRender = (res.unpaid || []);
+            else if (type === 'unsubmitted') dataToRender = (res.unsubmitted || []);
 
             openLapseAdminDetailModal(dataToRender, staffName, type);
         };
@@ -4395,26 +4488,75 @@
 
             const isArrears = type === 'arrears';
             const isUnpaid = type === 'unpaid';
-            const colorClass = isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red');
-            const titleText = isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트');
+            const isUnsubmitted = type === 'unsubmitted';
+            const colorClass = isUnsubmitted ? 'indigo' : (isUnpaid ? 'blue' : (isArrears ? 'orange' : 'red'));
+            const titleText = isUnsubmitted ? '신계약 확인서 미제출 리스트' : (isUnpaid ? '당월 미납계약 리스트' : (isArrears ? '당월 연체계약 리스트' : '당월 실효계약 리스트'));
 
-            const rows = data.length ? data.map(x => `
-             <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-               <td class="p-3 text-center">
-                   <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
-               </td>
-               <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
-               <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
-               <td class="p-3 text-gray-700 max-w-[80px] truncate">${x['보험사']}</td>
-               <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
-               <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
-               <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['계속보험료'])}</td>
-               <td class="p-3 text-xs text-gray-500 min-w-[85px]">${x['계약일']}</td>
-               <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
-               <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
-               <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-               <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
-             </tr>`).join('') : `<tr><td colspan="12" class="p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</td></tr>`;
+            const theadHtml = isUnsubmitted ? `
+                <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600 border-b border-gray-200">
+                    <th class="p-3 font-semibold text-center">제출여부</th>
+                    <th class="p-3 font-semibold text-center">모집인</th>
+                    <th class="p-3 font-semibold">보험사</th>
+                    <th class="p-3 font-semibold">증권번호</th>
+                    <th class="p-3 font-semibold">상품명</th>
+                    <th class="p-3 text-right font-semibold">보험료</th>
+                    <th class="p-3 font-semibold">계약일</th>
+                    <th class="p-3 text-center font-semibold">계약자</th>
+                    <th class="p-3 text-center font-semibold">기준일</th>
+                </tr></thead>
+            ` : `
+                <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600 border-b border-gray-200">
+                    <th class="p-3 font-semibold text-center">상태</th>
+                    <th class="p-3 font-semibold text-center">모집인</th>
+                    <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
+                    <th class="p-3 font-semibold">보험사</th>
+                    <th class="p-3 font-semibold">증권번호</th>
+                    <th class="p-3 font-semibold">상품명</th>
+                    <th class="p-3 text-right font-semibold">계속보험료</th>
+                    <th class="p-3 font-semibold min-w-[85px]">계약일</th>
+                    <th class="p-3 text-center font-semibold">납입회차</th>
+                    <th class="p-3 text-center font-semibold">최종납입월</th>
+                    <th class="p-3 text-center font-semibold">계약자</th>
+                    <th class="p-3 text-center font-semibold min-w-[85px]">기준일</th>
+                </tr></thead>
+            `;
+
+            const rows = data.length ? data.map(x => {
+                if (isUnsubmitted) {
+                    return `
+                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                       <td class="p-3 text-center">
+                           <span class="px-2 py-1 text-[10px] font-bold rounded-lg bg-red-50 text-red-600 border border-red-100">미제출</span>
+                       </td>
+                       <td class="p-3 text-center text-gray-700">${x['모집인']}</td>
+                       <td class="p-3 text-gray-700">${x['보험사']}</td>
+                       <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
+                       <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                       <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['보험료'])}</td>
+                       <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+                       <td class="p-3 text-center font-medium text-gray-700">${maskContractor(x['계약자'])}</td>
+                       <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
+                     </tr>`;
+                } else {
+                    return `
+                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                       <td class="p-3 text-center">
+                           <span class="px-2 py-1 text-[10px] font-bold rounded-lg ${String(x['계약상태']).includes('실효') ? 'bg-red-50 text-red-600 border border-red-100' : (String(x['계약상태']).includes('연체') ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-600')}">${x['계약상태']}</span>
+                       </td>
+                       <td class="p-3 text-center text-gray-700">${x['모집인명']}</td>
+                       <td class="p-3 text-center font-bold text-gray-800">${x['수금인명']}</td>
+                       <td class="p-3 text-gray-700 max-w-[80px] truncate">${x['보험사']}</td>
+                       <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
+                       <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                       <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['계속보험료'])}</td>
+                       <td class="p-3 text-xs text-gray-500 min-w-[85px]">${x['계약일']}</td>
+                       <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
+                       <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
+                       <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
+                       <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
+                     </tr>`;
+                }
+            }).join('') : `<tr><td colspan="${isUnsubmitted ? 9 : 12}" class="p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</td></tr>`;
 
             modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl w-full max-w-[95%] xl:max-w-[1280px] flex flex-col max-h-[90vh] overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
                 <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -4426,20 +4568,7 @@
                 </div>
                 <div class="overflow-x-auto flex-grow bg-white p-0">
                     <table class="w-full text-sm whitespace-nowrap min-w-[1000px]">
-                        <thead class="bg-gray-100/80 sticky top-0 z-10 shadow-sm backdrop-blur-sm"><tr class="text-left text-gray-600 border-b border-gray-200">
-                            <th class="p-3 font-semibold text-center">상태</th>
-                            <th class="p-3 font-semibold text-center">모집인</th>
-                            <th class="p-3 font-semibold text-center text-gray-800">수금인</th>
-                            <th class="p-3 font-semibold">보험사</th>
-                            <th class="p-3 font-semibold">증권번호</th>
-                            <th class="p-3 font-semibold">상품명</th>
-                            <th class="p-3 text-right font-semibold">계속보험료</th>
-                            <th class="p-3 font-semibold min-w-[85px]">계약일</th>
-                            <th class="p-3 text-center font-semibold">납입회차</th>
-                            <th class="p-3 text-center font-semibold">최종납입월</th>
-                            <th class="p-3 text-center font-semibold">계약자</th>
-                            <th class="p-3 text-center font-semibold min-w-[85px]">기준일</th>
-                        </tr></thead>
+                        ${theadHtml}
                         <tbody class="divide-y divide-gray-100">${rows}</tbody>
                     </table>
                 </div>
@@ -4471,10 +4600,10 @@
                 list = list.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
             }
 
-            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0) || (includeUnpaid && x.unpaid && parseInt(x.unpaid) > 0));
+            const targetList = list.filter(x => (x.lapsed && parseInt(x.lapsed) > 0) || (x.arrears && parseInt(x.arrears) > 0) || (includeUnpaid && x.unpaid && parseInt(x.unpaid) > 0) || (x.unsubmitted && parseInt(x.unsubmitted) > 0));
 
             if (targetList.length === 0) {
-                alert('현재 조회된 인원 중 ' + (includeUnpaid ? '당월 실효, 연체 또는 미납' : '당월 실효나 연체') + ' 건이 있는 대상이 없습니다.');
+                alert('현재 조회된 인원 중 ' + (includeUnpaid ? '당월 실효, 연체, 미납 또는 확인서 미제출' : '당월 실효, 연체 또는 확인서 미제출') + ' 건이 있는 대상이 없습니다.');
                 return;
             }
 
@@ -4501,6 +4630,7 @@
                     .section-title.lapsed::before { content: ''; display: block; width: 6px; height: 16px; background-color: #ef4444; border-radius: 4px; }
                     .section-title.arrears::before { content: ''; display: block; width: 6px; height: 16px; background-color: #f97316; border-radius: 4px; }
                     .section-title.unpaid::before { content: ''; display: block; width: 6px; height: 16px; background-color: #2563eb; border-radius: 4px; }
+                    .section-title.unsubmitted::before { content: ''; display: block; width: 6px; height: 16px; background-color: #6366f1; border-radius: 4px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
                     th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: center; word-break: keep-all; }
                     th { background-color: #f3f4f6; font-weight: 700; color: #4b5563; }
@@ -4548,12 +4678,13 @@
                 const lapsedData = d.lapsed || [];
                 const arrearsData = d.arrears || [];
                 const unpaidData = d.unpaid || [];
+                const unsubmittedData = d.unsubmitted || [];
 
                 printHtml += `<div class="page">
                     <div class="header">
                         <div style="display: flex; align-items: center;">
                             <span class="header-pill">${state.lapseBaseType === 'recruiter' ? '모집인 기준' : '수금인 기준'}</span>
-                            <h2>[${person.name}] 당월 실효 & 연체계약 상세 리스트</h2>
+                            <h2>[${person.name}] 당월 계약유지 및 확인서 미제출 상세 리스트</h2>
                         </div>
                         <div style="font-size: 13px; font-weight: 600; color: #555;">출력일 : ${todayStr}</div>
                     </div>`;
@@ -4693,6 +4824,42 @@
                     } else {
                         printHtml += `<div class="empty-message">해당하는 미납 계약 내역이 없습니다.</div>`;
                     }
+                }
+
+                // 확인서 미제출 계약
+                printHtml += `<div class="section-title unsubmitted">신계약 확인서 미제출 리스트 (총 ${unsubmittedData.length}건)</div>`;
+                if (unsubmittedData.length > 0) {
+                    printHtml += `<table>
+                        <thead>
+                            <tr>
+                                <th style="width: 8%">제출여부</th>
+                                <th style="width: 10%">모집인</th>
+                                <th style="width: 12%">보험사</th>
+                                <th style="width: 15%">증권번호</th>
+                                <th style="width: 25%" class="text-left">상품명</th>
+                                <th style="width: 10%" class="text-right">보험료</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">계약일</th>
+                                <th style="width: 10%">계약자</th>
+                                <th style="width: 85px; min-width: 85px; white-space: nowrap;">기준일</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+                    unsubmittedData.forEach(x => {
+                        printHtml += `<tr>
+                            <td><span class="badge badge-red">미제출</span></td>
+                            <td>${x['모집인']}</td>
+                            <td>${x['보험사']}</td>
+                            <td style="font-family: monospace;">${x['증권번호']}</td>
+                            <td class="text-left font-bold" style="color:#1f2937;"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
+                            <td class="text-right font-bold tabular-nums" style="color:#2563eb;">${formatMoney(x['보험료'])}</td>
+                            <td style="min-width: 85px;">${x['계약일']}</td>
+                            <td class="font-bold" style="color:#2563eb;">${maskContractor(x['계약자'])}</td>
+                            <td style="color:#6b7280; font-size:10px; min-width: 85px;">${x['데이터기준일'] || '-'}</td>
+                        </tr>`;
+                    });
+                    printHtml += `</tbody></table>`;
+                } else {
+                    printHtml += `<div class="empty-message">해당하는 확인서 미제출 계약 내역이 없습니다.</div>`;
                 }
 
                 printHtml += `<div class="footer-note">* 본 자료는 작성 시점 기준이며 실시간 데이터 반영 등에 따라 실제와 다를 수 있습니다.</div></div>`;
