@@ -6041,39 +6041,12 @@
             const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth);
             state.isLoading = false;
 
-            // 데이터 존재 여부 검증
-            const hasData = res && res.success && (res.barData.length > 0 || (res.pieData && (res.pieData.life > 0 || res.pieData.nonLife > 0)));
-
-            if (res && res.success && !hasData && state.perfAnalysisMonth !== 'All') {
-                state.perfAnalysisRetryCount = state.perfAnalysisRetryCount || 0;
-                if (state.perfAnalysisRetryCount < 12) {
-                    state.perfAnalysisRetryCount++;
-                    let currentYear = parseInt(state.perfAnalysisYear, 10);
-                    let currentMonth = parseInt(state.perfAnalysisMonth, 10);
-                    currentMonth--;
-                    if (currentMonth < 1) {
-                        currentMonth = 12;
-                        currentYear--;
-                    }
-                    // 2026년 1월 미만으로 리트라이 역산 차단
-                    if (currentYear < 2026) {
-                        state.perfAnalysisRetryCount = 0;
-                        state.isLoading = false;
-                        render();
-                        return;
-                    }
-                    state.perfAnalysisYear = String(currentYear);
-                    state.perfAnalysisMonth = String(currentMonth).padStart(2, '0');
-                    fetchPerformanceAnalysisData();
-                    return;
-                }
-            }
-
-            state.perfAnalysisRetryCount = 0;
-
             if (res && res.success) {
                 state.perfAnalysisData = res;
                 state.perfAnalysisLoaded = true;
+                // 백엔드가 폴백(fallback)하여 데이터를 불러온 실제 연월 값으로 상태를 동기화
+                if (res.year) state.perfAnalysisYear = res.year;
+                if (res.month) state.perfAnalysisMonth = res.month;
                 render();
                 // [NEW] 기준일 업데이트 (render 후 요소가 생성된 후 다시 한번 확실히 확인)
                 const refDateEl = document.getElementById('perf-analysis-ref-date');
@@ -6100,8 +6073,26 @@
                 state.perfAnalysisMonth = '01';
             }
 
-            // 연도/월 선택 옵션 생성 (2026년 1월부터만 조회 가능하도록 제한)
-            const allowedMonths = state.months.filter(m => m >= '202601');
+            // 2026년 1월부터 로컬 타임 기준 현재 월까지 월 리스트를 동적으로 생성
+            const dynamicMonths = [];
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonthNum = now.getMonth() + 1;
+            let y = 2026;
+            let m = 1;
+            while (y < currentYear || (y === currentYear && m <= currentMonthNum)) {
+                dynamicMonths.push(String(y) + String(m).padStart(2, '0'));
+                m++;
+                if (m > 12) {
+                    m = 1;
+                    y++;
+                }
+            }
+
+            // 기존 state.months와 병합 후 202601 이상의 고유 월 리스트 생성 및 정렬
+            const rawMonths = (state.months || []).concat(dynamicMonths);
+            const allowedMonths = [...new Set(rawMonths)].filter(m => m >= '202601').sort();
+
             const years = [...new Set(allowedMonths.map(m => m.substring(0, 4)))].sort().reverse();
             const yearOptions = years.map(y => `<option value="${y}" ${y === state.perfAnalysisYear ? 'selected' : ''}>${y}년</option>`).join('');
             
@@ -6153,7 +6144,7 @@
                                 <div class="p-2 bg-orange-50 rounded-xl text-primary">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                                 </div>
-                                <h3 class="text-lg font-bold text-gray-800">보험사별 실적 분석 (보험료)</h3>
+                                <h3 class="text-lg font-bold text-gray-800">${state.perfAnalysisYear}년 ${state.perfAnalysisMonth === 'All' ? '전체' : parseInt(state.perfAnalysisMonth) + '월'} 보험사별 실적 (장기보험료)</h3>
                             </div>
                             <div class="relative w-32 md:w-36">
                                 <select id="company-type-select" class="appearance-none w-full bg-gray-50 border-none text-gray-700 font-bold py-2 pl-4 pr-8 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-sm">
