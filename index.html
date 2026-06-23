@@ -4207,7 +4207,7 @@
                             </label>
                             <div class="w-px h-4 bg-indigo-200 hidden sm:block"></div>
                             <button onclick="printAllLapseAdminDetails()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm flex-1 sm:flex-none">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 전체 프린트
                             </button>
                             <button onclick="downloadAllLapseAdminExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm flex-1 sm:flex-none">
@@ -4971,113 +4971,200 @@
             }
         };
 
+        // SheetJS (xlsx-js-style) 라이브러리 동적 로드 헬퍼
+        function loadXlsxLibrary(callback) {
+            if (window.XLSX) {
+                callback();
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
+            script.onload = callback;
+            script.onerror = () => {
+                showLoading(false);
+                alert('엑셀 라이브러리(xlsx-js-style) 로드에 실패했습니다. 네트워크 연결 상태를 확인해주세요.');
+            };
+            document.head.appendChild(script);
+        }
+
         window.downloadAllLapseAdminExcel = async function () {
             showLoading(true);
-            const res = await callApi('getAdminLapseArrearsDetailsAll', state.user.staffId, state.lapseBaseType);
-            showLoading(false);
-            
-            if (res.error || !res.success) {
-                alert('엑셀 데이터를 가져오지 못했습니다: ' + (res.message || '네트워크 오류'));
-                return;
-            }
-            
-            const list = res.list || [];
-            if (list.length === 0) {
-                alert('저장할 실효/연체 계약 내역이 없습니다.');
-                return;
-            }
-            
-            // Excel HTML / XML 포맷 구성
-            let excelHtml = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/1999/xhtml">
-            <head>
-                <meta http-equiv="content-type" content="text/plain; charset=UTF-8"/>
-                <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>실효연체리스트</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-                <style>
-                    table { border-collapse: collapse; }
-                    th { background-color: #4f46e5; color: #ffffff; font-weight: bold; border: 1px solid #d1d5db; padding: 10px 8px; text-align: center; font-size: 13px; }
-                    td { border: 1px solid #e5e7eb; padding: 8px; font-size: 12px; }
-                    .num { mso-number-format: "\\#\\,\\#\\#0"; text-align: right; }
-                    .text { mso-number-format: "\\@"; text-align: left; }
-                    .center { text-align: center; }
-                </style>
-            </head>
-            <body>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>상태</th>
-                            <th>모집인</th>
-                            <th>수금인</th>
-                            <th>보험사</th>
-                            <th>증권번호</th>
-                            <th>상품명</th>
-                            <th>계속보험료</th>
-                            <th>계약일</th>
-                            <th>납입회차</th>
-                            <th>최종납입월</th>
-                            <th>계약자</th>
-                            <th>기준일</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            let prevId = null;
-            let prevName = null;
-            
-            list.forEach(x => {
-                const currentId = x['사번'];
-                const currentName = state.lapseBaseType === 'collector' ? x['수금인명'] : x['모집인명'];
-                
-                // 파트너(사번) 변경 시 구분선 주입
-                if (prevId !== null && prevId !== currentId) {
-                    excelHtml += `
-                        <tr>
-                            <td colspan="12" style="background-color: #f3f4f6; font-weight: bold; color: #374151; font-size: 11px; text-align: left; padding: 6px 12px; border-top: 2px solid #9ca3af; border-bottom: 2px solid #9ca3af;">
-                                ─────────── 파트너 구분선 [${currentName} (${currentId})] ───────────
-                            </td>
-                        </tr>
-                    `;
+            loadXlsxLibrary(async () => {
+                try {
+                    const res = await callApi('getAdminLapseArrearsDetailsAll', state.user.staffId, state.lapseBaseType);
+                    showLoading(false);
+                    
+                    if (res.error || !res.success) {
+                        alert('엑셀 데이터를 가져오지 못했습니다: ' + (res.message || '네트워크 오류'));
+                        return;
+                    }
+                    
+                    const list = res.list || [];
+                    if (list.length === 0) {
+                        alert('저장할 실효/연체 계약 내역이 없습니다.');
+                        return;
+                    }
+                    
+                    // 엑셀에 쓸 AOA 데이터 생성
+                    const ws_data = [];
+                    // 헤더 추가
+                    ws_data.push(['상태', '모집인', '수금인', '보험사', '증권번호', '상품명', '계속보험료', '계약일', '납입회차', '최종납입월', '계약자', '기준일']);
+                    
+                    const merges = [];
+                    let prevId = null;
+                    
+                    list.forEach(x => {
+                        const currentId = x['사번'];
+                        const currentName = state.lapseBaseType === 'collector' ? x['수금인명'] : x['모집인명'];
+                        
+                        // 파트너(사번) 변경 시 구분선 주입 (맨 첫 번째 사원 위에도 포함하도록 prevId가 null이어도 무조건 맨 처음에 들어감)
+                        if (prevId !== currentId) {
+                            const rowIdx = ws_data.length;
+                            ws_data.push([`${currentName} (${currentId})`, "", "", "", "", "", "", "", "", "", "", ""]);
+                            merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
+                        }
+                        
+                        ws_data.push([
+                            x['계약상태'] || '-',
+                            x['모집인명'] || '-',
+                            x['수금인명'] || '-',
+                            x['보험사'] || '-',
+                            x['증권번호'] || '-',
+                            x['상품명'] || '-',
+                            Number(x['계속보험료'] || 0),
+                            x['계약일'] || '-',
+                            x['납입회차'] || '-',
+                            x['최종납입월'] || '-',
+                            x['계약자'] || '-',
+                            x['데이터기준일'] || '-'
+                        ]);
+                        prevId = currentId;
+                    });
+                    
+                    // Workbook 생성
+                    const wb = XLSX.utils.book_new();
+                    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+                    
+                    // 병합 설정 적용
+                    ws['!merges'] = merges;
+                    
+                    // 첫 행 고정(Freeze Pane) 적용
+                    ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+                    
+                    // 스타일 적용
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    for (let r = range.s.r; r <= range.e.r; ++r) {
+                        for (let c = range.s.c; c <= range.e.c; ++c) {
+                            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+                            let cell = ws[cellRef];
+                            if (!cell) continue;
+                            
+                            // 기본 보더 설정
+                            const borderStyle = {
+                                top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                                bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                                left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+                                right: { style: 'thin', color: { rgb: 'D1D5DB' } }
+                            };
+                            
+                            cell.s = {
+                                border: borderStyle,
+                                font: { name: '맑은 고딕', sz: 10 },
+                                alignment: { vertical: 'center', wrapText: false }
+                            };
+                            
+                            if (r === 0) {
+                                // 헤더 스타일
+                                cell.s.fill = { fgColor: { rgb: '4F46E5' } };
+                                cell.s.font.color = { rgb: 'FFFFFF' };
+                                cell.s.font.bold = true;
+                                cell.s.alignment.horizontal = 'center';
+                            } else {
+                                // 구분선 행 판별 (merges에서 시작 행인지 확인)
+                                const isMergeRow = merges.some(m => m.s.r === r);
+                                if (isMergeRow) {
+                                    cell.s.fill = { fgColor: { rgb: 'F3F4F6' } };
+                                    cell.s.font.color = { rgb: '374151' };
+                                    cell.s.font.bold = true;
+                                    cell.s.alignment.horizontal = 'left';
+                                    cell.s.border.top = { style: 'medium', color: { rgb: '9CA3AF' } };
+                                    cell.s.border.bottom = { style: 'medium', color: { rgb: '9CA3AF' } };
+                                } else {
+                                    // 데이터 스타일
+                                    if (c === 0) {
+                                        // 상태 열
+                                        cell.s.alignment.horizontal = 'center';
+                                        if (cell.v === '실효') {
+                                            cell.s.font.color = { rgb: 'EF4444' }; // 빨간색
+                                            cell.s.font.bold = true;
+                                        } else if (cell.v === '연체') {
+                                            cell.s.font.color = { rgb: '2563EB' }; // 파란색
+                                            cell.s.font.bold = true;
+                                        }
+                                    }
+                                    else if (c === 1 || c === 2 || c === 7 || c === 8 || c === 9 || c === 10 || c === 11) {
+                                        // 가운데 정렬 열
+                                        cell.s.alignment.horizontal = 'center';
+                                    }
+                                    else if (c === 4) {
+                                        // 증권번호 (텍스트 형식)
+                                        cell.s.alignment.horizontal = 'left';
+                                        cell.t = 's';
+                                    }
+                                    else if (c === 6) {
+                                        // 계속보험료 (숫자 형식)
+                                        cell.s.alignment.horizontal = 'right';
+                                        cell.t = 'n';
+                                        cell.z = '#,##0';
+                                    }
+                                    else if (c === 5) {
+                                        // 상품명 (줄바꿈 방지)
+                                        cell.s.alignment.horizontal = 'left';
+                                        cell.s.alignment.wrapText = false;
+                                    }
+                                    else if (c === 3) {
+                                        // 보험사 (좌측 정렬)
+                                        cell.s.alignment.horizontal = 'left';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 열 너비 계산 및 적용
+                    const colWidths = [];
+                    for (let c = range.s.c; c <= range.e.c; ++c) {
+                        let maxLen = 10;
+                        for (let r = range.s.r; r <= range.e.r; ++r) {
+                            const isMergeRow = merges.some(m => m.s.r === r);
+                            if (isMergeRow) continue;
+                            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
+                            const cell = ws[cellRef];
+                            if (cell && cell.v) {
+                                const valStr = String(cell.v);
+                                let len = 0;
+                                for (let i = 0; i < valStr.length; i++) {
+                                    len += valStr.charCodeAt(i) > 128 ? 2 : 1;
+                                }
+                                if (len > maxLen) maxLen = len;
+                            }
+                        }
+                        colWidths.push({ wch: maxLen + 2 });
+                    }
+                    ws['!cols'] = colWidths;
+                    
+                    XLSX.utils.book_append_sheet(wb, ws, "실효연체리스트");
+                    
+                    const baseTypeName = state.lapseBaseType === 'collector' ? '수금인' : '모집인';
+                    const fileName = `실효연체관리_${baseTypeName}기준_전체_${new Date().toISOString().substring(0, 10)}.xlsx`;
+                    
+                    XLSX.writeFile(wb, fileName);
+                } catch (e) {
+                    showLoading(false);
+                    console.error(e);
+                    alert('엑셀 다운로드 중 오류가 발생했습니다: ' + e.message);
                 }
-                
-                excelHtml += `
-                    <tr>
-                        <td class="center">${x['계약상태'] || '-'}</td>
-                        <td class="center">${x['모집인명'] || '-'}</td>
-                        <td class="center">${x['수금인명'] || '-'}</td>
-                        <td>${x['보험사'] || '-'}</td>
-                        <td class="text">${x['증권번호'] || '-'}</td>
-                        <td>${x['상품명'] || '-'}</td>
-                        <td class="num">${Number(x['계속보험료'] || 0)}</td>
-                        <td class="center">${x['계약일'] || '-'}</td>
-                        <td class="center">${x['납입회차'] || '-'}</td>
-                        <td class="center">${x['최종납입월'] || '-'}</td>
-                        <td class="center">${x['계약자'] || '-'}</td>
-                        <td class="center">${x['데이터기준일'] || '-'}</td>
-                    </tr>
-                `;
-                prevId = currentId;
-                prevName = currentName;
             });
-            
-            excelHtml += `
-                    </tbody>
-                </table>
-            </body>
-            </html>
-            `;
-            
-            const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            const baseTypeName = state.lapseBaseType === 'collector' ? '수금인' : '모집인';
-            link.setAttribute("href", url);
-            link.setAttribute("download", `실효연체관리_${baseTypeName}기준_전체_${new Date().toISOString().substring(0, 10)}.xls`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         };
 
         // --- 7. Modals & Popups ---
