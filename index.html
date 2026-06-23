@@ -4971,25 +4971,25 @@
             }
         };
 
-        // SheetJS (xlsx-js-style) 라이브러리 동적 로드 헬퍼
-        function loadXlsxLibrary(callback) {
-            if (window.XLSX) {
+        // ExcelJS 라이브러리 동적 로드 헬퍼
+        function loadExcelJS(callback) {
+            if (window.ExcelJS) {
                 callback();
                 return;
             }
             const script = document.createElement('script');
-            script.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js";
             script.onload = callback;
             script.onerror = () => {
                 showLoading(false);
-                alert('엑셀 라이브러리(xlsx-js-style) 로드에 실패했습니다. 네트워크 연결 상태를 확인해주세요.');
+                alert('엑셀 라이브러리(ExcelJS) 로드에 실패했습니다. 네트워크 연결 상태를 확인해주세요.');
             };
             document.head.appendChild(script);
         }
 
         window.downloadAllLapseAdminExcel = async function () {
             showLoading(true);
-            loadXlsxLibrary(async () => {
+            loadExcelJS(async () => {
                 try {
                     const res = await callApi('getAdminLapseArrearsDetailsAll', state.user.staffId, state.lapseBaseType);
                     showLoading(false);
@@ -5005,12 +5005,40 @@
                         return;
                     }
                     
-                    // 엑셀에 쓸 AOA 데이터 생성
-                    const ws_data = [];
-                    // 헤더 추가
-                    ws_data.push(['상태', '모집인', '수금인', '보험사', '증권번호', '상품명', '계속보험료', '계약일', '납입회차', '최종납입월', '계약자', '기준일']);
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet('실효연체리스트');
                     
-                    const merges = [];
+                    // 첫 행 고정 (Freeze Pane)
+                    worksheet.views = [
+                        { state: 'frozen', xSplit: 0, ySplit: 1 }
+                    ];
+                    
+                    // 헤더 추가
+                    const header = ['상태', '모집인', '수금인', '보험사', '증권번호', '상품명', '계속보험료', '계약일', '납입회차', '최종납입월', '계약자', '기준일'];
+                    const headerRow = worksheet.addRow(header);
+                    
+                    // 헤더 스타일 지정
+                    headerRow.eachCell((cell) => {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FF4F46E5' }
+                        };
+                        cell.font = {
+                            name: '맑은 고딕',
+                            size: 10,
+                            color: { argb: 'FFFFFFFF' },
+                            bold: true
+                        };
+                        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                        };
+                    });
+                    
                     let prevId = null;
                     
                     list.forEach(x => {
@@ -5019,12 +5047,35 @@
                         
                         // 파트너(사번) 변경 시 구분선 주입 (맨 첫 번째 사원 위에도 포함하도록 prevId가 null이어도 무조건 맨 처음에 들어감)
                         if (prevId !== currentId) {
-                            const rowIdx = ws_data.length;
-                            ws_data.push([`${currentName} (${currentId})`, "", "", "", "", "", "", "", "", "", "", ""]);
-                            merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: 11 } });
+                            const mergeRow = worksheet.addRow([`${currentName} (${currentId})`]);
+                            worksheet.mergeCells(mergeRow.number, 1, mergeRow.number, 12);
+                            
+                            // 구분선 스타일 지정
+                            mergeRow.getCell(1).fill = {
+                                type: 'pattern',
+                                pattern: 'solid',
+                                fgColor: { argb: 'FFF3F4F6' }
+                            };
+                            mergeRow.getCell(1).font = {
+                                name: '맑은 고딕',
+                                size: 10,
+                                color: { argb: 'FF374151' },
+                                bold: true
+                            };
+                            mergeRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                            
+                            for (let i = 1; i <= 12; i++) {
+                                const cell = mergeRow.getCell(i);
+                                cell.border = {
+                                    top: { style: 'medium', color: { argb: 'FF9CA3AF' } },
+                                    bottom: { style: 'medium', color: { argb: 'FF9CA3AF' } },
+                                    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                                };
+                            }
                         }
                         
-                        ws_data.push([
+                        const dataRow = worksheet.addRow([
                             x['계약상태'] || '-',
                             x['모집인명'] || '-',
                             x['수금인명'] || '-',
@@ -5038,127 +5089,83 @@
                             x['계약자'] || '-',
                             x['데이터기준일'] || '-'
                         ]);
+                        
+                        dataRow.eachCell((cell, colNumber) => {
+                            cell.font = { name: '맑은 고딕', size: 10 };
+                            cell.border = {
+                                top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                            };
+                            
+                            if (colNumber === 1) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                if (cell.value === '실효') {
+                                    cell.font.color = { argb: 'FFEF4444' };
+                                    cell.font.bold = true;
+                                } else if (cell.value === '연체') {
+                                    cell.font.color = { argb: 'FF2563EB' };
+                                    cell.font.bold = true;
+                                }
+                            }
+                            else if ([2, 3, 8, 9, 10, 11, 12].includes(colNumber)) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                            }
+                            else if (colNumber === 5) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                                cell.numFmt = '@';
+                            }
+                            else if (colNumber === 7) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false };
+                                cell.numFmt = '#,##0';
+                            }
+                            else if (colNumber === 6) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                            }
+                            else if (colNumber === 4) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                            }
+                        });
+                        
                         prevId = currentId;
                     });
                     
-                    // Workbook 생성
-                    const wb = XLSX.utils.book_new();
-                    const ws = XLSX.utils.aoa_to_sheet(ws_data);
-                    
-                    // 병합 설정 적용
-                    ws['!merges'] = merges;
-                    
-                    // 첫 행 고정(Freeze Pane) 적용
-                    ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
-                    
-                    // 스타일 적용
-                    const range = XLSX.utils.decode_range(ws['!ref']);
-                    for (let r = range.s.r; r <= range.e.r; ++r) {
-                        for (let c = range.s.c; c <= range.e.c; ++c) {
-                            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
-                            let cell = ws[cellRef];
-                            if (!cell) continue;
-                            
-                            // 기본 보더 설정
-                            const borderStyle = {
-                                top: { style: 'thin', color: { rgb: 'D1D5DB' } },
-                                bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
-                                left: { style: 'thin', color: { rgb: 'D1D5DB' } },
-                                right: { style: 'thin', color: { rgb: 'D1D5DB' } }
-                            };
-                            
-                            cell.s = {
-                                border: borderStyle,
-                                font: { name: '맑은 고딕', sz: 10 },
-                                alignment: { vertical: 'center', wrapText: false }
-                            };
-                            
-                            if (r === 0) {
-                                // 헤더 스타일
-                                cell.s.fill = { fgColor: { rgb: '4F46E5' } };
-                                cell.s.font.color = { rgb: 'FFFFFF' };
-                                cell.s.font.bold = true;
-                                cell.s.alignment.horizontal = 'center';
-                            } else {
-                                // 구분선 행 판별 (merges에서 시작 행인지 확인)
-                                const isMergeRow = merges.some(m => m.s.r === r);
-                                if (isMergeRow) {
-                                    cell.s.fill = { fgColor: { rgb: 'F3F4F6' } };
-                                    cell.s.font.color = { rgb: '374151' };
-                                    cell.s.font.bold = true;
-                                    cell.s.alignment.horizontal = 'left';
-                                    cell.s.border.top = { style: 'medium', color: { rgb: '9CA3AF' } };
-                                    cell.s.border.bottom = { style: 'medium', color: { rgb: '9CA3AF' } };
-                                } else {
-                                    // 데이터 스타일
-                                    if (c === 0) {
-                                        // 상태 열
-                                        cell.s.alignment.horizontal = 'center';
-                                        if (cell.v === '실효') {
-                                            cell.s.font.color = { rgb: 'EF4444' }; // 빨간색
-                                            cell.s.font.bold = true;
-                                        } else if (cell.v === '연체') {
-                                            cell.s.font.color = { rgb: '2563EB' }; // 파란색
-                                            cell.s.font.bold = true;
-                                        }
-                                    }
-                                    else if (c === 1 || c === 2 || c === 7 || c === 8 || c === 9 || c === 10 || c === 11) {
-                                        // 가운데 정렬 열
-                                        cell.s.alignment.horizontal = 'center';
-                                    }
-                                    else if (c === 4) {
-                                        // 증권번호 (텍스트 형식)
-                                        cell.s.alignment.horizontal = 'left';
-                                        cell.t = 's';
-                                    }
-                                    else if (c === 6) {
-                                        // 계속보험료 (숫자 형식)
-                                        cell.s.alignment.horizontal = 'right';
-                                        cell.t = 'n';
-                                        cell.z = '#,##0';
-                                    }
-                                    else if (c === 5) {
-                                        // 상품명 (줄바꿈 방지)
-                                        cell.s.alignment.horizontal = 'left';
-                                        cell.s.alignment.wrapText = false;
-                                    }
-                                    else if (c === 3) {
-                                        // 보험사 (좌측 정렬)
-                                        cell.s.alignment.horizontal = 'left';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // 열 너비 계산 및 적용
-                    const colWidths = [];
-                    for (let c = range.s.c; c <= range.e.c; ++c) {
+                    // 열 너비 계산 및 자동 지정
+                    worksheet.columns.forEach((column) => {
                         let maxLen = 10;
-                        for (let r = range.s.r; r <= range.e.r; ++r) {
-                            const isMergeRow = merges.some(m => m.s.r === r);
-                            if (isMergeRow) continue;
-                            const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
-                            const cell = ws[cellRef];
-                            if (cell && cell.v) {
-                                const valStr = String(cell.v);
-                                let len = 0;
-                                for (let i = 0; i < valStr.length; i++) {
-                                    len += valStr.charCodeAt(i) > 128 ? 2 : 1;
-                                }
-                                if (len > maxLen) maxLen = len;
+                        column.eachCell({ includeEmpty: false }, (cell) => {
+                            const rowNum = cell.row.number;
+                            // 구분선 행(병합된 행)의 첫 번째 셀 이외의 셀은 빈 값으로 처리되므로 건너뜀
+                            if (cell.col > 1 && worksheet.getCell(rowNum, 2).value === '' && worksheet.getCell(rowNum, 1).value !== '' && String(worksheet.getCell(rowNum, 1).value).includes('(')) {
+                                return;
                             }
-                        }
-                        colWidths.push({ wch: maxLen + 2 });
-                    }
-                    ws['!cols'] = colWidths;
-                    
-                    XLSX.utils.book_append_sheet(wb, ws, "실효연체리스트");
+                            // 구분선 텍스트 길이는 열 너비 계산에서 제외
+                            if (cell.col === 1 && String(cell.value || '').includes('(') && String(cell.value || '').length > 15) {
+                                return;
+                            }
+                            
+                            const valStr = String(cell.value || '');
+                            let len = 0;
+                            for (let i = 0; i < valStr.length; i++) {
+                                len += valStr.charCodeAt(i) > 128 ? 2 : 1;
+                            }
+                            if (len > maxLen) maxLen = len;
+                        });
+                        column.width = maxLen + 2;
+                    });
                     
                     const baseTypeName = state.lapseBaseType === 'collector' ? '수금인' : '모집인';
                     const fileName = `실효연체관리_${baseTypeName}기준_전체_${new Date().toISOString().substring(0, 10)}.xlsx`;
                     
-                    XLSX.writeFile(wb, fileName);
+                    const data = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    const url = window.URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.download = fileName;
+                    anchor.click();
+                    window.URL.revokeObjectURL(url);
                 } catch (e) {
                     showLoading(false);
                     console.error(e);
