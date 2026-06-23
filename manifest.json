@@ -2,7 +2,7 @@
   "name": "파트너스 보드",
   "short_name": "파트너스 보드",
   "description": "파트너스 보드",
-  "start_url": "./frontend_spa.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#F37321",
