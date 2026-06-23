@@ -1,8 +1,9 @@
 const CACHE_NAME = 'partners-board-v1';
 const ASSETS_TO_CACHE = [
-  './frontend_spa.html',
+  './index.html',
   './manifest.json',
-  './로고_파트너스본부.png'
+  './pwa-icon-192.png',
+  './pwa-icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
