@@ -7,6 +7,130 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>파트너스 보드</title>
+    <!-- PWA 지원을 위한 Manifest 및 Meta 태그 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="apple-touch-icon" href="./pwa-icon-192.png">
+    
+    <script>
+        // PWA 서비스 워커 등록
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker Registered!'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+
+        // PWA 설치 프롬프트 이벤트를 보관할 전역 변수
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const pwaSection = document.getElementById('pwa-install-section');
+            if (pwaSection) {
+                pwaSection.classList.remove('hidden');
+            }
+        });
+
+        window.addEventListener('appinstalled', (evt) => {
+            const pwaSection = document.getElementById('pwa-install-section');
+            if (pwaSection) {
+                pwaSection.classList.add('hidden');
+            }
+            deferredPrompt = null;
+        });
+
+        // 이미 PWA 단독 앱(standalone)으로 실행 중인지 체크
+        function checkStandalone() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        }
+
+        // 수동 가이드 열기/닫기
+        window.togglePwaGuide = function (show) {
+            const guideId = 'pwa-guide-modal';
+            let modal = document.getElementById(guideId);
+            if (!modal && show) {
+                modal = document.createElement('div');
+                modal.id = guideId;
+                modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 ring-1 ring-black/5 flex flex-col">
+                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                            <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                <span class="w-1.5 h-5 bg-indigo-500 rounded-full block shadow-sm"></span>
+                                기기별 앱 설치 방법 안내
+                            </h3>
+                            <button onclick="togglePwaGuide(false)" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        <div class="p-6 overflow-y-auto max-h-[70vh] space-y-6 text-left text-sm text-gray-600 leading-relaxed">
+                            <div class="space-y-2">
+                                <p class="font-extrabold text-gray-800 text-sm flex items-center gap-1.5">
+                                    <span class="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+                                    안드로이드 (크롬 / 삼성 인터넷)
+                                </p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs text-gray-500">
+                                    <li>상단의 <strong>'파트너스 보드 설치하기'</strong> 버튼을 클릭하면 즉시 설치됩니다.</li>
+                                    <li>만약 버튼이 보이지 않는다면, 우측 상단 메뉴(점 3개 또는 줄 3개)를 누르고 <strong>'홈 화면에 추가'</strong> 또는 <strong>'앱 설치'</strong>를 선택하세요.</li>
+                                </ul>
+                            </div>
+                            <div class="space-y-2 border-t border-gray-100 pt-4">
+                                <p class="font-extrabold text-gray-800 text-sm flex items-center gap-1.5">
+                                    <span class="w-4 h-4 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-bold">2</span>
+                                    아이폰 / 아이패드 (iOS Safari)
+                                </p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs text-gray-500">
+                                    <li>아이폰은 하단(또는 상단) 툴바의 <strong>공유 버튼(네모에 위쪽 화살표)</strong>을 누릅니다.</li>
+                                    <li>공유 메뉴에서 아래로 스크롤하여 <strong>'홈 화면에 추가'</strong>를 선택해 주세요.</li>
+                                </ul>
+                            </div>
+                            <div class="space-y-2 border-t border-gray-100 pt-4">
+                                <p class="font-extrabold text-gray-800 text-sm flex items-center gap-1.5">
+                                    <span class="w-4 h-4 rounded-full bg-purple-500 text-white text-[10px] flex items-center justify-center font-bold">3</span>
+                                    PC (Chrome, Edge 등)
+                                </p>
+                                <ul class="list-disc pl-5 space-y-1 text-xs text-gray-500">
+                                    <li>브라우저 우측 상단 주소창(URL바) 오른쪽에 표시되는 <strong>'설치 아이콘(모니터 모양에 아래 화살표)'</strong>을 클릭하면 설치됩니다.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-gray-50 border-t border-gray-100 text-right">
+                            <button onclick="togglePwaGuide(false)" class="px-6 py-2 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl transition text-xs shadow-md shadow-gray-200">닫기</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            if (modal) {
+                if (show) {
+                    document.body.classList.add('modal-open');
+                    modal.style.display = 'flex';
+                } else {
+                    document.body.classList.remove('modal-open');
+                    modal.style.display = 'none';
+                }
+            }
+        };
+
+        // PWA 설치 트리거
+        window.triggerPwaInstall = async function () {
+            if (!deferredPrompt) {
+                window.togglePwaGuide(true);
+                return;
+            }
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User choice outcome: ${outcome}`);
+            deferredPrompt = null;
+            const pwaSection = document.getElementById('pwa-install-section');
+            if (pwaSection) {
+                pwaSection.classList.add('hidden');
+            }
+        };
+    </script>
 
     <!-- ========================================== -->
     <!-- [필수 설정] 구글 앱스 스크립트 웹앱 URL 입력 -->
@@ -1035,6 +1159,28 @@
                             </div>
                             <button type="submit" class="w-full bg-primary text-white font-bold py-4 rounded-lg hover:bg-primaryHover hover:shadow-lg transition duration-200 text-lg">로그인</button>
                         </form>
+                        
+                        <!-- PWA 앱 설치 유도 배너 -->
+                        ${checkStandalone() ? '' : `
+                        <div id="pwa-install-section" class="bg-indigo-50/50 border border-indigo-100 p-5 rounded-2xl space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-indigo-100 rounded-xl text-primary">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                </div>
+                                <div class="text-left">
+                                    <p class="text-sm font-bold text-gray-800">앱으로 더욱 편리하게</p>
+                                    <p class="text-xs text-gray-500">홈 화면에 바로가기를 추가해 보세요</p>
+                                </div>
+                            </div>
+                            <button id="pwa-install-btn" onclick="triggerPwaInstall()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md shadow-indigo-100 transition duration-200 text-sm flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                파트너스 보드 설치하기
+                            </button>
+                            <button onclick="togglePwaGuide(true)" class="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 font-bold py-2.5 rounded-xl transition duration-200 text-xs">
+                                기기별 설치 방법 안내
+                            </button>
+                        </div>
+                        `}
                         
                         <div class="pt-4 text-center">
                             <p class="text-xs text-gray-400 mb-2">도움이 필요하신가요?</p>
