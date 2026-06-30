@@ -1302,16 +1302,16 @@
                              ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                         </div>
 
-                        ${(isBranchRepAny() || isAdminAny() || state.user.role === "?ㅼ옣" || state.user.role === "?댁쁺吏?) ? `
+                        ${(isBranchRepAny() || isAdminAny() || state.user.role === '실장' || state.user.role === '운영진') ? `
                         <div class="px-6 py-4 mt-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
-                             
-                             
-                             
-                             
-                             
-                             
-                        </div>` : ""}
+                             ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
+                             ${state.user.role === '지사대표' ? sidebarLink('branch', '지사대표', icons.branch) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '실효대체', icons.lapseAdmin) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
+                             ${state.user.role === '지사대표' ? sidebarLink('bondAdmin', '체권관리', icons.bondAdmin) : ''}
+                             ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '遺꾩꽍') ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
+                        </div>` : ''}
 
                     <div class="p-6 bg-slate-900/50 mt-auto border-t border-white/5">
                         <div class="flex items-center gap-3 mb-4">
