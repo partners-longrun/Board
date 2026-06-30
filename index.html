@@ -1302,17 +1302,16 @@
                              ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                         </div>
 
-                        ${(isBranchRepAny() || isAdminAny() || state.user.role === '실장' || state.user.role === '운영진') ? `
+                        ${(isBranchRepAny() || isAdminAny() || state.user.role === "?ㅼ옣" || state.user.role === "?댁쁺吏?) ? `
                         <div class="px-6 py-4 mt-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
-                             ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
-                             ${state.user.role === '지사대표' ? sidebarLink('branch', '지사대표', icons.branch) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
-                             ${state.user.role === '지사대표' ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
-                        </div>` : ''}
-                    </nav>
+                             
+                             
+                             
+                             
+                             
+                             
+                        </div>` : ""}
 
                     <div class="p-6 bg-slate-900/50 mt-auto border-t border-white/5">
                         <div class="flex items-center gap-3 mb-4">
@@ -4122,17 +4121,14 @@
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                     </div>
                     <!-- autoFocus doesn't work well directly in innerHTML replaced tags without extra care, setTimeout will handle focus -->
-                    <input type="text" id="adminSearch" value="${state.adminSearch || ''}" placeholder="이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
-                </div>
-                ${(state.adminTab === 'reward' && state.adminSubTab === 'active' && state.user.role === '지사대표') ? `
+                ${(state.adminTab === "reward" && state.adminSubTab === "active" && state.user.role === "吏?щ???) ? `
                 <div class="w-full sm:w-auto flex justify-end">
                     <button id="adminRecordTotalBtn" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-sm transition whitespace-nowrap flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                        <span>개인별 총수당 기록</span>
+                        <span>媛쒖씤蹂?珥앹닔??湲곕줉</span>
                     </button>
                 </div>
-                ` : ''}
-            </div>
+                ` : ""}
 
             <div id="adminListContainer"></div>
             `;
