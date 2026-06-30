@@ -4085,9 +4085,7 @@
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             const dd = state.data.adminSummary || {};
-            if (dd.error) { div.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">데이터 로드 실패: ${dd.message}</div>`; return div; }
-
-            const isBranch = state.user.role === '지사대표';
+            if (dd.error) { div.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">?곗씠??濡쒕뱶 ?ㅽ뙣: ${dd.message}</div>`; return div; }
 
             const formatAdminMoney = (n) => {
                 let num = Number(n || 0);
@@ -4099,11 +4097,11 @@
             <div class="flex flex-col sm:flex-row justify-between mb-4 items-start sm:items-center gap-4">
                 <div>
                     <h2 class="text-xl font-bold text-gray-800 tracking-tight">관리자 대시보드 (${state.currentMonth})</h2>
-                    <p class="text-gray-500 text-sm mt-1">산하 멤버들의 시상금 현황을 조회합니다.</p>
+                    <p class="text-gray-500 text-sm mt-1">산하 륵버들의 실상금 현황을 조회합니다.</p>
                 </div>
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
-                    <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">시상금</button>
-                    ${!isAdminAny() ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원수당</button>` : ''}
+                    <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">실상금</button>
+                    ${!isAdminAny() ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원스당</button>` : ''}
                 </div>
             </div>
 
@@ -4120,7 +4118,8 @@
                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                     </div>
-                    <!-- autoFocus doesn't work well directly in innerHTML replaced tags without extra care, setTimeout will handle focus -->
+                    <input type="text" id="adminSearch" value="${state.adminSearch || ''}" placeholder="이름 또는 사번 겼색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
+                </div>
                 ${(state.adminTab === 'reward' && state.adminSubTab === 'active' && state.user.role === '지사대표') ? `
                 <div class="w-full sm:w-auto flex justify-end">
                     <button id="adminRecordTotalBtn" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-sm transition whitespace-nowrap flex items-center gap-1.5">
@@ -4128,7 +4127,11 @@
                         <span>개인별 총스당 기록</span>
                     </button>
                 </div>
-                 : ''}
+                ` : ''}
+            </div>
+
+            <div id="adminListContainer"></div>
+            `;
 
             const renderAdminList = () => {
                 const container = div.querySelector('#adminListContainer');
@@ -4147,209 +4150,66 @@
                 const start = (state.adminPage - 1) * state.pageSize;
                 const pageList = list.slice(start, start + state.pageSize);
 
-                // Header Definitions
-                const th = (t, extra = '', isComm = false) => `<th class="px-2 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider ${isComm ? 'bg-slate-50/80' : ''} min-w-[85px] w-[85px] max-w-[85px] ${extra}">${t}</th>`;
-                const td = (v, c = '', onClickStr = '', isComm = false) => `<td class="px-2 py-2 text-right ${c} font-medium text-sm tabular-nums ${isComm ? 'bg-slate-50/50' : ''} ${onClickStr ? 'cursor-pointer hover:bg-blue-50/60' : ''} min-w-[85px] w-[85px] max-w-[85px]" ${onClickStr ? `onclick="${onClickStr}"` : ''}>${formatAdminMoney(v)}</td>`;
-
-                const rows = pageList.map(u => {
-                    let total = 0;
-                    let cols = '';
-                    if (state.adminTab === 'reward') {
-                        const rewardTotal = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0) + (u.hqPay || 0) + (u.hqRef || 0) + (u.nlCorpPay || 0) + (u.nlCorpRef || 0) + (u.lCorpPay || 0) + (u.lCorpRef || 0);
-                        const commTotal = isBranch ? ((u.nlCommPay || 0) + (u.nlCommRef || 0) + (u.lCommPay || 0) + (u.lCommRef || 0) + (u.mgrCommPay || 0) + (u.mgrCommRef || 0)) : 0;
-                        total = rewardTotal + commTotal;
-                        if (isBranch) {
-                            cols += td(u.nlCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','pay')`, true);
-                            cols += td(u.nlCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','nl','refund')`, true);
-                            cols += td(u.lCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','pay')`, true);
-                            cols += td(u.lCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','refund')`, true);
-                            cols += td(u.mgrCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','pay')`, true);
-                            cols += td(u.mgrCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`, true);
-                        }
-                        cols += td(u.nlPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'pay')`);
-                        cols += td(u.nlRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'refund')`);
-                        cols += td(u.lPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보 시상금', 'pay')`);
-                        cols += td(u.lRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보 시상금', 'refund')`);
-                        cols += td(u.hqPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'pay')`);
-                        cols += td(u.hqRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '본부 시상금', 'refund')`);
-                        if (isBranch) {
-                            cols += td(u.nlCorpPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보법인 시상금(개인)', 'pay')`);
-                            cols += td(u.nlCorpRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보법인 시상금(개인)', 'refund')`);
-                            cols += td(u.lCorpPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'pay')`);
-                            cols += td(u.lCorpRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'refund')`);
-                        }
-                    } else {
-                        total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0);
-                        cols = td(u.nlPay || 0, 'text-blue-600') + td(u.nlRef || 0, 'text-red-500 border-r border-gray-200') + td(u.lPay || 0, 'text-blue-600') + td(u.lRef || 0, 'text-red-500 border-r border-gray-200');
-                    }
-                    const dotColor = total === 0 ? 'bg-gray-400' : 'bg-primary/70';
-                    const pcDot = `<div class="inline-block w-1.5 h-1.5 rounded-full ${dotColor} mr-2 align-middle"></div>`;
-                    const nameContent = `${pcDot}${u.name}`;
-                    const nameCell = state.adminTab === 'recruitment'
-                        ? `<td class="${isBranch ? 'min-w-[115px] w-[115px] max-w-[115px]' : 'min-w-[100px]'} px-4 py-2 font-semibold text-blue-600 text-center cursor-pointer hover:underline decoration-blue-300 underline-offset-4 sticky left-0 z-10 bg-white group-hover:bg-gray-100 transition shadow-[inset_-1px_0_0_0_#f3f4f6]" onclick="fetchAndShowOrgTree('${u.id}', '${u.name}')"><div class="flex items-center justify-center text-[13px]">${nameContent}</div></td>`
-                        : `<td class="${isBranch ? 'min-w-[115px] w-[115px] max-w-[115px]' : 'min-w-[100px]'} px-4 py-2 font-semibold text-gray-900 text-center sticky left-0 z-10 bg-white group-hover:bg-gray-100 transition shadow-[inset_-1px_0_0_0_#f3f4f6]"><div class="flex items-center justify-center text-[13px]">${nameContent}</div></td>`;
-                    return { u, total, cols, nameCell };
-                });
-
-                let headerCols = '';
-                if (state.adminTab === 'reward') {
-                    if (isBranch) {
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">손보수수료</th>`;
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">생보수수료</th>`;
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200 border-r border-gray-200">관리수수료</th>`;
-                    }
-                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보시상</th>`;
-                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보시상</th>`;
-                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">본부시상</th>`;
-                    if (isBranch) {
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보법인</th>`;
-                        headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보법인</th>`;
-                    }
-                } else {
-                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보증원</th>`;
-                    headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보증원</th>`;
+                if (pageList.length === 0) {
+                    container.innerHTML = `<div class="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100/80 shadow-sm">寃??寃곌낵媛 ?놁뒿?덈떎.</div>`;
+                    return;
                 }
 
-                let subHeaderCols = '';
+                let html = `<div class="overflow-x-auto bg-white rounded-2xl border border-gray-100/80 shadow-sm"><table class="w-full text-left text-sm text-gray-500"><thead class="bg-gray-50/75 text-xs text-gray-700 uppercase font-semibold border-b border-gray-100"><tr class="divide-x divide-gray-100"><th class="px-6 py-4">?대쫫</th><th class="px-6 py-4">?щ쾲</th>\`;
+                
                 if (state.adminTab === 'reward') {
-                    if (isBranch) {
-                        subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
-                        subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
-                        subHeaderCols += th('지급', 'text-blue-600 border-r-0', true) + th('환수', 'text-red-500 border-r border-gray-200', true);
-                    }
-                    subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
-                    subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
-                    subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
-                    if (isBranch) {
-                        subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
-                        subHeaderCols += th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
-                    }
+                    html += `<th class="px-6 py-4 text-right">?붿닔?섎즺</th><th class="px-6 py-4 text-right">?붿떆?곴툑</th><th class="px-6 py-4 text-right">?붿킑?섎떦</th></tr></thead><tbody class="divide-y divide-gray-100"><tr class="divide-x divide-gray-100 hover:bg-gray-50/50 transition duration-150">\`;
+                    pageList.forEach(u => {
+                        const total = (u.fee || 0) + (u.bonus || 0);
+                        html += `<td class="px-6 py-4 font-bold text-gray-900">${u.name}</td><td class="px-6 py-4">${u.id}</td><td class="px-6 py-4 text-right">${formatAdminMoney(u.fee)}</td><td class="px-6 py-4 text-right">${formatAdminMoney(u.bonus)}</td><td class="px-6 py-4 text-right font-semibold text-gray-900 bg-slate-50/30">${formatAdminMoney(total)}</td></tr>\`;
+                    });
                 } else {
-                    subHeaderCols = th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200') + th('지급', 'text-blue-600') + th('환수', 'text-red-500 border-r border-gray-200');
+                    html += `<th class="px-6 py-4 text-right">?앸낫 利앹썝?섎떦</th><th class="px-6 py-4 text-right">?먮낫 利앹썝?섎떦</th><th class="px-6 py-4 text-right">珥?利앹썝?섎떦</th></tr></thead><tbody class="divide-y divide-gray-100"><tr class="divide-x divide-gray-100 hover:bg-gray-50/50 transition duration-150">\`;
+                    pageList.forEach(u => {
+                        const total = (u.lifeRec || 0) + (u.nonLifeRec || 0);
+                        html += `<td class="px-6 py-4 font-bold text-gray-900">${u.name}</td><td class="px-6 py-4">${u.id}</td><td class="px-6 py-4 text-right">${formatAdminMoney(u.lifeRec)}</td><td class="px-6 py-4 text-right">${formatAdminMoney(u.nonLifeRec)}</td><td class="px-6 py-4 text-right font-semibold text-gray-900 bg-slate-50/30">${formatAdminMoney(total)}</td></tr>\`;
+                    });
+                }
+                html += `</tbody></table></div>`;
+
+                if (totalPages > 1) {
+                    html += `<div class="mt-6 flex justify-between items-center bg-white px-6 py-4 rounded-2xl border border-gray-100/80 shadow-sm"><span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">${state.adminPage} / ${totalPages} ?섏씠吏</span><div class="flex space-x-2"><button onclick="setPage(-1)" ${state.adminPage === 1 ? 'disabled' : ''} class="px-4 py-2 border border-gray-200 text-sm font-semibold rounded-xl text-gray-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150">?댁쟾</button><button onclick="setPage(1)" ${state.adminPage === totalPages ? 'disabled' : ''} class="px-4 py-2 border border-gray-200 text-sm font-semibold rounded-xl text-gray-600 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150">?ㅼ쓬</button></div></div>`;
                 }
 
-                const mobileCards = rows.map(({ u, total }) => {
-                    const commRows = isBranch && state.adminTab === 'reward' ? `
-                        <div class="grid grid-cols-3 gap-1 mt-2 pt-2 border-t border-blue-50">
-                            <div class="text-center p-1.5 bg-blue-50/60 rounded-lg">
-                                <p class="text-[9px] text-blue-700 font-bold mb-0.5">손보수수료</p>
-                                <p class="text-xs font-bold ${(u.nlCommPay || 0) + (u.nlCommRef || 0) < 0 ? 'text-red-500' : 'text-blue-700'}">${formatAdminMoney((u.nlCommPay || 0) + (u.nlCommRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-indigo-50/60 rounded-lg">
-                                <p class="text-[9px] text-indigo-700 font-bold mb-0.5">생보수수료</p>
-                                <p class="text-xs font-bold ${(u.lCommPay || 0) + (u.lCommRef || 0) < 0 ? 'text-red-500' : 'text-indigo-700'}">${formatAdminMoney((u.lCommPay || 0) + (u.lCommRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-purple-50/60 rounded-lg">
-                                <p class="text-[9px] text-purple-700 font-bold mb-0.5">관리수수료</p>
-                                <p class="text-xs font-bold ${(u.mgrCommPay || 0) + (u.mgrCommRef || 0) < 0 ? 'text-red-500' : 'text-purple-700'}">${formatAdminMoney((u.mgrCommPay || 0) + (u.mgrCommRef || 0))}</p>
-                            </div>
-                        </div>` : '';
+                container.innerHTML = html;
 
-                    const dotColor = total === 0 ? 'bg-gray-400' : 'bg-primary/70';
+                const recordBtn = div.querySelector('#adminRecordTotalBtn');
+                if (recordBtn) {
+                    recordBtn.addEventListener('click', async () => {
+                        let confirmMsg = `${state.currentMonth} 留덇컧 ?붿쓽 媛쒖씤蹂??붾퀎 珥앹닔??湲곕줉???섑뻾?섏떆寃좎뒿?덇퉴?\\n(吏?щ???沅뚰븳?쇰줈, 紐⑤뱺 ?뚯냽?먯쓽 ?대떦???섏닔猷??쒖긽湲??섎떦 ?⑷퀎媛 媛쒖씤蹂꾩썡蹂꾩킑?섎떦 DB ?쒗듃???먮룞 湲곕줉 諛?媛깆떊?⑸땲??)`;
+                        if (confirm(confirmMsg)) {
+                            const originalHTML = recordBtn.innerHTML;
+                            recordBtn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-4 w-4 inline-block align-middle mr-1.5"></div> 泥섎━ 以?..`;
+                            recordBtn.disabled = true;
+                            recordBtn.classList.add('opacity-80', 'cursor-not-allowed');
 
-                    return `
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                        <div class="flex justify-between items-center mb-3">
-                            <div>
-                                <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
-                                    <div class="w-1.5 h-1.5 rounded-full ${dotColor}"></div>
-                                    ${u.name}
-                                </h3>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-lg font-extrabold ${total < 0 ? 'text-red-500' : 'text-gray-900'}">${formatAdminMoney(total)}</p>
-                            </div>
-                        </div>
-                        ${commRows}
-                        ${state.adminTab === 'reward' ? `
-                        <div class="grid grid-cols-3 gap-1 mt-2 pt-2 border-t border-gray-50">
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">손보시상</p>
-                                <p class="text-xs font-bold ${(u.nlPay || 0) + (u.nlRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.nlPay || 0) + (u.nlRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">생보시상</p>
-                                <p class="text-xs font-bold ${(u.lPay || 0) + (u.lRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.lPay || 0) + (u.lRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">본부시상</p>
-                                <p class="text-xs font-bold ${(u.hqPay || 0) + (u.hqRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.hqPay || 0) + (u.hqRef || 0))}</p>
-                            </div>
-                        </div>
-                        ${isBranch ? `
-                        <div class="grid grid-cols-2 gap-1 mt-2 pt-2 border-t border-gray-50">
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">손보법인</p>
-                                <p class="text-xs font-bold ${(u.nlCorpPay || 0) + (u.nlCorpRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.nlCorpPay || 0) + (u.nlCorpRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">생보법인</p>
-                                <p class="text-xs font-bold ${(u.lCorpPay || 0) + (u.lCorpRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.lCorpPay || 0) + (u.lCorpRef || 0))}</p>
-                            </div>
-                        </div>` : ''}` : `
-                        <div class="grid grid-cols-2 gap-1 mt-2 pt-2 border-t border-gray-50">
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">손보증원</p>
-                                <p class="text-xs font-bold ${(u.nlPay || 0) + (u.nlRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.nlPay || 0) + (u.nlRef || 0))}</p>
-                            </div>
-                            <div class="text-center p-1.5 bg-gray-50 rounded-lg">
-                                <p class="text-[9px] text-gray-500 font-bold mb-0.5">생보증원</p>
-                                <p class="text-xs font-bold ${(u.lPay || 0) + (u.lRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.lPay || 0) + (u.lRef || 0))}</p>
-                            </div>
-                        </div>`}
-                    </div>`;
-                }).join('');
+                            const res = await callApi('recordMonthlyTotalAllowance', state.user.staffId, state.currentMonth);
+                            
+                            recordBtn.innerHTML = originalHTML;
+                            recordBtn.disabled = false;
+                            recordBtn.classList.remove('opacity-80', 'cursor-not-allowed');
 
-                // 페이지 변경 함수 설정
-                // To support calling setPage from inside the dynamically rendered string without triggering a full setPage render
-                window._internalAdminPageSet = function (d) {
-                    state.adminPage += d;
-                    renderAdminList();
-                };
-
-                const pagination = `<div class="flex justify-center items-center mt-6 space-x-2">
-                     <button ${state.adminPage === 1 ? 'disabled' : ''} onclick="_internalAdminPageSet(-1)" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                     <span class="px-4 py-2 text-sm text-gray-600 font-medium bg-gray-100 rounded-lg">${state.adminPage} / ${totalPages || 1}</span>
-                     <button ${state.adminPage >= totalPages ? 'disabled' : ''} onclick="_internalAdminPageSet(1)" class="w-10 h-10 flex items-center justify-center bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition text-gray-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                 </div>`;
-
-                container.innerHTML = `
-                <!-- 데스크탑 테이블 -->
-                <div class="hidden md:block bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden ${isBranch ? 'w-max mx-auto' : ''}">
-                    <div class="overflow-x-auto">
-                    <table class="divide-y divide-gray-200 whitespace-nowrap ${isBranch ? 'table-fixed' : 'min-w-full'}" ${isBranch ? 'style="width: 1595px;"' : ''}>
-                        <thead class="bg-gray-50">
-                         <tr>
-                           <th rowspan="2" class="${isBranch ? 'min-w-[115px] w-[115px] max-w-[115px]' : 'min-w-[100px]'} px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle border-b border-gray-200 sticky left-0 z-20 bg-gray-50 shadow-[inset_-1px_0_0_0_#e5e7eb]">이름</th>
-                           ${headerCols}
-                           <th rowspan="2" class="${isBranch ? 'min-w-[120px] w-[120px] max-w-[120px]' : 'min-w-[110px]'} px-4 py-3 text-right font-bold text-gray-800 bg-gray-100/50 align-middle border-b border-gray-200">합계</th>
-                         </tr>
-                         <tr>${subHeaderCols}</tr>
-                       </thead>
-                       <tbody class="divide-y divide-gray-200 bg-white">
-                          ${rows.map(({ cols, nameCell, total }) =>
-                    `<tr class="group hover:bg-gray-100 transition">${nameCell}${cols}<td class="${isBranch ? 'min-w-[120px] w-[120px] max-w-[120px]' : 'min-w-[110px]'} px-4 py-2 text-right font-bold ${total < 0 ? 'text-red-500' : 'text-gray-900'} bg-gray-50/30 text-[13px] group-hover:bg-gray-100/50 transition">${formatAdminMoney(total)}</td></tr>`
-                ).join('')}
-                       </tbody>
-                    </table>
-                    </div>
-                    ${rows.length === 0 ? '<div class="p-12 text-center text-gray-400">데이터가 없습니다.</div>' : ''}
-                </div>
-
-                <!-- 모바일 카드 뷰 -->
-                <div class="md:hidden flex flex-col gap-3">
-                    ${mobileCards.length > 0 ? mobileCards : '<div class="p-8 text-center text-gray-400">데이터가 없습니다.</div>'}
-                </div>
-
-                ${pagination}`;
+                            if (res && res.success) {
+                                alert(res.message || '?깃났?곸쑝濡?媛쒖씤蹂?珥앹닔??湲곕줉???꾨즺?섏뿀?듬땲??');
+                            } else {
+                                alert('湲곕줉 ?ㅽ뙣: ' + (res?.message || '?????녿뒗 ?ㅻ쪟'));
+                            }
+                        }
+                    });
+                }
             };
 
             setTimeout(() => {
                 const searchInput = div.querySelector('#adminSearch');
                 if (searchInput) {
                     if (state.adminSearch) {
+                        const val = state.adminSearch;
                         searchInput.focus();
-                        const val = searchInput.value;
                         searchInput.value = '';
                         searchInput.value = val;
                     }
@@ -4360,45 +4220,13 @@
                         renderAdminList();
                     });
                 }
-
-                const recordBtn = div.querySelector('#adminRecordTotalBtn');
-                if (recordBtn) {
-                    recordBtn.addEventListener('click', async () => {
-                        if (!confirm(`현재 조회된 마감월(${state.currentMonth})의 위촉자 개인별 총수당을 개인별월별총수당_DB 파일에 기록하시겠습니까?\n(사번이 존재하는 경우 마감월 값만 업데이트됩니다.)`)) {
-                            return;
-                        }
-                        
-                        recordBtn.disabled = true;
-                        const originalHtml = recordBtn.innerHTML;
-                        recordBtn.innerHTML = `
-                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg><span>기록 중...</span>`;
-                        
-                        try {
-                            const res = await callApi('recordMonthlyTotalAllowance', state.user.staffId, state.currentMonth);
-                            if (res.error || !res.success) {
-                                alert(res.message || '기록 중 오류가 발생했습니다.');
-                            } else {
-                                alert(res.message || '성공적으로 기록되었습니다.');
-                            }
-                        } catch (e) {
-                            alert('서버와의 통신에 실패했습니다: ' + e.toString());
-                        } finally {
-                            recordBtn.disabled = false;
-                            recordBtn.innerHTML = originalHtml;
-                        }
-                    });
-                }
             }, 0);
 
-            // 최초 리스트 렌더링
             setTimeout(renderAdminList, 0);
 
             return div;
-        };
-        function setAT(t) { state.adminTab = t; state.adminPage = 1; state.adminSearch = ''; render(); }
+        }
+function setAT(t) { state.adminTab = t; state.adminPage = 1; state.adminSearch = ''; render(); }
         function setST(t) { state.adminSubTab = t; state.adminPage = 1; render(); }
         function setPage(d) { state.adminPage += d; render(); }
         function setLapseAT(t) { state.lapseAdminTab = t; render(); }
