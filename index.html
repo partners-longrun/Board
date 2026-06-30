@@ -5969,7 +5969,7 @@
                 alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
             } else {
                 showLapsedContractsModal(res.list || [], "나의 ");
-             function createBondAdminView() {
+     function createBondAdminView() {
             if (state.isLoading && !state.bondLoaded) return getSkeletonUI();
             const div = document.createElement('div');
 
@@ -6107,7 +6107,6 @@
                     const allowance3m = Math.round(currentBond * 1.3); // 3개월 (130%) 열의 값은 보유채권의 130%
                     
                     // 3개월 총수당 역산
-                    // 백엔드 조회결과 u.allowance3m은 초기 시트의 bond * 1.3 이었으나, sum3m(3개월 수당합계)을 역추적해야 함.
                     const initialAllowance3m = Math.round(u.bond * 1.3);
                     const sum3m = u.need3m > 0 ? (u.need3m + initialAllowance3m) : Math.min(u.allowanceLastMonth, initialAllowance3m); // 안전 복원용
                     
