@@ -5966,9 +5966,12 @@
             }
 
             if (res && (res.error || !res.success)) {
-                alert('오류: ' + (res.message || '데이터를 불러오지 못했습니다.'));
+                alert('?ㅻ쪟: ' + (res.message || '?곗씠?곕? 遺덈윭?ㅼ? 紐삵뻽?듬땲??'));
             } else {
-                showLapsedContractsModal(res.list || [], "나의 ");
+                showLapsedContractsModal(res.list || [], "?섏쓽 ");
+            }
+        };
+
      function createBondAdminView() {
             if (state.isLoading && !state.bondLoaded) return getSkeletonUI();
             const div = document.createElement('div');
