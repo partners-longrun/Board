@@ -6009,6 +6009,105 @@
             }
         };
 
+        async function refresh() {
+            if (!state.user) return;
+
+            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
+
+            if (state.currentView === 'home' && state.data.homeData) {
+                render();
+                fetchPerformanceTrend();
+                return;
+            }
+            if (state.currentView === 'dashboard' && state.dashboardSelectedMember) { render(); return; }
+            if (state.currentView === 'recruitment' && state.recruitmentSelectedMember) { render(); return; }
+            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
+                state.data.branchCommData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'performanceAnalysis' && state.perfAnalysisLoaded) { return; }
+
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (state.currentView === 'home') {
+                        state.data.homeData = parsed;
+                        state.homeLoaded = true;
+                    }
+                    else if (state.currentView === 'branch') {
+                        state.data.rewardData = parsed;
+                        state.isLoading = false;
+                        render();
+                        if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
+                            callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
+                                if (!commRes.error && commRes.success) {
+                                    commRes.month = state.currentMonth;
+                                    state.data.branchCommData = commRes;
+                                } else {
+                                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+                                    if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
+                                }
+                                if (state.currentView === 'branch') render();
+                            });
+                        }
+                        return;
+                    }
+                    else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
+                    else if (state.currentView === 'recruitment') state.data.recData = parsed;
+                    else if (state.currentView === 'admin') state.data.adminSummary = parsed;
+
+                    state.isLoading = false;
+                    render();
+                    if (state.currentView === 'home') fetchPerformanceTrend();
+                    return;
+                } catch (e) {
+                    sessionStorage.removeItem(cacheKey);
+                }
+            }
+
+            if (state.currentView === 'home') {
+                fetchHome(cacheKey);
+                fetchPerformanceTrend();
+            }
+            else if (state.currentView === 'dashboard') fetchReward(cacheKey);
+            else if (state.currentView === 'branch') fetchBranch(cacheKey);
+            else if (state.currentView === 'recruitment') fetchRec(cacheKey);
+            else if (state.currentView === 'admin') fetchAdmin(cacheKey);
+            else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
+        }
+
+        async function fetchPerformanceAnalysisData() {
+            if (!state.perfAnalysisLoaded) {
+                state.isLoading = true;
+                render();
+            } else {
+                const canvases = document.querySelectorAll('canvas');
+                canvases.forEach(c => { c.style.transition = 'opacity 0.2s'; c.style.opacity = '0.1'; });
+                const topP = document.getElementById('top-partners-container');
+                if (topP) { topP.style.transition = 'opacity 0.2s'; topP.style.opacity = '0.1'; }
+            }
+            const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth);
+            state.isLoading = false;
+
+            if (res && res.success) {
+                state.perfAnalysisData = res;
+                state.perfAnalysisLoaded = true;
+                if (res.year) state.perfAnalysisYear = res.year;
+                if (res.month) state.perfAnalysisMonth = res.month;
+                render();
+                const refDateEl = document.getElementById('perf-analysis-ref-date');
+                if (refDateEl && res.referenceDate) {
+                    refDateEl.innerText = `(${res.referenceDate} 마감 기준)`;
+                }
+                setTimeout(renderPerformanceAnalysisCharts, 100);
+            } else {
+                alert('실적분석 데이터 로드 실패: ' + (res?.message || '알 수 없는 오류'));
+                state.perfAnalysisLoaded = true;
+                render();
+            }
+        }
+
      function createBondAdminView() {
             if (state.isLoading && !state.bondLoaded) return getSkeletonUI();
             const div = document.createElement('div');
