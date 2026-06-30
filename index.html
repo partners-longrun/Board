@@ -1204,6 +1204,47 @@
             return container;
         }
 
+        async function doLogin(id, pw) {
+            const btn = document.querySelector('#loginForm button[type="submit"]');
+            let originalText = "로그인";
+            if (btn) {
+                originalText = btn.innerHTML;
+                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div> 인증 중...`;
+                btn.disabled = true;
+                btn.classList.add('opacity-80', 'cursor-not-allowed');
+            }
+
+            const r = await callApi('loginUser', id, pw);
+
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            }
+
+            if (r.success) {
+                state.user = r.user;
+                if (r.months && r.months.length > 0) {
+                    state.months = r.months;
+                    state.currentMonth = r.currentMonth || r.months[0];
+                } else {
+                    const now = new Date(); state.months = [String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0')];
+                    state.currentMonth = state.months[0];
+                }
+                if (r.dashboardData) state.data.rewardData = r.dashboardData;
+
+                if (state.user.isFirstLogin) {
+                    openChangePasswordModal(false);
+                } else {
+                    saveSession();
+                    navigate('home');
+                    setTimeout(prefetchAllBackground, 500);
+                }
+            } else {
+                alert(r.message || '로그인 실패');
+            }
+        }
+
         function createLayout() {
             const container = document.createElement('div');
             container.className = 'flex flex-col md:flex-row min-h-screen bg-[#f8fafc]';
