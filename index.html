@@ -5829,6 +5829,9 @@
                 alert('오류: ' + res.message);
             } else {
                 showOrgTreeModal(res.data, targetName);
+            }
+        };
+
         window.showOrgTreeModal = function (data, targetName) {
             document.body.classList.add('modal-open');
             const modal = document.createElement('div');
