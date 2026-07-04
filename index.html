@@ -4106,6 +4106,14 @@
                     </button>
                 </div>
                 ` : ''}
+                ${(state.adminTab === 'recruitment' && state.user.role === '지사대표') ? `
+                <div class="w-full sm:w-auto flex justify-end">
+                    <button id="adminCalcRecruitmentBtn" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition whitespace-nowrap flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                        <span>마감월 증원수당 산출</span>
+                    </button>
+                </div>
+                ` : ''}
             </div>
 
             <div id="adminListContainer"></div>
@@ -4369,6 +4377,48 @@
                         } finally {
                             recordBtn.disabled = false;
                             recordBtn.innerHTML = originalHtml;
+                        }
+                    });
+                }
+
+                const calcRecBtn = div.querySelector('#adminCalcRecruitmentBtn');
+                if (calcRecBtn) {
+                    calcRecBtn.addEventListener('click', async () => {
+                        if (!confirm(`현재 조회된 마감월(${state.currentMonth})의 증원수당을 산출하여 수수료_DB 파일에 저장하시겠습니까?\n(기존 동일 마감월 데이터는 덮어씌워집니다.)`)) {
+                            return;
+                        }
+                        
+                        calcRecBtn.disabled = true;
+                        const originalHtml = calcRecBtn.innerHTML;
+                        calcRecBtn.innerHTML = `
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg><span>산출 중...</span>`;
+                        
+                        try {
+                            const res = await callApi('calculateMonthlyRecruitmentAllowance', state.user.staffId, state.currentMonth);
+                            if (res.error) {
+                                alert(res.message || '산출 중 오류가 발생했습니다.');
+                            } else {
+                                alert(res.message || '증원수당이 성공적으로 산출 및 저장되었습니다.');
+                                state.isLoading = true;
+                                render();
+                                try {
+                                    const d = await callApi('getAdminSummary', state.currentMonth, state.user.staffId);
+                                    state.data.adminSummary = d;
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    state.isLoading = false;
+                                    render();
+                                }
+                            }
+                        } catch (e) {
+                            alert('서버와의 통신에 실패했습니다: ' + e.toString());
+                        } finally {
+                            calcRecBtn.disabled = false;
+                            calcRecBtn.innerHTML = originalHtml;
                         }
                     });
                 }
