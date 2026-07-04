@@ -880,6 +880,18 @@
                         </div>
                     </div>` : ''}
 
+                    <!-- 9. 채권관리 -->
+                    ${state.user.role === '지사대표' ? `
+                    <div onclick="navigate('bondAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">채권관리</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">지사별 채권 및 담보 부족 체크</p>
+                        </div>
+                    </div>` : ''}
+
                     <!-- 8. 실적분석 -->
                     ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `
                     <div onclick="navigate('performanceAnalysis')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
@@ -889,18 +901,6 @@
                         <div>
                             <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">실적분석</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">데이터 기반 생보/손보 분석</p>
-                        </div>
-                    </div>` : ''}
-
-                    <!-- 9. 채권관리 -->
-                    ${state.user.role === '지사대표' ? `
-                    <div onclick="navigate('bondAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
-                        <div class="w-14 h-14 bg-gray-50 text-teal-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
-                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">채권관리</h3>
-                            <p class="text-[11px] text-gray-400 mt-0.5">지사별 채권 및 담보 부족 체크</p>
                         </div>
                     </div>` : ''}
                 </div>
@@ -7671,6 +7671,20 @@
                     if (res && res.success) {
                         state.perfAnalysisData = res;
                         state.perfAnalysisLoaded = true;
+                    }
+                });
+            }
+
+            // 10. Bond Management Prefetch (채권관리 사전 캐싱)
+            if (state.user.role === '지사대표' && !state.bondLoaded) {
+                callApi('getBondManagementData', state.user.staffId, '').then(res => {
+                    if (!state.user) return; // 로그아웃 후 콜백 방지
+                    if (res && res.success && !res.error) {
+                        state.bondData = res.list || [];
+                        state.bondTargetMonth = res.month || '';
+                        state.bondDataMonth = state.currentMonth;
+                        state.bondUpdates = {};
+                        state.bondLoaded = true;
                     }
                 });
             }
