@@ -484,20 +484,32 @@
             recruitmentSelectedMember: null // { id, name } - 지사대표/운영진이 조회 중인 증원수당 소속원
         };
 
-        // 권한1/2/3 중 하나라도 '관리자'인지 확인
+        // 권한1~7 중 특정 권한이 있는지 확인하는 공통 헬퍼
+        function hasRole(roleName) {
+            if (!state.user) return false;
+            const roles = [
+                state.user.role,
+                state.user.role2,
+                state.user.role3,
+                state.user.role4,
+                state.user.role5,
+                state.user.role6,
+                state.user.role7
+            ];
+            return roles.map(r => String(r || '').trim()).includes(roleName);
+        }
+
+        // 권한1~7 중 하나라도 '관리자'인지 확인
         function isAdminAny() {
-            if (!state.user) return false;
-            return state.user.role === '관리자' || state.user.role2 === '관리자' || state.user.role3 === '관리자';
+            return hasRole('관리자');
         }
-        // 권한1/2/3 중 하나라도 '지사대표'인지 확인
+        // 권한1~7 중 하나라도 '지사대표'인지 확인
         function isBranchRepAny() {
-            if (!state.user) return false;
-            return state.user.role === '지사대표' || state.user.role2 === '지사대표' || state.user.role3 === '지사대표';
+            return hasRole('지사대표');
         }
-        // 권한1/2/3 중 하나라도 '운영진'인지 확인
+        // 권한1~7 중 하나라도 '운영진'인지 확인
         function isOpsAny() {
-            if (!state.user) return false;
-            return state.user.role === '운영진' || state.user.role2 === '운영진' || state.user.role3 === '운영진';
+            return hasRole('운영진');
         }
 
         var LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
@@ -796,7 +808,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
                     <!-- 1. 계약유지관리 -->
-                    ${state.user.role !== '실장' ? `
+                    ${!hasRole('실장') ? `
                     <div onclick="navigate('lapse')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
@@ -808,7 +820,7 @@
                     </div>` : ''}
 
                     <!-- 2. 시상금 조회 -->
-                    ${state.user.role !== '실장' ? `
+                    ${!hasRole('실장') ? `
                     <div onclick="navigate('dashboard')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -820,7 +832,7 @@
                     </div>` : ''}
 
                     <!-- 3. 증원수당 조회 -->
-                    ${(state.user.isRecruiter && state.user.role !== '실장') ? `
+                    ${(state.user.isRecruiter && !hasRole('실장')) ? `
                     <div onclick="navigate('recruitment')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -847,7 +859,7 @@
                     </div>` : ''}
 
                     <!-- 5. 지사대표 대시보드 -->
-                    ${state.user.role === '지사대표' ? `
+                    ${isBranchRepAny() ? `
                     <div onclick="navigate('branch')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -859,7 +871,7 @@
                     </div>` : ''}
                     
                     <!-- 6. 계약관리(관리) -->
-                    ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `
+                    ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `
                     <div onclick="navigate('lapseAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -881,7 +893,7 @@
                     </div>` : ''}
 
                     <!-- 9. 채권관리 -->
-                    ${state.user.role === '지사대표' ? `
+                    ${isBranchRepAny() ? `
                     <div onclick="navigate('bondAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
@@ -893,7 +905,7 @@
                     </div>` : ''}
 
                     <!-- 8. 실적분석 -->
-                    ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `
+                    ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? `
                     <div onclick="navigate('performanceAnalysis')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
@@ -1268,20 +1280,20 @@
                         <div class="px-6 py-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Main Menu</p>
                              ${sidebarLink('home', '홈', icons.home)}
-                             ${state.user.role !== '실장' ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
-                             ${state.user.role !== '실장' ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
-                             ${(state.user.isRecruiter && state.user.role !== '실장') ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
+                             ${!hasRole('실장') ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
+                             ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
+                             ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                         </div>
 
-                        ${(isBranchRepAny() || isAdminAny() || state.user.role === '실장' || state.user.role === '운영진') ? `
+                        ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? `
                         <div class="px-6 py-4 mt-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
                              ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
-                             ${state.user.role === '지사대표' ? sidebarLink('branch', '지사대표', icons.branch) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
-                             ${state.user.role === '지사대표' ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
-                             ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
+                             ${isBranchRepAny() ? sidebarLink('branch', '지사대표', icons.branch) : ''}
+                             ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
+                             ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
+                             ${isBranchRepAny() ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
+                             ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
                         </div>` : ''}
                     </nav>
 
@@ -1385,32 +1397,32 @@
                             <a href="#" data-nav="home" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'home' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.home}</span> 홈
                             </a>
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="lapse" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapse' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${!hasRole('실장') ? `<a href="#" data-nav="lapse" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapse' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.lapse}</span> 계약유지관리
                             </a>` : ''}
-                            ${state.user.role !== '실장' ? `<a href="#" data-nav="dashboard" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'dashboard' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${!hasRole('실장') ? `<a href="#" data-nav="dashboard" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'dashboard' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.dashboard}</span> 시상금
                             </a>` : ''}
-                            ${(state.user.isRecruiter && state.user.role !== '실장') ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(state.user.isRecruiter && !hasRole('실장')) ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
                             ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.admin}</span> 관리자
                             </a>` : ''}
-                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="branch" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'branch' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${isBranchRepAny() ? `<a href="#" data-nav="branch" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'branch' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.branch}</span> 지사대표
                             </a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.lapseAdmin}</span> 실효연체관리
                             </a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.retentionAdmin}</span> 유지율
                             </a>` : ''}
-                            ${state.user.role === '지사대표' ? `<a href="#" data-nav="bondAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'bondAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${isBranchRepAny() ? `<a href="#" data-nav="bondAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'bondAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.bondAdmin}</span> 채권관리
                             </a>` : ''}
-                            ${(state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') ? `<a href="#" data-nav="performanceAnalysis" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? `<a href="#" data-nav="performanceAnalysis" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.performanceAnalysis}</span> 실적분석
                             </a>` : ''}
                         </div>
@@ -7553,7 +7565,7 @@
             }
 
             // 5. Lapse Admin Summary
-            if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') &&
+            if ((isBranchRepAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.lapseAdminSummary) {
                 callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter').then(res => {
                     if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
@@ -7581,7 +7593,7 @@
             }
 
             // 6. Retention Admin Summary
-            if ((state.user.role === '지사대표' || state.user.role === '실장' || state.user.role === '운영진') &&
+            if ((isBranchRepAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.retentionAdminSummary) {
                 callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
                     if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
@@ -7650,7 +7662,7 @@
             }
 
             // 9. Performance Analysis Prefetch (실적분석 사전 캐싱)
-            if ((state.user.role === '지사대표' || state.user.role === '운영진' || state.user.role === '실장' || state.user.role3 === '실적분석') &&
+            if ((isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) &&
                 !state.perfAnalysisLoaded) {
                 const now = new Date();
                 let perfYear = state.perfAnalysisYear || String(now.getFullYear());
