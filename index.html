@@ -481,7 +481,11 @@
             perfAnalysisYear: new Date().getFullYear().toString(),
             perfAnalysisMonth: (new Date().getMonth() + 1).toString().padStart(2, '0'),
             dashboardSelectedMember: null, // { id, name } - 지사대표/운영진이 조회 중인 소속원
-            recruitmentSelectedMember: null // { id, name } - 지사대표/운영진이 조회 중인 증원수당 소속원
+            recruitmentSelectedMember: null, // { id, name } - 지사대표/운영진이 조회 중인 증원수당 소속원
+            forecastConfigs: [],
+            actualIncentives: {},
+            forecastLoaded: false,
+            forecastSelectedYear: new Date().getFullYear().toString()
         };
 
         // 권한1~7 중 특정 권한이 있는지 확인하는 공통 헬퍼
@@ -510,6 +514,13 @@
         // 권한1~7 중 하나라도 '운영진'인지 확인
         function isOpsAny() {
             return hasRole('운영진');
+        }
+
+        // 권한1(state.user.role)이 '지사대표' 또는 '운영진'인지 확인
+        function isForecastAllowed() {
+            if (!state.user) return false;
+            const primaryRole = String(state.user.role || '').trim();
+            return primaryRole === '지사대표' || primaryRole === '운영진';
         }
 
         var LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
@@ -1261,7 +1272,8 @@
                 lapseAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
                 retentionAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
                 performanceAnalysis: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>',
-                bondAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>'
+                bondAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
+                totalAllowanceForecast: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>'
             };
 
             container.innerHTML = `
@@ -1285,7 +1297,7 @@
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                         </div>
 
-                        ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? `
+                        ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
                         <div class="px-6 py-4 mt-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
                              ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
@@ -1294,6 +1306,7 @@
                              ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
                              ${isBranchRepAny() ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
                              ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
+                             ${isForecastAllowed() ? sidebarLink('totalAllowanceForecast', '총수당예상', icons.totalAllowanceForecast) : ''}
                         </div>` : ''}
                     </nav>
 
@@ -1349,7 +1362,8 @@
                                             lapseAdmin: '실효연체관리',
                                             retentionAdmin: '유지율',
                                             bondAdmin: '채권관리',
-                                            performanceAnalysis: '실적분석'
+                                            performanceAnalysis: '실적분석',
+                                            totalAllowanceForecast: '총수당예상'
                                         };
                                         return viewMap[state.currentView] || '시스템';
                                     })()}
@@ -1425,6 +1439,9 @@
                             ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? `<a href="#" data-nav="performanceAnalysis" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'performanceAnalysis' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.performanceAnalysis}</span> 실적분석
                             </a>` : ''}
+                            ${isForecastAllowed() ? `<a href="#" data-nav="totalAllowanceForecast" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'totalAllowanceForecast' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.totalAllowanceForecast}</span> 총수당예상
+                            </a>` : ''}
                         </div>
                         <div class="p-6 border-t border-gray-100 grid grid-cols-2 gap-3">
                              <button id="changePwBtnM" class="flex items-center justify-center p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100 text-sm">
@@ -1462,6 +1479,7 @@
             else if (state.currentView === 'retentionAdmin') main.appendChild(createRetentionAdminView());
             else if (state.currentView === 'bondAdmin') main.appendChild(createBondAdminView());
             else if (state.currentView === 'performanceAnalysis') main.appendChild(createPerformanceAnalysisView());
+            else if (state.currentView === 'totalAllowanceForecast') main.appendChild(createTotalAllowanceForecastView());
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -6743,6 +6761,7 @@
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
                 state.data.branchCommData?.month === state.currentMonth) { render(); return; }
             if (state.currentView === 'performanceAnalysis' && state.perfAnalysisLoaded) { return; }
+            if (state.currentView === 'totalAllowanceForecast' && state.forecastLoaded) { return; }
 
             // 2. Check Session Storage
             const cached = sessionStorage.getItem(cacheKey);
@@ -6795,6 +6814,7 @@
             else if (state.currentView === 'recruitment') fetchRec(cacheKey);
             else if (state.currentView === 'admin') fetchAdmin(cacheKey);
             else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
+            else if (state.currentView === 'totalAllowanceForecast') fetchTotalAllowanceForecastData();
         }
 
         async function fetchPerformanceAnalysisData() {
@@ -7344,6 +7364,498 @@
             container.innerHTML =
                 renderGroup('손해보험', nlComps, '#F37321', true) +
                 renderGroup('생명보험', lifeComps, '#3B82F6', false);
+        }
+
+        // ==========================================
+        // 총수당 예상 시뮬레이션 관련 프론트엔드 로직
+        // ==========================================
+
+        async function fetchTotalAllowanceForecastData() {
+            if (!state.forecastLoaded) {
+                state.isLoading = true;
+                render();
+            }
+            const res = await callApi('getTotalAllowanceForecastData', state.user.staffId);
+            state.isLoading = false;
+
+            if (res && res.success) {
+                state.forecastConfigs = res.savedConfigs || [];
+                state.actualIncentives = res.actualIncentives || {};
+                state.forecastLoaded = true;
+                render();
+                setTimeout(renderTotalAllowanceForecastChart, 100);
+            } else {
+                alert('총수당 예상 데이터 로드 실패: ' + (res?.message || '알 수 없는 오류'));
+                state.forecastLoaded = true;
+                render();
+            }
+        }
+
+        async function saveTotalAllowanceForecastData(month, data) {
+            state.isLoading = true;
+            render();
+            const res = await callApi('saveTotalAllowanceForecastData', state.user.staffId, month, data);
+            state.isLoading = false;
+
+            if (res && res.success) {
+                const idx = state.forecastConfigs.findIndex(x => x.month === month);
+                if (idx !== -1) {
+                    state.forecastConfigs[idx] = { month, ...data };
+                } else {
+                    state.forecastConfigs.push({ month, ...data });
+                }
+                alert(month.substring(0, 4) + '년 ' + parseInt(month.substring(4, 6)) + '월 실적 시뮬레이션 설정이 저장되었습니다.');
+                render();
+                setTimeout(renderTotalAllowanceForecastChart, 100);
+            } else {
+                alert('저장 실패: ' + (res?.message || '알 수 없는 오류'));
+                render();
+            }
+        }
+
+        function getForecastDefaultValues(targetMonth) {
+            // targetMonth(예: "202603")보다 작은 월들 중 저장된 최신 설정 찾기
+            const sortedSaved = state.forecastConfigs
+                .filter(x => x.month < targetMonth)
+                .sort((a, b) => b.month.localeCompare(a.month));
+            if (sortedSaved.length > 0) {
+                const latest = sortedSaved[0];
+                return {
+                    nonLifePremium: latest.nonLifePremium,
+                    lifePremium: latest.lifePremium,
+                    nonLifeComm: latest.nonLifeComm,
+                    lifeComm: latest.lifeComm,
+                    nonLifeAward: latest.nonLifeAward,
+                    lifeAward: latest.lifeAward
+                };
+            }
+            // 이력 없으면 시스템 기본 디폴트
+            return {
+                nonLifePremium: 15000000,
+                lifePremium: 5000000,
+                nonLifeComm: 4500000,  // 15000000 * 0.3
+                lifeComm: 1500000,     // 5000000 * 0.3
+                nonLifeAward: 12000000, // 15000000 * 0.8
+                lifeAward: 3500000      // 5000000 * 0.7
+            };
+        }
+
+        function createTotalAllowanceForecastView() {
+            if (state.isLoading && !state.forecastLoaded) return getSkeletonUI();
+            const div = document.createElement('div');
+
+            const selectedYear = state.forecastSelectedYear || '2026';
+            const years = ['2026', '2027', '2028', '2029', '2030']; // 시뮬레이션 지원 연도
+
+            // 가로 연도 필터 탭 생성
+            const yearTabs = years.map(y => {
+                const isActive = y === selectedYear;
+                return `
+                    <button onclick="state.forecastSelectedYear='${y}'; render(); setTimeout(renderTotalAllowanceForecastChart, 100);" 
+                        class="px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'}">
+                        ${y}년 실적 시뮬레이션
+                    </button>
+                `;
+            }).join('');
+
+            // 테이블 내 12개월 행 생성
+            let rowsHtml = '';
+            for (let m = 1; m <= 12; m++) {
+                const monthStr = String(m).padStart(2, '0');
+                const targetYm = selectedYear + monthStr;
+
+                // 해당 월 데이터 확인
+                const saved = state.forecastConfigs.find(x => x.month === targetYm);
+                const defaults = getForecastDefaultValues(targetYm);
+                const data = saved || defaults;
+
+                // 2차년인센티브(7번): 실제 월실적_DB에서 합산된 금액
+                const incentive = state.actualIncentives[targetYm] || 0;
+                
+                // 총수당 = 3번 + 4번 + 5번 + 6번 + 7번
+                const totalForecast = data.nonLifeComm + data.lifeComm + data.nonLifeAward + data.lifeAward + incentive;
+
+                rowsHtml += `
+                    <tr class="hover:bg-slate-50/50 border-b border-gray-100 transition duration-150">
+                        <td class="px-4 py-4 text-center font-extrabold text-gray-800 text-sm">${m}월</td>
+                        <!-- 1. 손보 신계약 월보험료 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="nlPrem-${targetYm}" value="${data.nonLifePremium.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="handleForecastPremiumChange('${targetYm}', 'nonlife', this.value)" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 2. 생보 신계약 월보험료 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="lPrem-${targetYm}" value="${data.lifePremium.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="handleForecastPremiumChange('${targetYm}', 'life', this.value)" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 3. 손보 익월수수료율 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="nlComm-${targetYm}" value="${data.nonLifeComm.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="updateForecastRowTotal('${targetYm}')" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 4. 생보 익월수수료율 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="lComm-${targetYm}" value="${data.lifeComm.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="updateForecastRowTotal('${targetYm}')" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 5. 손보 법인시상율 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="nlAward-${targetYm}" value="${data.nonLifeAward.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="updateForecastRowTotal('${targetYm}')" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 6. 생보 법인시상율 -->
+                        <td class="px-2 py-3">
+                            <input type="text" id="lAward-${targetYm}" value="${data.lifeAward.toLocaleString()}" 
+                                onfocus="this.value=this.value.replace(/,/g,'')" 
+                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
+                                oninput="updateForecastRowTotal('${targetYm}')" 
+                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        </td>
+                        <!-- 7. 2차년인센티브율 (자동조회) -->
+                        <td class="px-3 py-3 text-right text-xs font-extrabold text-slate-500 bg-slate-50/50">${incentive.toLocaleString()}원</td>
+                        <!-- 총수당 (예상합계) -->
+                        <td class="px-3 py-3 text-right text-xs font-black text-indigo-600 bg-indigo-50/30" id="total-${targetYm}">${totalForecast.toLocaleString()}원</td>
+                        <!-- 저장 버튼 -->
+                        <td class="px-3 py-3 text-center">
+                            <button onclick="handleSaveForecastRow('${targetYm}')" 
+                                class="px-3 py-1.5 rounded-lg bg-gray-800 text-white font-bold text-[10px] hover:bg-primary transition shadow-sm">
+                                저장
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            div.innerHTML = `
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 tracking-tight">지사대표 총수당예상 시뮬레이션</h2>
+                    <p class="text-gray-500 text-sm mt-1">예상 실적 및 수수료/시상 비율을 편집하고 지급월 기준 총수당(2차년 인센티브 포함) 예측 그래프를 확인합니다.</p>
+                </div>
+
+                <!-- 연도 필터 탭 -->
+                <div class="flex flex-wrap gap-2 mb-6">
+                    ${yearTabs}
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                    <!-- 좌측: 입력 그리드 -->
+                    <div class="xl:col-span-2 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col overflow-x-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-extrabold text-gray-800 text-base flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                월별 시뮬레이션 예상치 입력
+                            </h3>
+                            <span class="text-[10px] font-semibold text-slate-400">※ 월보험료 수정 시 수수료와 시상금이 비율별로 자동 제안됩니다. (수동 편집 가능)</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[900px]">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-600 text-[10px] font-extrabold uppercase border-b border-gray-100">
+                                        <th class="px-4 py-3 text-center w-14">실적월</th>
+                                        <th class="px-2 py-3 text-right">손보 월보험료</th>
+                                        <th class="px-2 py-3 text-right">생보 월보험료</th>
+                                        <th class="px-2 py-3 text-right">손보 수수료</th>
+                                        <th class="px-2 py-3 text-right">생보 수수료</th>
+                                        <th class="px-2 py-3 text-right">손보 법인시상</th>
+                                        <th class="px-2 py-3 text-right">생보 법인시상</th>
+                                        <th class="px-3 py-3 text-right">2차년 인센티브</th>
+                                        <th class="px-3 py-3 text-right bg-indigo-50/50 text-indigo-700">총수당 예상액</th>
+                                        <th class="px-3 py-3 text-center w-16">관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 우측: 그래프 -->
+                    <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
+                        <div class="mb-4">
+                            <h3 class="font-extrabold text-gray-800 text-base flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                지급월 기준 총수당 예측 그래프
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">3~6번 수당은 익월 지급, 7번 인센티브는 6월 실적분까지 익월 / 7월 실적분부터 15차월에 지급됩니다.</p>
+                        </div>
+                        <div class="relative flex-grow h-80 xl:h-96">
+                            <canvas id="allowanceForecastChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 그리드 생성 이후 이벤트 위임 또는 콜백 등록은 큐에서 처리
+            setTimeout(() => {
+                // 추가 이벤트 바인딩이 필요한 경우 여기서 처리
+            }, 0);
+
+            return div;
+        }
+
+        // 입력창 보험료 변경 시 수수료(30%) / 시상금(손보 80%, 생보 70%) 실시간 자동 연산 & 제안
+        window.handleForecastPremiumChange = function(month, type, value) {
+            const rawVal = Number(value.replace(/,/g, '')) || 0;
+            const commInput = document.getElementById(type === 'nonlife' ? `nlComm-${month}` : `lComm-${month}`);
+            const awardInput = document.getElementById(type === 'nonlife' ? `nlAward-${month}` : `lAward-${month}`);
+
+            if (type === 'nonlife') {
+                if (commInput) commInput.value = Math.round(rawVal * 0.3).toLocaleString();
+                if (awardInput) awardInput.value = Math.round(rawVal * 0.8).toLocaleString();
+            } else {
+                if (commInput) commInput.value = Math.round(rawVal * 0.3).toLocaleString();
+                if (awardInput) awardInput.value = Math.round(rawVal * 0.7).toLocaleString();
+            }
+
+            updateForecastRowTotal(month);
+        };
+
+        // 행별 예상 총수당 실시간 연산 & DOM 갱신
+        window.updateForecastRowTotal = function(month) {
+            const nlComm = Number((document.getElementById(`nlComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lComm = Number((document.getElementById(`lComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const nlAward = Number((document.getElementById(`nlAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lAward = Number((document.getElementById(`lAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+
+            const incentive = state.actualIncentives[month] || 0;
+            const sum = nlComm + lComm + nlAward + lAward + incentive;
+
+            const totalCell = document.getElementById(`total-${month}`);
+            if (totalCell) {
+                totalCell.innerText = sum.toLocaleString() + '원';
+            }
+        };
+
+        // 저장 버튼 이벤트 핸들러
+        window.handleSaveForecastRow = function(month) {
+            const nonLifePremium = Number((document.getElementById(`nlPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lifePremium = Number((document.getElementById(`lPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const nonLifeComm = Number((document.getElementById(`nlComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lifeComm = Number((document.getElementById(`lComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const nonLifeAward = Number((document.getElementById(`nlAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lifeAward = Number((document.getElementById(`lAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+
+            const data = {
+                nonLifePremium,
+                lifePremium,
+                nonLifeComm,
+                lifeComm,
+                nonLifeAward,
+                lifeAward
+            };
+
+            saveTotalAllowanceForecastData(month, data);
+        };
+
+        let forecastChartInstance = null;
+
+        // 지급월 매핑 및 콤보 차트 렌더링
+        function renderTotalAllowanceForecastChart() {
+            const chartCanvas = document.getElementById('allowanceForecastChart');
+            if (!chartCanvas) return;
+
+            if (forecastChartInstance) {
+                forecastChartInstance.destroy();
+                forecastChartInstance = null;
+            }
+
+            // 1. 시뮬레이션 전체 데이터 수집 (202601 ~ 현재 선택 연도의 12월까지 전체 실적월)
+            const activeYear = state.forecastSelectedYear || '2026';
+            const allMonths = [];
+            
+            const startYear = 2026;
+            const endYear = parseInt(activeYear);
+            for (let y = startYear; y <= endYear; y++) {
+                for (let m = 1; m <= 12; m++) {
+                    allMonths.push(String(y) + String(m).padStart(2, '0'));
+                }
+            }
+
+            // 지급월별 데이터 누적 객체
+            const paymentMap = {}; // { payYm: { nlComm, lComm, nlAward, lAward, incentive } }
+
+            allMonths.forEach(ym => {
+                // 저장된 값 혹은 디폴트값 가져오기
+                const saved = state.forecastConfigs.find(x => x.month === ym);
+                const defaults = getForecastDefaultValues(ym);
+                const config = saved || defaults;
+
+                // 2차년인센티브(7번)
+                const incentive = state.actualIncentives[ym] || 0;
+
+                // 지급월 계산
+                const yearNum = parseInt(ym.substring(0, 4));
+                const monthNum = parseInt(ym.substring(4, 6));
+
+                // 3,4,5,6번 익월 지급월 연산
+                let basicPayMonth = monthNum + 1;
+                let basicPayYear = yearNum;
+                if (basicPayMonth > 12) {
+                    basicPayMonth = 1;
+                    basicPayYear += 1;
+                }
+                const basicPayYm = String(basicPayYear) + String(basicPayMonth).padStart(2, '0');
+
+                // 7번 인센티브 지급월 연산
+                let incPayYm;
+                if (monthNum <= 6) {
+                    // 6월 실적분까지 익월 지급
+                    incPayYm = basicPayYm;
+                } else {
+                    // 7월 실적분부터 15차월 지급 (실적월 + 14개월 후 지급)
+                    let incPayMonth = monthNum + 14;
+                    let incPayYear = yearNum;
+                    while (incPayMonth > 12) {
+                        incPayMonth -= 12;
+                        incPayYear += 1;
+                    }
+                    incPayYm = String(incPayYear) + String(incPayMonth).padStart(2, '0');
+                }
+
+                // 3,4,5,6번 항목 누적
+                if (!paymentMap[basicPayYm]) {
+                    paymentMap[basicPayYm] = { nlComm: 0, lComm: 0, nlAward: 0, lAward: 0, incentive: 0 };
+                }
+                paymentMap[basicPayYm].nlComm += config.nonLifeComm;
+                paymentMap[basicPayYm].lComm += config.lifeComm;
+                paymentMap[basicPayYm].nlAward += config.nonLifeAward;
+                paymentMap[basicPayYm].lAward += config.lifeAward;
+
+                // 7번 인센티브 항목 누적
+                if (!paymentMap[incPayYm]) {
+                    paymentMap[incPayYm] = { nlComm: 0, lComm: 0, nlAward: 0, lAward: 0, incentive: 0 };
+                }
+                paymentMap[incPayYm].incentive += incentive;
+            });
+
+            // 지급월 키 정렬
+            const payMonths = Object.keys(paymentMap).sort();
+            if (payMonths.length === 0) return;
+
+            const labels = payMonths.map(ym => `${ym.substring(2,4)}년 ${parseInt(ym.substring(4,6))}월`);
+
+            // Y축 값 구성 (만원 단위로 변환)
+            const nlCommVals = payMonths.map(ym => Math.round(paymentMap[ym].nlComm / 10000));
+            const lCommVals = payMonths.map(ym => Math.round(paymentMap[ym].lComm / 10000));
+            const nlAwardVals = payMonths.map(ym => Math.round(paymentMap[ym].nlAward / 10000));
+            const lAwardVals = payMonths.map(ym => Math.round(paymentMap[ym].lAward / 10000));
+            const incentiveVals = payMonths.map(ym => Math.round(paymentMap[ym].incentive / 10000));
+
+            // 총수당 합계 라인 값 구성
+            const totalVals = payMonths.map(ym => {
+                const item = paymentMap[ym];
+                const sum = item.nlComm + item.lComm + item.nlAward + item.lAward + item.incentive;
+                return Math.round(sum / 10000);
+            });
+
+            const ctx = chartCanvas.getContext('2d');
+            forecastChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '손보수수료',
+                            data: nlCommVals,
+                            backgroundColor: '#FB923C', // 주황색
+                            stack: 'allowance'
+                        },
+                        {
+                            label: '생보수수료',
+                            data: lCommVals,
+                            backgroundColor: '#60A5FA', // 파란색
+                            stack: 'allowance'
+                        },
+                        {
+                            label: '손보시상금',
+                            data: nlAwardVals,
+                            backgroundColor: '#EA580C', // 진한 주황색
+                            stack: 'allowance'
+                        },
+                        {
+                            label: '생보시상금',
+                            data: lAwardVals,
+                            backgroundColor: '#2563EB', // 진한 파란색
+                            stack: 'allowance'
+                        },
+                        {
+                            label: '2차년인센티브',
+                            data: incentiveVals,
+                            backgroundColor: '#A78BFA', // 보라색
+                            stack: 'allowance'
+                        },
+                        {
+                            label: '총수당합계',
+                            type: 'line',
+                            data: totalVals,
+                            borderColor: '#10B981', // 초록색 꺾은선
+                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#10B981',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            tension: 0.15,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                font: { size: 9, weight: 'bold' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}만원`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: '#f8fafc' },
+                            ticks: {
+                                callback: (v) => v.toLocaleString() + '만',
+                                font: { size: 9 }
+                            }
+                        },
+                        x: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: { font: { size: 8 } }
+                        }
+                    }
+                }
+            });
         }
 
         async function fetchHome(key) {
