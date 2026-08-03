@@ -7429,6 +7429,17 @@
             };
         }
 
+        function get14MonthsAgoYm(targetYm) {
+            let year = parseInt(targetYm.substring(0, 4));
+            let month = parseInt(targetYm.substring(4, 6));
+            month -= 14;
+            while (month <= 0) {
+                month += 12;
+                year -= 1;
+            }
+            return String(year) + String(month).padStart(2, '0');
+        }
+
         function createTotalAllowanceForecastView() {
             if (state.isLoading && !state.forecastLoaded) return getSkeletonUI();
             const div = document.createElement('div');
@@ -7458,8 +7469,8 @@
                 const defaults = getForecastDefaultValues(targetYm);
                 const data = saved || defaults;
 
-                // 2차년인센티브(7번): 실제 월실적_DB에서 합산된 금액
-                const incentive = state.actualIncentives[targetYm] || 0;
+                // 2차년인센티브(7번): 15차월 지급월 기준으로 표시 (14개월 전 실적에 기인)
+                const incentive = state.actualIncentives[get14MonthsAgoYm(targetYm)] || 0;
                 
                 // 각 항목 금액(원) 계산
                 const nlCommAmt = Math.round(data.nonLifePremium * (data.nonLifeComm / 100));
@@ -7479,21 +7490,21 @@
                     <tr onclick="selectForecastMonth('${targetYm}', event)" 
                         class="hover:bg-slate-50 border-b border-gray-100 transition duration-150 cursor-pointer ${activeRowClass}">
                         <td class="px-2 py-1.5 text-center font-extrabold text-gray-800 text-xs">${m}월</td>
-                        <!-- 1. 손보 신계약 월보험료 -->
-                        <td class="px-1 py-1.5">
+                        <!-- 1. 손보 신계약 월보험료 (너비 축소) -->
+                        <td class="px-1 py-1.5 text-right">
                             <input type="text" id="nlPrem-${targetYm}" value="${data.nonLifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'nonlife', this.value)" 
-                                class="w-full py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="w-24 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
                         </td>
-                        <!-- 2. 생보 신계약 월보험료 -->
-                        <td class="px-1 py-1.5">
+                        <!-- 2. 생보 신계약 월보험료 (너비 축소) -->
+                        <td class="px-1 py-1.5 text-right">
                             <input type="text" id="lPrem-${targetYm}" value="${data.lifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'life', this.value)" 
-                                class="w-full py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="w-24 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
                         </td>
                         <!-- 3. 손보 익월수수료율 -->
                         <td class="px-1 py-1.5">
@@ -7684,7 +7695,7 @@
             const nlAward = Math.round(nlPrem * (nlAwardRatio / 100));
             const lAward = Math.round(lPrem * (lAwardRatio / 100));
 
-            const incentive = state.actualIncentives[month] || 0;
+            const incentive = state.actualIncentives[get14MonthsAgoYm(month)] || 0;
             const sum = nlComm + lComm + nlAward + lAward + incentive;
 
             const totalCell = document.getElementById(`total-${month}`);
