@@ -485,7 +485,8 @@
             forecastConfigs: [],
             actualIncentives: {},
             forecastLoaded: false,
-            forecastSelectedYear: new Date().getFullYear().toString()
+            forecastSelectedYear: new Date().getFullYear().toString(),
+            forecastStartMonth: null
         };
 
         // 권한1~7 중 특정 권한이 있는지 확인하는 공통 헬퍼
@@ -7414,29 +7415,34 @@
         }
 
         function getForecastDefaultValues(targetMonth) {
-            // targetMonth(예: "202603")보다 작은 월들 중 저장된 최신 설정 찾기
+            const now = new Date();
+            const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
+            const isFuture = targetMonth > currentYm;
+
+            // targetMonth보다 작은 월들 중 저장된 최신 설정 찾기
             const sortedSaved = state.forecastConfigs
                 .filter(x => x.month < targetMonth)
                 .sort((a, b) => b.month.localeCompare(a.month));
+
             if (sortedSaved.length > 0) {
                 const latest = sortedSaved[0];
                 return {
-                    nonLifePremium: latest.nonLifePremium,
-                    lifePremium: latest.lifePremium,
-                    nonLifeComm: latest.nonLifeComm,
-                    lifeComm: latest.lifeComm,
-                    nonLifeAward: latest.nonLifeAward,
-                    lifeAward: latest.lifeAward
+                    nonLifePremium: isFuture ? 0 : latest.nonLifePremium,
+                    lifePremium: isFuture ? 0 : latest.lifePremium,
+                    nonLifeComm: latest.nonLifeComm || 30,
+                    lifeComm: latest.lifeComm || 30,
+                    nonLifeAward: latest.nonLifeAward || 80,
+                    lifeAward: latest.lifeAward || 70
                 };
             }
             // 이력 없으면 시스템 기본 디폴트
             return {
-                nonLifePremium: 15000000,
-                lifePremium: 5000000,
-                nonLifeComm: 4500000,  // 15000000 * 0.3
-                lifeComm: 1500000,     // 5000000 * 0.3
-                nonLifeAward: 12000000, // 15000000 * 0.8
-                lifeAward: 3500000      // 5000000 * 0.7
+                nonLifePremium: isFuture ? 0 : 15000000,
+                lifePremium: isFuture ? 0 : 5000000,
+                nonLifeComm: 30,
+                lifeComm: 30,
+                nonLifeAward: 80,
+                lifeAward: 70
             };
         }
 
@@ -7451,7 +7457,7 @@
             const yearTabs = years.map(y => {
                 const isActive = y === selectedYear;
                 return `
-                    <button onclick="state.forecastSelectedYear='${y}'; render(); setTimeout(renderTotalAllowanceForecastChart, 100);" 
+                    <button onclick="state.forecastSelectedYear='${y}'; state.forecastStartMonth=null; render(); setTimeout(renderTotalAllowanceForecastChart, 100);" 
                         class="px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${isActive ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-100'}">
                         ${y}년 실적 시뮬레이션
                     </button>
@@ -7472,74 +7478,106 @@
                 // 2차년인센티브(7번): 실제 월실적_DB에서 합산된 금액
                 const incentive = state.actualIncentives[targetYm] || 0;
                 
+                // 각 항목 금액(원) 계산
+                const nlCommAmt = Math.round(data.nonLifePremium * (data.nonLifeComm / 100));
+                const lCommAmt = Math.round(data.lifePremium * (data.lifeComm / 100));
+                const nlAwardAmt = Math.round(data.nonLifePremium * (data.nonLifeAward / 100));
+                const lAwardAmt = Math.round(data.lifePremium * (data.lifeAward / 100));
+
                 // 총수당 = 3번 + 4번 + 5번 + 6번 + 7번
-                const totalForecast = data.nonLifeComm + data.lifeComm + data.nonLifeAward + data.lifeAward + incentive;
+                const totalForecast = nlCommAmt + lCommAmt + nlAwardAmt + lAwardAmt + incentive;
+
+                // 행 클릭 활성화 및 하이라이트 여부 결정
+                const isSelected = state.forecastStartMonth === targetYm || 
+                                   (!state.forecastStartMonth && targetYm === selectedYear + '12');
+                const activeRowClass = isSelected ? 'bg-indigo-50/70 hover:bg-indigo-100 border-l-4 border-l-indigo-600 font-bold' : '';
 
                 rowsHtml += `
-                    <tr class="hover:bg-slate-50/50 border-b border-gray-100 transition duration-150">
-                        <td class="px-4 py-4 text-center font-extrabold text-gray-800 text-sm">${m}월</td>
+                    <tr onclick="selectForecastMonth('${targetYm}', event)" 
+                        class="hover:bg-slate-50 border-b border-gray-100 transition duration-150 cursor-pointer ${activeRowClass}">
+                        <td class="px-2 py-1.5 text-center font-extrabold text-gray-800 text-xs">${m}월</td>
                         <!-- 1. 손보 신계약 월보험료 -->
-                        <td class="px-2 py-3">
+                        <td class="px-1 py-1.5">
                             <input type="text" id="nlPrem-${targetYm}" value="${data.nonLifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'nonlife', this.value)" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="w-full py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
                         </td>
                         <!-- 2. 생보 신계약 월보험료 -->
-                        <td class="px-2 py-3">
+                        <td class="px-1 py-1.5">
                             <input type="text" id="lPrem-${targetYm}" value="${data.lifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'life', this.value)" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="w-full py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
                         </td>
                         <!-- 3. 손보 익월수수료율 -->
-                        <td class="px-2 py-3">
-                            <input type="text" id="nlComm-${targetYm}" value="${data.nonLifeComm.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="updateForecastRowTotal('${targetYm}')" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        <td class="px-1 py-1.5">
+                            <div class="flex flex-col">
+                                <div class="flex items-center justify-end gap-1">
+                                    <input type="number" id="nlComm-${targetYm}" value="${data.nonLifeComm}" 
+                                        oninput="handleForecastRatioChange('${targetYm}', 'nonlife', 'comm')" 
+                                        class="w-12 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                    <span class="text-xs font-bold text-gray-400">%</span>
+                                </div>
+                                <span id="nlCommAmt-${targetYm}" class="text-[9px] text-gray-400 block text-right mt-0.5 font-medium">${nlCommAmt.toLocaleString()}원</span>
+                            </div>
                         </td>
                         <!-- 4. 생보 익월수수료율 -->
-                        <td class="px-2 py-3">
-                            <input type="text" id="lComm-${targetYm}" value="${data.lifeComm.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="updateForecastRowTotal('${targetYm}')" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        <td class="px-1 py-1.5">
+                            <div class="flex flex-col">
+                                <div class="flex items-center justify-end gap-1">
+                                    <input type="number" id="lComm-${targetYm}" value="${data.lifeComm}" 
+                                        oninput="handleForecastRatioChange('${targetYm}', 'life', 'comm')" 
+                                        class="w-12 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                    <span class="text-xs font-bold text-gray-400">%</span>
+                                </div>
+                                <span id="lCommAmt-${targetYm}" class="text-[9px] text-gray-400 block text-right mt-0.5 font-medium">${lCommAmt.toLocaleString()}원</span>
+                            </div>
                         </td>
                         <!-- 5. 손보 법인시상율 -->
-                        <td class="px-2 py-3">
-                            <input type="text" id="nlAward-${targetYm}" value="${data.nonLifeAward.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="updateForecastRowTotal('${targetYm}')" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        <td class="px-1 py-1.5">
+                            <div class="flex flex-col">
+                                <div class="flex items-center justify-end gap-1">
+                                    <input type="number" id="nlAward-${targetYm}" value="${data.nonLifeAward}" 
+                                        oninput="handleForecastRatioChange('${targetYm}', 'nonlife', 'award')" 
+                                        class="w-12 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                    <span class="text-xs font-bold text-gray-400">%</span>
+                                </div>
+                                <span id="nlAwardAmt-${targetYm}" class="text-[9px] text-gray-400 block text-right mt-0.5 font-medium">${nlAwardAmt.toLocaleString()}원</span>
+                            </div>
                         </td>
                         <!-- 6. 생보 법인시상율 -->
-                        <td class="px-2 py-3">
-                            <input type="text" id="lAward-${targetYm}" value="${data.lifeAward.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="updateForecastRowTotal('${targetYm}')" 
-                                class="w-full text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                        <td class="px-1 py-1.5">
+                            <div class="flex flex-col">
+                                <div class="flex items-center justify-end gap-1">
+                                    <input type="number" id="lAward-${targetYm}" value="${data.lifeAward}" 
+                                        oninput="handleForecastRatioChange('${targetYm}', 'life', 'award')" 
+                                        class="w-12 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                    <span class="text-xs font-bold text-gray-400">%</span>
+                                </div>
+                                <span id="lAwardAmt-${targetYm}" class="text-[9px] text-gray-400 block text-right mt-0.5 font-medium">${lAwardAmt.toLocaleString()}원</span>
+                            </div>
                         </td>
                         <!-- 7. 2차년인센티브율 (자동조회) -->
-                        <td class="px-3 py-3 text-right text-xs font-extrabold text-slate-500 bg-slate-50/50">${incentive.toLocaleString()}원</td>
+                        <td class="px-2 py-1.5 text-right text-[11px] font-extrabold text-slate-500 bg-slate-50/50">${incentive.toLocaleString()}원</td>
                         <!-- 총수당 (예상합계) -->
-                        <td class="px-3 py-3 text-right text-xs font-black text-indigo-600 bg-indigo-50/30" id="total-${targetYm}">${totalForecast.toLocaleString()}원</td>
-                        <!-- 저장 버튼 -->
-                        <td class="px-3 py-3 text-center">
+                        <td class="px-2 py-1.5 text-right text-[11px] font-black text-indigo-600 bg-indigo-50/20" id="total-${targetYm}">${totalForecast.toLocaleString()}원</td>
+                        <!-- 저장 버튼 (높이 및 여백 축소) -->
+                        <td class="px-2 py-1.5 text-center">
                             <button onclick="handleSaveForecastRow('${targetYm}')" 
-                                class="px-3 py-1.5 rounded-lg bg-gray-800 text-white font-bold text-[10px] hover:bg-primary transition shadow-sm">
+                                class="px-2 py-1 rounded bg-gray-800 hover:bg-primary text-white text-[10px] font-bold shadow-sm transition h-6 flex items-center justify-center w-full">
                                 저장
                             </button>
                         </td>
                     </tr>
                 `;
             }
+
+            const currentStartLabel = state.forecastStartMonth 
+                ? `${state.forecastStartMonth.substring(0, 4)}년 ${parseInt(state.forecastStartMonth.substring(4, 6))}월`
+                : `${selectedYear}년 12월`;
 
             div.innerHTML = `
                 <div class="mb-8">
@@ -7554,28 +7592,28 @@
 
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
                     <!-- 좌측: 입력 그리드 -->
-                    <div class="xl:col-span-2 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col overflow-x-auto">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-extrabold text-gray-800 text-base flex items-center gap-2">
-                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    <div class="xl:col-span-2 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col overflow-x-auto max-h-[750px] sidebar-scroll">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                 월별 시뮬레이션 예상치 입력
                             </h3>
-                            <span class="text-[10px] font-semibold text-slate-400">※ 월보험료 수정 시 수수료와 시상금이 비율별로 자동 제안됩니다. (수동 편집 가능)</span>
+                            <span class="text-[9px] font-semibold text-slate-400">※ 표의 월 행을 클릭하면 해당 월 기준 16개월 그래프로 X축이 자동 전환됩니다.</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-[900px]">
                                 <thead>
                                     <tr class="bg-gray-50 text-gray-600 text-[10px] font-extrabold uppercase border-b border-gray-100">
-                                        <th class="px-4 py-3 text-center w-14">실적월</th>
-                                        <th class="px-2 py-3 text-right">손보 월보험료</th>
-                                        <th class="px-2 py-3 text-right">생보 월보험료</th>
-                                        <th class="px-2 py-3 text-right">손보 수수료</th>
-                                        <th class="px-2 py-3 text-right">생보 수수료</th>
-                                        <th class="px-2 py-3 text-right">손보 법인시상</th>
-                                        <th class="px-2 py-3 text-right">생보 법인시상</th>
-                                        <th class="px-3 py-3 text-right">2차년 인센티브</th>
-                                        <th class="px-3 py-3 text-right bg-indigo-50/50 text-indigo-700">총수당 예상액</th>
-                                        <th class="px-3 py-3 text-center w-16">관리</th>
+                                        <th class="px-2 py-2 text-center w-12">실적월</th>
+                                        <th class="px-1 py-2 text-right">손보 월보험료</th>
+                                        <th class="px-1 py-2 text-right">생보 월보험료</th>
+                                        <th class="px-1 py-2 text-right">손보 수수료율</th>
+                                        <th class="px-1 py-2 text-right">생보 수수료율</th>
+                                        <th class="px-1 py-2 text-right">손보 법인시상</th>
+                                        <th class="px-1 py-2 text-right">생보 법인시상</th>
+                                        <th class="px-2 py-2 text-right">2차년 인센티브</th>
+                                        <th class="px-2 py-2 text-right bg-indigo-50/50 text-indigo-700">총수당 예상</th>
+                                        <th class="px-2 py-2 text-center w-14">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -7586,28 +7624,34 @@
                     </div>
 
                     <!-- 우측: 그래프 -->
-                    <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
-                        <div class="mb-4">
-                            <h3 class="font-extrabold text-gray-800 text-base flex items-center gap-2">
-                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                                지급월 기준 총수당 예측 그래프
+                    <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col">
+                        <div class="mb-3">
+                            <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                총수당 예측 그래프 <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg ml-1">${currentStartLabel} 기준 16개월</span>
                             </h3>
-                            <p class="text-xs text-gray-400 mt-1">3~6번 수당은 익월 지급, 7번 인센티브는 6월 실적분까지 익월 / 7월 실적분부터 15차월에 지급됩니다.</p>
+                            <p class="text-[10px] text-gray-400 mt-0.5">모든 7번 인센티브는 15차월(실적월 + 14개월 후)에 지급되는 수당으로 계산됩니다.</p>
                         </div>
-                        <div class="relative flex-grow h-80 xl:h-96">
+                        <div class="relative flex-grow h-80 xl:h-[550px]">
                             <canvas id="allowanceForecastChart"></canvas>
                         </div>
                     </div>
                 </div>
             `;
 
-            // 그리드 생성 이후 이벤트 위임 또는 콜백 등록은 큐에서 처리
-            setTimeout(() => {
-                // 추가 이벤트 바인딩이 필요한 경우 여기서 처리
-            }, 0);
-
             return div;
         }
+
+        // 특정 월 행 클릭 시 그래프 X축 시작 연도월 설정 핸들러
+        window.selectForecastMonth = function(ym, event) {
+            // 클릭한 요소가 input이나 button이면 스킵
+            if (event && (event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.closest('button') || event.target.closest('input'))) {
+                return;
+            }
+            state.forecastStartMonth = ym;
+            render();
+            setTimeout(renderTotalAllowanceForecastChart, 100);
+        };
 
         // 입력창 보험료 변경 시 수수료(30%) / 시상금(손보 80%, 생보 70%) 실시간 자동 연산 & 제안
         window.handleForecastPremiumChange = function(month, type, value) {
@@ -7616,22 +7660,46 @@
             const awardInput = document.getElementById(type === 'nonlife' ? `nlAward-${month}` : `lAward-${month}`);
 
             if (type === 'nonlife') {
-                if (commInput) commInput.value = Math.round(rawVal * 0.3).toLocaleString();
-                if (awardInput) awardInput.value = Math.round(rawVal * 0.8).toLocaleString();
+                if (commInput) commInput.value = 30;
+                if (awardInput) awardInput.value = 80;
             } else {
-                if (commInput) commInput.value = Math.round(rawVal * 0.3).toLocaleString();
-                if (awardInput) awardInput.value = Math.round(rawVal * 0.7).toLocaleString();
+                if (commInput) commInput.value = 30;
+                if (awardInput) awardInput.value = 70;
             }
+
+            // 금액 연동 및 수당 업데이트
+            handleForecastRatioChange(month, type, 'comm');
+            handleForecastRatioChange(month, type, 'award');
+            updateForecastRowTotal(month);
+        };
+
+        // 비율(%) 변경 시 원화 금액 텍스트 실시간 연동
+        window.handleForecastRatioChange = function(month, type, ratioType) {
+            const premium = Number((document.getElementById(type === 'nonlife' ? `nlPrem-${month}` : `lPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const ratio = Number(document.getElementById(type === 'nonlife' ? (ratioType === 'comm' ? `nlComm-${month}` : `nlAward-${month}`) : (ratioType === 'comm' ? `lComm-${month}` : `lAward-${month}`))?.value || '0') || 0;
+
+            const amt = Math.round(premium * (ratio / 100));
+            const amtEl = document.getElementById(type === 'nonlife' ? (ratioType === 'comm' ? `nlCommAmt-${month}` : `nlAwardAmt-${month}`) : (ratioType === 'comm' ? `lCommAmt-${month}` : `lAwardAmt-${month}`));
+
+            if (amtEl) amtEl.innerText = amt.toLocaleString() + '원';
 
             updateForecastRowTotal(month);
         };
 
         // 행별 예상 총수당 실시간 연산 & DOM 갱신
         window.updateForecastRowTotal = function(month) {
-            const nlComm = Number((document.getElementById(`nlComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const lComm = Number((document.getElementById(`lComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const nlAward = Number((document.getElementById(`nlAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const lAward = Number((document.getElementById(`lAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const nlPrem = Number((document.getElementById(`nlPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const lPrem = Number((document.getElementById(`lPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            
+            const nlCommRatio = Number(document.getElementById(`nlComm-${month}`)?.value || '0') || 0;
+            const lCommRatio = Number(document.getElementById(`lComm-${month}`)?.value || '0') || 0;
+            const nlAwardRatio = Number(document.getElementById(`nlAward-${month}`)?.value || '0') || 0;
+            const lAwardRatio = Number(document.getElementById(`lAward-${month}`)?.value || '0') || 0;
+
+            const nlComm = Math.round(nlPrem * (nlCommRatio / 100));
+            const lComm = Math.round(lPrem * (lCommRatio / 100));
+            const nlAward = Math.round(nlPrem * (nlAwardRatio / 100));
+            const lAward = Math.round(lPrem * (lAwardRatio / 100));
 
             const incentive = state.actualIncentives[month] || 0;
             const sum = nlComm + lComm + nlAward + lAward + incentive;
@@ -7646,10 +7714,10 @@
         window.handleSaveForecastRow = function(month) {
             const nonLifePremium = Number((document.getElementById(`nlPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
             const lifePremium = Number((document.getElementById(`lPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const nonLifeComm = Number((document.getElementById(`nlComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const lifeComm = Number((document.getElementById(`lComm-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const nonLifeAward = Number((document.getElementById(`nlAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const lifeAward = Number((document.getElementById(`lAward-${month}`)?.value || '0').replace(/,/g, '')) || 0;
+            const nonLifeComm = Number(document.getElementById(`nlComm-${month}`)?.value || '0') || 0;
+            const lifeComm = Number(document.getElementById(`lComm-${month}`)?.value || '0') || 0;
+            const nonLifeAward = Number(document.getElementById(`nlAward-${month}`)?.value || '0') || 0;
+            const lifeAward = Number(document.getElementById(`lAward-${month}`)?.value || '0') || 0;
 
             const data = {
                 nonLifePremium,
@@ -7665,7 +7733,7 @@
 
         let forecastChartInstance = null;
 
-        // 지급월 매핑 및 콤보 차트 렌더링
+        // 지급월 매핑 및 16개월 콤보 차트 렌더링
         function renderTotalAllowanceForecastChart() {
             const chartCanvas = document.getElementById('allowanceForecastChart');
             if (!chartCanvas) return;
@@ -7675,23 +7743,49 @@
                 forecastChartInstance = null;
             }
 
-            // 1. 시뮬레이션 전체 데이터 수집 (202601 ~ 현재 선택 연도의 12월까지 전체 실적월)
             const activeYear = state.forecastSelectedYear || '2026';
-            const allMonths = [];
             
-            const startYear = 2026;
-            const endYear = parseInt(activeYear);
-            for (let y = startYear; y <= endYear; y++) {
-                for (let m = 1; m <= 12; m++) {
-                    allMonths.push(String(y) + String(m).padStart(2, '0'));
+            // X축 지급월 시작월 결정 (기본은 선택 연도의 12월)
+            const startMonthYm = state.forecastStartMonth || (activeYear + '12');
+
+            // 1. startMonthYm부터 16개월 연속된 지급월 목록 생성
+            const payMonthsToShow = [];
+            let currYear = parseInt(startMonthYm.substring(0, 4));
+            let currMonth = parseInt(startMonthYm.substring(4, 6));
+
+            for (let i = 0; i < 16; i++) {
+                payMonthsToShow.push(String(currYear) + String(currMonth).padStart(2, '0'));
+                currMonth++;
+                if (currMonth > 12) {
+                    currMonth = 1;
+                    currYear++;
                 }
             }
 
-            // 지급월별 데이터 누적 객체
-            const paymentMap = {}; // { payYm: { nlComm, lComm, nlAward, lAward, incentive } }
+            // 2. 지급월별 데이터 누적 초기화
+            const paymentMap = {};
+            payMonthsToShow.forEach(pym => {
+                paymentMap[pym] = { nlComm: 0, lComm: 0, nlAward: 0, lAward: 0, incentive: 0 };
+            });
 
-            allMonths.forEach(ym => {
-                // 저장된 값 혹은 디폴트값 가져오기
+            // 3. 202601월부터 마지막 지급월에 영향을 줄 수 있는 모든 실적월 수집
+            const maxPayYm = payMonthsToShow[15];
+            const allForecastMonths = [];
+            let fY = 2026;
+            let fM = 1;
+            while (true) {
+                const ymStr = String(fY) + String(fM).padStart(2, '0');
+                if (ymStr > maxPayYm) break;
+                allForecastMonths.push(ymStr);
+                fM++;
+                if (fM > 12) {
+                    fM = 1;
+                    fY++;
+                }
+            }
+
+            // 4. 수당 배분 계산 및 누적
+            allForecastMonths.forEach(ym => {
                 const saved = state.forecastConfigs.find(x => x.month === ym);
                 const defaults = getForecastDefaultValues(ym);
                 const config = saved || defaults;
@@ -7699,11 +7793,10 @@
                 // 2차년인센티브(7번)
                 const incentive = state.actualIncentives[ym] || 0;
 
-                // 지급월 계산
                 const yearNum = parseInt(ym.substring(0, 4));
                 const monthNum = parseInt(ym.substring(4, 6));
 
-                // 3,4,5,6번 익월 지급월 연산
+                // 3,4,5,6번 익월 지급월
                 let basicPayMonth = monthNum + 1;
                 let basicPayYear = yearNum;
                 if (basicPayMonth > 12) {
@@ -7712,53 +7805,40 @@
                 }
                 const basicPayYm = String(basicPayYear) + String(basicPayMonth).padStart(2, '0');
 
-                // 7번 인센티브 지급월 연산
-                let incPayYm;
-                if (monthNum <= 6) {
-                    // 6월 실적분까지 익월 지급
-                    incPayYm = basicPayYm;
-                } else {
-                    // 7월 실적분부터 15차월 지급 (실적월 + 14개월 후 지급)
-                    let incPayMonth = monthNum + 14;
-                    let incPayYear = yearNum;
-                    while (incPayMonth > 12) {
-                        incPayMonth -= 12;
-                        incPayYear += 1;
-                    }
-                    incPayYm = String(incPayYear) + String(incPayMonth).padStart(2, '0');
+                // 7번 인센티브 지급월 (전부 15차월 = 실적월 + 14개월 후 지급)
+                let incPayMonth = monthNum + 14;
+                let incPayYear = yearNum;
+                while (incPayMonth > 12) {
+                    incPayMonth -= 12;
+                    incPayYear += 1;
+                }
+                const incPayYm = String(incPayYear) + String(incPayMonth).padStart(2, '0');
+
+                // 3,4,5,6번 항목 지급월에 분배
+                if (paymentMap[basicPayYm]) {
+                    paymentMap[basicPayYm].nlComm += Math.round(config.nonLifePremium * (config.nonLifeComm / 100));
+                    paymentMap[basicPayYm].lComm += Math.round(config.lifePremium * (config.lifeComm / 100));
+                    paymentMap[basicPayYm].nlAward += Math.round(config.nonLifePremium * (config.nonLifeAward / 100));
+                    paymentMap[basicPayYm].lAward += Math.round(config.lifePremium * (config.lifeAward / 100));
                 }
 
-                // 3,4,5,6번 항목 누적
-                if (!paymentMap[basicPayYm]) {
-                    paymentMap[basicPayYm] = { nlComm: 0, lComm: 0, nlAward: 0, lAward: 0, incentive: 0 };
+                // 7번 인센티브 지급월에 분배 (전부 15차월)
+                if (paymentMap[incPayYm]) {
+                    paymentMap[incPayYm].incentive += incentive;
                 }
-                paymentMap[basicPayYm].nlComm += config.nonLifeComm;
-                paymentMap[basicPayYm].lComm += config.lifeComm;
-                paymentMap[basicPayYm].nlAward += config.nonLifeAward;
-                paymentMap[basicPayYm].lAward += config.lifeAward;
-
-                // 7번 인센티브 항목 누적
-                if (!paymentMap[incPayYm]) {
-                    paymentMap[incPayYm] = { nlComm: 0, lComm: 0, nlAward: 0, lAward: 0, incentive: 0 };
-                }
-                paymentMap[incPayYm].incentive += incentive;
             });
 
-            // 지급월 키 정렬
-            const payMonths = Object.keys(paymentMap).sort();
-            if (payMonths.length === 0) return;
-
-            const labels = payMonths.map(ym => `${ym.substring(2,4)}년 ${parseInt(ym.substring(4,6))}월`);
+            const labels = payMonthsToShow.map(ym => `${ym.substring(2,4)}년 ${parseInt(ym.substring(4,6))}월`);
 
             // Y축 값 구성 (만원 단위로 변환)
-            const nlCommVals = payMonths.map(ym => Math.round(paymentMap[ym].nlComm / 10000));
-            const lCommVals = payMonths.map(ym => Math.round(paymentMap[ym].lComm / 10000));
-            const nlAwardVals = payMonths.map(ym => Math.round(paymentMap[ym].nlAward / 10000));
-            const lAwardVals = payMonths.map(ym => Math.round(paymentMap[ym].lAward / 10000));
-            const incentiveVals = payMonths.map(ym => Math.round(paymentMap[ym].incentive / 10000));
+            const nlCommVals = payMonthsToShow.map(ym => Math.round(paymentMap[ym].nlComm / 10000));
+            const lCommVals = payMonthsToShow.map(ym => Math.round(paymentMap[ym].lComm / 10000));
+            const nlAwardVals = payMonthsToShow.map(ym => Math.round(paymentMap[ym].nlAward / 10000));
+            const lAwardVals = payMonthsToShow.map(ym => Math.round(paymentMap[ym].lAward / 10000));
+            const incentiveVals = payMonthsToShow.map(ym => Math.round(paymentMap[ym].incentive / 10000));
 
             // 총수당 합계 라인 값 구성
-            const totalVals = payMonths.map(ym => {
+            const totalVals = payMonthsToShow.map(ym => {
                 const item = paymentMap[ym];
                 const sum = item.nlComm + item.lComm + item.nlAward + item.lAward + item.incentive;
                 return Math.round(sum / 10000);
