@@ -7419,23 +7419,6 @@
             const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
             const isFuture = targetMonth > currentYm;
 
-            // targetMonth보다 작은 월들 중 저장된 최신 설정 찾기
-            const sortedSaved = state.forecastConfigs
-                .filter(x => x.month < targetMonth)
-                .sort((a, b) => b.month.localeCompare(a.month));
-
-            if (sortedSaved.length > 0) {
-                const latest = sortedSaved[0];
-                return {
-                    nonLifePremium: isFuture ? 0 : latest.nonLifePremium,
-                    lifePremium: isFuture ? 0 : latest.lifePremium,
-                    nonLifeComm: latest.nonLifeComm || 30,
-                    lifeComm: latest.lifeComm || 30,
-                    nonLifeAward: latest.nonLifeAward || 80,
-                    lifeAward: latest.lifeAward || 70
-                };
-            }
-            // 이력 없으면 시스템 기본 디폴트
             return {
                 nonLifePremium: isFuture ? 0 : 15000000,
                 lifePremium: isFuture ? 0 : 5000000,
@@ -7590,9 +7573,9 @@
                     ${yearTabs}
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div class="grid grid-cols-1 xl:grid-cols-5 gap-8">
                     <!-- 좌측: 입력 그리드 -->
-                    <div class="xl:col-span-2 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col overflow-x-auto max-h-[750px] sidebar-scroll">
+                    <div class="xl:col-span-3 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col overflow-x-auto">
                         <div class="flex items-center justify-between mb-3">
                             <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
@@ -7624,7 +7607,7 @@
                     </div>
 
                     <!-- 우측: 그래프 -->
-                    <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col">
+                    <div class="xl:col-span-2 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col">
                         <div class="mb-3">
                             <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
