@@ -7414,6 +7414,30 @@
             }
         }
 
+        async function saveTotalAllowanceForecastDataBatch(year, configsList) {
+            state.isLoading = true;
+            render();
+            const res = await callApi('saveTotalAllowanceForecastDataBatch', state.user.staffId, year, configsList);
+            state.isLoading = false;
+
+            if (res && res.success) {
+                configsList.forEach(c => {
+                    const idx = state.forecastConfigs.findIndex(x => x.month === c.month);
+                    if (idx !== -1) {
+                        state.forecastConfigs[idx] = c;
+                    } else {
+                        state.forecastConfigs.push(c);
+                    }
+                });
+                alert(year + '년 시뮬레이션 설정이 일괄 저장되었습니다.');
+                render();
+                setTimeout(renderTotalAllowanceForecastChart, 100);
+            } else {
+                alert('일괄 저장 실패: ' + (res?.message || '알 수 없는 오류'));
+                render();
+            }
+        }
+
         function getForecastDefaultValues(targetMonth) {
             const now = new Date();
             const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
@@ -7486,25 +7510,28 @@
                                    (!state.forecastStartMonth && targetYm === selectedYear + '12');
                 const activeRowClass = isSelected ? 'bg-indigo-50/70 hover:bg-indigo-100 border-l-4 border-l-indigo-600 font-bold' : '';
 
+                // 15회차 발생분: 해당 월 실적에 따라 미래(14개월 뒤)에 발생하여 지급받을 인센티브
+                const occurredIncentive = state.actualIncentives[targetYm] || 0;
+
                 rowsHtml += `
                     <tr onclick="selectForecastMonth('${targetYm}', event)" 
                         class="hover:bg-slate-50 border-b border-gray-100 transition duration-150 cursor-pointer ${activeRowClass}">
                         <td class="px-2 py-1.5 text-center font-extrabold text-gray-800 text-xs">${m}월</td>
-                        <!-- 1. 손보 신계약 월보험료 (너비 축소) -->
+                        <!-- 1. 손보 신계약 월보험료 (너비 85px 고정) -->
                         <td class="px-1 py-1.5 text-right">
                             <input type="text" id="nlPrem-${targetYm}" value="${data.nonLifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'nonlife', this.value)" 
-                                class="w-24 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" style="width: 85px;" />
                         </td>
-                        <!-- 2. 생보 신계약 월보험료 (너비 축소) -->
+                        <!-- 2. 생보 신계약 월보험료 (너비 85px 고정) -->
                         <td class="px-1 py-1.5 text-right">
                             <input type="text" id="lPrem-${targetYm}" value="${data.lifePremium.toLocaleString()}" 
                                 onfocus="this.value=this.value.replace(/,/g,'')" 
                                 onblur="this.value=Number(this.value || 0).toLocaleString()" 
                                 oninput="handleForecastPremiumChange('${targetYm}', 'life', this.value)" 
-                                class="w-24 py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" />
+                                class="py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" style="width: 85px;" />
                         </td>
                         <!-- 3. 손보 익월수수료율 -->
                         <td class="px-1 py-1.5">
@@ -7554,17 +7581,12 @@
                                 <span id="lAwardAmt-${targetYm}" class="text-[9px] text-gray-400 block text-right mt-0.5 font-medium">${lAwardAmt.toLocaleString()}원</span>
                             </div>
                         </td>
-                        <!-- 7. 2차년인센티브율 (자동조회) -->
+                        <!-- 7. 2차년인센티브 (자동조회, 지급월 기준) -->
                         <td class="px-2 py-1.5 text-right text-[11px] font-extrabold text-slate-500 bg-slate-50/50">${incentive.toLocaleString()}원</td>
                         <!-- 총수당 (예상합계) -->
                         <td class="px-2 py-1.5 text-right text-[11px] font-black text-indigo-600 bg-indigo-50/20" id="total-${targetYm}">${totalForecast.toLocaleString()}원</td>
-                        <!-- 저장 버튼 (높이 및 여백 축소) -->
-                        <td class="px-2 py-1.5 text-center">
-                            <button onclick="handleSaveForecastRow('${targetYm}')" 
-                                class="px-2 py-1 rounded bg-gray-800 hover:bg-primary text-white text-[10px] font-bold shadow-sm transition h-6 flex items-center justify-center w-full">
-                                저장
-                            </button>
-                        </td>
+                        <!-- 15회차 발생분 (연한 글씨) -->
+                        <td class="px-2 py-1.5 text-right text-[11px] font-medium text-slate-400/80 bg-slate-50/30">${occurredIncentive.toLocaleString()}원</td>
                     </tr>
                 `;
             }
@@ -7588,11 +7610,18 @@
                     <!-- 좌측: 입력 그리드 -->
                     <div class="xl:col-span-3 bg-white rounded-3xl p-5 border border-gray-100 shadow-sm flex flex-col overflow-x-auto">
                         <div class="flex items-center justify-between mb-3">
-                            <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
-                                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                월별 시뮬레이션 예상치 입력
-                            </h3>
-                            <span class="text-[9px] font-semibold text-slate-400">※ 표의 월 행을 클릭하면 해당 월 기준 16개월 그래프로 X축이 자동 전환됩니다.</span>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-extrabold text-gray-800 text-sm flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                    월별 시뮬레이션 예상치 입력
+                                </h3>
+                                <span class="text-[9px] font-semibold text-slate-400">※ 표의 월 행을 클릭하면 해당 월 기준 16개월 그래프로 X축이 자동 전환됩니다.</span>
+                            </div>
+                            <button onclick="handleBatchSaveTotalAllowanceForecast()" 
+                                class="px-3 py-1.5 bg-primary text-white text-[11px] font-extrabold rounded-lg shadow-md shadow-primary/10 hover:bg-primary-dark active:scale-95 transition-all duration-150 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                전체 저장
+                            </button>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-[900px]">
@@ -7607,7 +7636,7 @@
                                         <th class="px-1 py-2 text-right">생보 법인시상</th>
                                         <th class="px-2 py-2 text-right">2차년 인센티브</th>
                                         <th class="px-2 py-2 text-right bg-indigo-50/50 text-indigo-700">총수당 예상</th>
-                                        <th class="px-2 py-2 text-center w-14">관리</th>
+                                        <th class="px-2 py-2 text-right text-slate-400 font-extrabold uppercase bg-slate-50/30">15회차 발생분</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -7704,25 +7733,34 @@
             }
         };
 
-        // 저장 버튼 이벤트 핸들러
-        window.handleSaveForecastRow = function(month) {
-            const nonLifePremium = Number((document.getElementById(`nlPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const lifePremium = Number((document.getElementById(`lPrem-${month}`)?.value || '0').replace(/,/g, '')) || 0;
-            const nonLifeComm = Number(document.getElementById(`nlComm-${month}`)?.value || '0') || 0;
-            const lifeComm = Number(document.getElementById(`lComm-${month}`)?.value || '0') || 0;
-            const nonLifeAward = Number(document.getElementById(`nlAward-${month}`)?.value || '0') || 0;
-            const lifeAward = Number(document.getElementById(`lAward-${month}`)?.value || '0') || 0;
+        // 일괄 저장 버튼 이벤트 핸들러
+        window.handleBatchSaveTotalAllowanceForecast = function() {
+            const selectedYear = state.forecastSelectedYear || '2026';
+            const configsList = [];
 
-            const data = {
-                nonLifePremium,
-                lifePremium,
-                nonLifeComm,
-                lifeComm,
-                nonLifeAward,
-                lifeAward
-            };
+            for (let m = 1; m <= 12; m++) {
+                const monthStr = String(m).padStart(2, '0');
+                const targetYm = selectedYear + monthStr;
 
-            saveTotalAllowanceForecastData(month, data);
+                const nonLifePremium = Number((document.getElementById(`nlPrem-${targetYm}`)?.value || '0').replace(/,/g, '')) || 0;
+                const lifePremium = Number((document.getElementById(`lPrem-${targetYm}`)?.value || '0').replace(/,/g, '')) || 0;
+                const nonLifeComm = Number(document.getElementById(`nlComm-${targetYm}`)?.value || '0') || 0;
+                const lifeComm = Number(document.getElementById(`lComm-${targetYm}`)?.value || '0') || 0;
+                const nonLifeAward = Number(document.getElementById(`nlAward-${targetYm}`)?.value || '0') || 0;
+                const lifeAward = Number(document.getElementById(`lAward-${targetYm}`)?.value || '0') || 0;
+
+                configsList.push({
+                    month: targetYm,
+                    nonLifePremium,
+                    lifePremium,
+                    nonLifeComm,
+                    lifeComm,
+                    nonLifeAward,
+                    lifeAward
+                });
+            }
+
+            saveTotalAllowanceForecastDataBatch(selectedYear, configsList);
         };
 
         let forecastChartInstance = null;
