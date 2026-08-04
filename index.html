@@ -7464,6 +7464,33 @@
             return String(year) + String(month).padStart(2, '0');
         }
 
+        // 월보험료 실시간 천 단위 구분 쉼표(,) 렌더링 헬퍼 함수
+        window.formatPremiumInputRealtime = function(inputEl, month, type) {
+            let cursorPosition = inputEl.selectionStart;
+            const originalLength = inputEl.value.length;
+
+            // 숫자 이외의 문자 제거
+            let rawValue = inputEl.value.replace(/[^0-9]/g, '');
+            
+            if (rawValue === '') {
+                inputEl.value = '0';
+                handleForecastPremiumChange(month, type, '0');
+                return;
+            }
+
+            const numValue = Number(rawValue);
+            const formatted = numValue.toLocaleString();
+            inputEl.value = formatted;
+
+            // 커서 위치 재조정 (쉼표 추가/제거로 인한 길이 차이 보정)
+            const newLength = formatted.length;
+            cursorPosition = cursorPosition + (newLength - originalLength);
+            inputEl.setSelectionRange(cursorPosition, cursorPosition);
+
+            // 계산 연동
+            handleForecastPremiumChange(month, type, formatted);
+        };
+
         function createTotalAllowanceForecastView() {
             if (state.isLoading && !state.forecastLoaded) return getSkeletonUI();
             const div = document.createElement('div');
@@ -7520,17 +7547,13 @@
                         <!-- 1. 손보 신계약 월보험료 (너비 85px 고정) -->
                         <td class="px-1 py-1.5 text-right">
                             <input type="text" id="nlPrem-${targetYm}" value="${data.nonLifePremium.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="handleForecastPremiumChange('${targetYm}', 'nonlife', this.value)" 
+                                oninput="formatPremiumInputRealtime(this, '${targetYm}', 'nonlife')" 
                                 class="py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" style="width: 85px;" />
                         </td>
                         <!-- 2. 생보 신계약 월보험료 (너비 85px 고정) -->
                         <td class="px-1 py-1.5 text-right">
                             <input type="text" id="lPrem-${targetYm}" value="${data.lifePremium.toLocaleString()}" 
-                                onfocus="this.value=this.value.replace(/,/g,'')" 
-                                onblur="this.value=Number(this.value || 0).toLocaleString()" 
-                                oninput="handleForecastPremiumChange('${targetYm}', 'life', this.value)" 
+                                oninput="formatPremiumInputRealtime(this, '${targetYm}', 'life')" 
                                 class="py-1 px-1.5 text-right border-gray-200 rounded-lg text-xs font-bold focus:border-primary focus:ring-1 focus:ring-primary/20 bg-white" style="width: 85px;" />
                         </td>
                         <!-- 3. 손보 익월수수료율 -->
@@ -7653,7 +7676,6 @@
                                 <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                                 총수당 예측 그래프 <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg ml-1">${currentStartLabel} 기준 16개월</span>
                             </h3>
-                            <p class="text-[10px] text-gray-400 mt-0.5">모든 7번 인센티브는 15차월(실적월 + 14개월 후)에 지급되는 수당으로 계산됩니다.</p>
                         </div>
                         <div class="relative flex-grow h-80 xl:h-[550px]">
                             <canvas id="allowanceForecastChart"></canvas>
@@ -7938,13 +7960,13 @@
                             stack: 'allowance'
                         },
                         {
-                            label: '손보시상금',
+                            label: '손보법인시상',
                             data: nlAwardVals,
                             backgroundColor: '#EA580C', // 진한 주황색
                             stack: 'allowance'
                         },
                         {
-                            label: '생보시상금',
+                            label: '생보법인시상',
                             data: lAwardVals,
                             backgroundColor: '#2563EB', // 진한 파란색
                             stack: 'allowance'
