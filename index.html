@@ -7614,9 +7614,14 @@
                 `;
             }
 
-            const currentStartLabel = state.forecastStartMonth 
-                ? `${state.forecastStartMonth.substring(0, 4)}년 ${parseInt(state.forecastStartMonth.substring(4, 6))}월`
-                : `${selectedYear}년 12월`;
+            const now = new Date();
+            const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
+            let defaultStartMonth = selectedYear + '01';
+            if (currentYm.substring(0, 4) === selectedYear) {
+                defaultStartMonth = currentYm;
+            }
+            const finalStartMonth = state.forecastStartMonth || defaultStartMonth;
+            const currentStartLabel = `${finalStartMonth.substring(0, 4)}년 ${parseInt(finalStartMonth.substring(4, 6))}월`;
 
             div.innerHTML = `
                 <div class="mb-8">
@@ -7799,8 +7804,14 @@
 
             const activeYear = state.forecastSelectedYear || '2026';
             
-            // X축 지급월 시작월 결정 (기본은 선택 연도의 12월)
-            const startMonthYm = state.forecastStartMonth || (activeYear + '12');
+            // X축 지급월 시작월 결정 (기본은 선택 연도에 따라 현재 연월 또는 1월)
+            const now = new Date();
+            const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
+            let defaultStartMonth = activeYear + '01';
+            if (currentYm.substring(0, 4) === activeYear) {
+                defaultStartMonth = currentYm;
+            }
+            const startMonthYm = state.forecastStartMonth || defaultStartMonth;
 
             // 1. startMonthYm부터 16개월 연속된 지급월 목록 생성
             const payMonthsToShow = [];
