@@ -7876,6 +7876,49 @@
                 return Math.round(sum / 10000);
             });
 
+            // 막대 상단에 만원 단위 총합계를 드로잉하는 커스텀 플러그인
+            const topSumPlugin = {
+                id: 'topSumPlugin',
+                afterDatasetsDraw(chart) {
+                    const { ctx, scales: { x, y } } = chart;
+                    ctx.save();
+                    ctx.font = 'bold 9px sans-serif';
+                    ctx.fillStyle = '#4f46e5'; // Indigo 600
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+
+                    const datasetCount = chart.data.datasets.length;
+                    chart.data.labels.forEach((label, index) => {
+                        let total = 0;
+                        let topY = y.bottom;
+                        let hasBar = false;
+
+                        for (let d = 0; d < datasetCount; d++) {
+                            const meta = chart.getDatasetMeta(d);
+                            if (meta.hidden) continue;
+                            const element = meta.data[index];
+                            if (element) {
+                                hasBar = true;
+                                if (element.y < topY) {
+                                    topY = element.y;
+                                }
+                                total += chart.data.datasets[d].data[index] || 0;
+                            }
+                        }
+
+                        if (hasBar && total > 0) {
+                            const text = total.toLocaleString() + '만';
+                            const meta0 = chart.getDatasetMeta(0);
+                            const model = meta0.data[index];
+                            if (model) {
+                                ctx.fillText(text, model.x, topY - 3);
+                            }
+                        }
+                    });
+                    ctx.restore();
+                }
+            };
+
             const ctx = chartCanvas.getContext('2d');
             forecastChartInstance = new Chart(ctx, {
                 type: 'bar',
@@ -7911,23 +7954,10 @@
                             data: incentiveVals,
                             backgroundColor: '#A78BFA', // 보라색
                             stack: 'allowance'
-                        },
-                        {
-                            label: '총수당합계',
-                            type: 'line',
-                            data: totalVals,
-                            borderColor: '#10B981', // 초록색 꺾은선
-                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                            borderWidth: 3,
-                            pointBackgroundColor: '#fff',
-                            pointBorderColor: '#10B981',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            tension: 0.15,
-                            fill: false
                         }
                     ]
                 },
+                plugins: [topSumPlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
