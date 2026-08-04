@@ -7532,9 +7532,14 @@
                 // 총수당 = 3번 + 4번 + 5번 + 6번 + 7번
                 const totalForecast = nlCommAmt + lCommAmt + nlAwardAmt + lAwardAmt + incentive;
 
-                // 행 클릭 활성화 및 하이라이트 여부 결정
-                const isSelected = state.forecastStartMonth === targetYm || 
-                                   (!state.forecastStartMonth && targetYm === selectedYear + '12');
+                // 행 클릭 활성화 및 하이라이트 여부 결정 (현재 연월 또는 해당 연도 1월이 디폴트 선택되도록 설정)
+                const now = new Date();
+                const currentYm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
+                let defaultStartMonth = selectedYear + '01';
+                if (currentYm.substring(0, 4) === selectedYear) {
+                    defaultStartMonth = currentYm;
+                }
+                const isSelected = targetYm === (state.forecastStartMonth || defaultStartMonth);
                 const activeRowClass = isSelected ? 'bg-indigo-50/70 hover:bg-indigo-100 border-l-4 border-l-indigo-600 font-bold' : '';
 
                 // 15회차 발생분: 해당 월 실적에 따라 미래(14개월 뒤)에 발생하여 지급받을 인센티브
