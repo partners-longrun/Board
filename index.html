@@ -883,7 +883,7 @@
                     </div>` : ''}
                     
                     <!-- 6. 계약관리(관리) -->
-                    ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `
+                    ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? `
                     <div onclick="navigate('lapseAdmin')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-slate-700 group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -1303,8 +1303,8 @@
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
                              ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
                              ${isBranchRepAny() ? sidebarLink('branch', '지사대표', icons.branch) : ''}
-                             ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
-                             ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
+                             ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
+                             ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
                              ${isBranchRepAny() ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
                              ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
                              ${isForecastAllowed() ? sidebarLink('totalAllowanceForecast', '총수당예상', icons.totalAllowanceForecast) : ''}
@@ -1428,10 +1428,10 @@
                             ${isBranchRepAny() ? `<a href="#" data-nav="branch" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'branch' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.branch}</span> 지사대표
                             </a>` : ''}
-                            ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="lapseAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'lapseAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.lapseAdmin}</span> 실효연체관리
                             </a>` : ''}
-                            ${(isBranchRepAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? `<a href="#" data-nav="retentionAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'retentionAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.retentionAdmin}</span> 유지율
                             </a>` : ''}
                             ${isBranchRepAny() ? `<a href="#" data-nav="bondAdmin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'bondAdmin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
@@ -8257,7 +8257,7 @@
             }
 
             // 5. Lapse Admin Summary
-            if ((isBranchRepAny() || hasRole('실장') || isOpsAny()) &&
+            if ((isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.lapseAdminSummary) {
                 callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter').then(res => {
                     if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
@@ -8285,7 +8285,7 @@
             }
 
             // 6. Retention Admin Summary
-            if ((isBranchRepAny() || hasRole('실장') || isOpsAny()) &&
+            if ((isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.retentionAdminSummary) {
                 callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
                     if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
