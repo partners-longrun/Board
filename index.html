@@ -6901,10 +6901,13 @@
                 ? ` (${state.perfAnalysisData.referenceDate} 마감 기준)`
                 : '';
 
+            const userOrg1 = state.user?.organization1 || '';
+            const title = userOrg1 ? `${userOrg1} 실적분석` : '파트너스본부 실적분석';
+
             div.innerHTML = `
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">파트너스본부 실적분석 <span id="perf-analysis-ref-date" class="text-sm font-normal text-gray-400 ml-2">${refDate}</span></h2>
+                        <h2 class="text-2xl font-bold text-gray-800 tracking-tight">${title} <span id="perf-analysis-ref-date" class="text-sm font-normal text-gray-400 ml-2">${refDate}</span></h2>
                         <p class="text-gray-500 text-sm mt-1">데이터 기반 생/손보 포트폴리오 및 파트너 성과 관리</p>
                     </div>
                     <div class="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-full md:w-auto">
