@@ -6901,7 +6901,7 @@
                 ? ` (${state.perfAnalysisData.referenceDate} 마감 기준)`
                 : '';
 
-            const userOrg1 = state.user?.organization1 || '';
+            const userOrg1 = state.user?.organization || '';
             const title = userOrg1 ? `${userOrg1} 실적분석` : '파트너스본부 실적분석';
 
             div.innerHTML = `
