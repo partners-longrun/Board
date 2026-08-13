@@ -31,6 +31,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // GET 요청이 아니거나 Google Apps Script API 요청인 경우 서비스 워커가 개입하지 않음 (Pass-through)
+  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
+    return;
+  }
+
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request);
