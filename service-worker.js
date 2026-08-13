@@ -1,4 +1,4 @@
-const CACHE_NAME = 'partners-board-v1';
+const CACHE_NAME = 'partners-board-v2';
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
@@ -30,15 +30,8 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// PWA 설치 요건 충족용 fetch 리스너.
+// 외부 API 및 POST 요청 간섭을 막기 위해 브라우저가 네트워크 요청을 직접 처리하도록 양보(Pass-through)합니다.
 self.addEventListener('fetch', (event) => {
-  // GET 요청이 아니거나 Google Apps Script API 요청인 경우 서비스 워커가 개입하지 않음 (Pass-through)
-  if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
-    return;
-  }
-
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
-  );
+  // Do nothing
 });
