@@ -6755,8 +6755,8 @@
                     openChangePasswordModal(false);
                 } else {
                     saveSession();
+                    state.prefetchTriggered = false; // Reset trigger flag
                     navigate('home');
-                    setTimeout(prefetchAllBackground, 500); // Trigger background prefetch
                 }
             } else {
                 alert(r.message || '로그인 실패');
@@ -6767,6 +6767,7 @@
             state.user = null;
             state.homeLoaded = false;
             state.lapseLoaded = false;
+            state.prefetchTriggered = false; // Reset trigger flag
             state.lapseData = {};
             state.data = {};
             clearSession();
@@ -6776,6 +6777,7 @@
         window.handleHardRefresh = async function() {
             if (!state.user) return;
             
+            state.prefetchTriggered = false; // Reset trigger flag
             // 0. 로딩바 시작
             showLoading(true);
             
@@ -6827,9 +6829,13 @@
             const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_${state.currentView}`;
 
             // 1. Check Memory State
-            if (state.currentView === 'home' && state.data.homeData) {
+            if (state.currentView === 'home' && state.data.homeData && state.lapseLoaded && state.performanceLoaded) {
                 render();
-                fetchPerformanceTrend();
+                if (state.performanceData) renderPerformanceChart();
+                if (!state.prefetchTriggered) {
+                    state.prefetchTriggered = true;
+                    setTimeout(prefetchAllBackground, 800);
+                }
                 return;
             }
             if (state.currentView === 'dashboard' && state.dashboardSelectedMember) { render(); return; } // 소속원 선택됨: render()에서 직접 로딩
@@ -6884,8 +6890,7 @@
             }
 
             if (state.currentView === 'home') {
-                fetchHome(cacheKey);
-                fetchPerformanceTrend();
+                loadHomeDataDirect();
             }
             else if (state.currentView === 'dashboard') fetchReward(cacheKey);
             else if (state.currentView === 'branch') fetchBranch(cacheKey);
@@ -8118,6 +8123,85 @@
             });
         }
 
+        async function loadHomeDataDirect() {
+            if (!state.user || !state.currentMonth) return;
+
+            const staffId = state.user.staffId;
+            const homeCacheKey = `DATA_${staffId}_${state.currentMonth}_home`;
+
+            state.homeLoaded = false;
+            state.lapseLoaded = false;
+            state.performanceLoaded = false;
+            
+            // 로더 노출 및 UI 초기 렌더링
+            render();
+
+            // 백엔드 동시성 제한(3개 이하)에 걸리지 않는 안전한 범위 내에서
+            // 홈 화면 필수 데이터 3종을 즉시 동시에 비동기로 요청하여 속도를 극대화합니다.
+            const homePromise = callApi('getHomeData', staffId);
+            const lapsePromise = callApi('getLapseManagementData', staffId, 'collector');
+            const performancePromise = callApi('getPerformanceTrendData', staffId);
+
+            try {
+                const [homeRes, lapseRes, perfRes] = await Promise.all([
+                    homePromise,
+                    lapsePromise,
+                    performancePromise
+                ]);
+
+                // 1. 홈 데이터 로드 완료
+                if (homeRes && !homeRes.error && homeRes.success) {
+                    state.data.homeData = homeRes;
+                    sessionStorage.setItem(homeCacheKey, JSON.stringify(homeRes));
+                } else {
+                    state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+                }
+                state.homeLoaded = true;
+
+                // 2. 실효연체 데이터 로드 완료
+                if (lapseRes && !lapseRes.error && lapseRes.success) {
+                    state.lapseData = {
+                        lapsed: lapseRes.lapsed || [],
+                        lapsedDate: lapseRes.lapsedDate || '',
+                        arrears: lapseRes.arrears || [],
+                        arrearsDate: lapseRes.arrearsDate || '',
+                        unpaid: lapseRes.unpaid || [],
+                        unpaidDate: lapseRes.unpaidDate || '',
+                        unsubmitted: lapseRes.unsubmitted || [],
+                        unsubmittedDate: lapseRes.unsubmittedDate || ''
+                    };
+                }
+                state.lapseLoaded = true;
+
+                // 3. 실적추이 데이터 로드 완료
+                if (perfRes && !perfRes.error && perfRes.success) {
+                    state.performanceData = perfRes;
+                }
+                state.performanceLoaded = true;
+
+                // 4. 화면을 새로 렌더링하여 받아온 카드를 출력하고 차트를 그립니다.
+                if (state.currentView === 'home') {
+                    render();
+                    if (state.performanceData) renderPerformanceChart();
+                    updateHomeLapseCounts();
+                }
+
+                // [핵심] 홈 화면 카드의 데이터가 완벽하게 출력된 직후,
+                // 백그라운드 캐싱(프리페치 큐)을 조용히 시작시킵니다.
+                if (!state.prefetchTriggered) {
+                    state.prefetchTriggered = true;
+                    setTimeout(prefetchAllBackground, 800);
+                }
+
+            } catch (err) {
+                console.error('Direct home data load failed:', err);
+                state.homeLoaded = true;
+                state.lapseLoaded = true;
+                state.performanceLoaded = true;
+                if (state.currentView === 'home') render();
+            }
+        }
+
         async function fetchHome(key) {
             state.homeLoaded = false;
             render();
@@ -8257,8 +8341,6 @@
         function prefetchAllBackground() {
             if (!state.user || !state.currentMonth) return;
 
-            // 0. Performance Trend (Pre-fetch for home)
-            fetchPerformanceTrend();
 
             // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
             const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
@@ -8336,25 +8418,6 @@
                 }, state.currentMonth, state.user.staffId);
             }
 
-            // 4. Lapse Data (Home/My Lapsed)
-            if (!state.lapseLoaded) {
-                callApiPrefetch('getLapseManagementData', res => {
-                    if (res.success) {
-                        state.lapseData = {
-                            lapsed: res.lapsed || [],
-                            lapsedDate: res.lapsedDate || '',
-                            arrears: res.arrears || [],
-                            arrearsDate: res.arrearsDate || '',
-                            unpaid: res.unpaid || [],
-                            unpaidDate: res.unpaidDate || '',
-                            unsubmitted: res.unsubmitted || [],
-                            unsubmittedDate: res.unsubmittedDate || ''
-                        };
-                        state.lapseLoaded = true;
-                        updateHomeLapseCounts(); // Refresh UI specifically
-                    }
-                }, state.user.staffId, 'collector');
-            }
 
             // 5. Lapse Admin Summary
             if ((isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) &&
