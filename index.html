@@ -15,12 +15,21 @@
     <link rel="apple-touch-icon" href="./pwa-icon-192.png">
     
     <script>
-        // PWA 서비스 워커 등록
+        // PWA 서비스 워커 등록 및 기존 캐시 간섭형 워커 해제
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('Service Worker Registered!'))
-                    .catch(err => console.error('Service Worker registration failed:', err));
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                        console.log('Legacy Service Worker Unregistered');
+                    }
+                    navigator.serviceWorker.register('./service-worker.js?v=2')
+                        .then(reg => {
+                            console.log('New Service Worker Registered!');
+                            reg.update();
+                        })
+                        .catch(err => console.error('Service Worker registration failed:', err));
+                });
             });
         }
 
