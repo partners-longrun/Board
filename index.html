@@ -991,21 +991,22 @@
                 return;
             }
             try {
-                const res = await callApi('getPerformanceTrendData', state.user.staffId);
-                if (res && res.success) {
-                    state.performanceData = res;
-                    state.performanceLoaded = true;
-                    // 기준일 표시 업데이트
-                    const dateEl = document.getElementById('perf-closing-date');
-                    if (dateEl && res.closingDate) {
-                        dateEl.innerText = `(${res.closingDate} 마감 기준)`;
+                callApiPrefetch('getPerformanceTrendData', res => {
+                    if (res && res.success) {
+                        state.performanceData = res;
+                        state.performanceLoaded = true;
+                        // 기준일 표시 업데이트
+                        const dateEl = document.getElementById('perf-closing-date');
+                        if (dateEl && res.closingDate) {
+                            dateEl.innerText = `(${res.closingDate} 마감 기준)`;
+                        }
+                        renderPerformanceChart();
+                    } else {
+                        console.warn('실적 추이 로드 실패:', res?.message);
+                        state.performanceLoaded = true; // 에러 시에도 로딩 표시 숨김
+                        render(); // 로딩 표시 제거를 위해 리렌더링
                     }
-                    renderPerformanceChart();
-                } else {
-                    console.warn('실적 추이 로드 실패:', res?.message);
-                    state.performanceLoaded = true; // 에러 시에도 로딩 표시 숨김
-                    render(); // 로딩 표시 제거를 위해 리렌더링
-                }
+                }, state.user.staffId);
             } catch (err) {
                 console.error('실적 추이 API 오류:', err);
                 state.performanceLoaded = true;
@@ -8200,7 +8201,48 @@
             render();
         }
 
-        // --- 8.5 Background Pre-fetcher ---
+        // --- 8.5 Background Pre-fetcher Queue System ---
+        let prefetchQueue = [];
+        let isPrefetching = false;
+
+        function callApiPrefetch(action, callback, ...args) {
+            if (!state.user) return;
+            prefetchQueue.push({ action, callback, args });
+            triggerNextPrefetch();
+        }
+
+        function triggerNextPrefetch() {
+            if (isPrefetching || prefetchQueue.length === 0) return;
+            if (!state.user) {
+                prefetchQueue = [];
+                return;
+            }
+
+            isPrefetching = true;
+            const item = prefetchQueue.shift();
+
+            // Google Apps Script의 동시 실행 한계(Concurrency Limit)에 걸리지 않도록 
+            // 백그라운드 프리페치 호출들을 0.6초(600ms) 간격으로 직렬화하여 순차 실행합니다.
+            setTimeout(async () => {
+                if (!state.user) {
+                    isPrefetching = false;
+                    prefetchQueue = [];
+                    return;
+                }
+                try {
+                    const data = await callApi(item.action, ...item.args);
+                    if (data && !data.error) {
+                        item.callback(data);
+                    }
+                } catch (e) {
+                    console.warn('Prefetch API Error (Bypassed):', e);
+                } finally {
+                    isPrefetching = false;
+                    triggerNextPrefetch();
+                }
+            }, 600);
+        }
+
         function prefetchAllBackground() {
             if (!state.user || !state.currentMonth) return;
 
@@ -8210,103 +8252,82 @@
             // 0. My Lapsed Contracts (for Home Retention Rate Card Popup)
             const myLapsedCacheKey = `DATA_MY_LAPSED_${state.user.staffId}`;
             if (!sessionStorage.getItem(myLapsedCacheKey)) {
-                callApi('getLapsedContracts', state.user.staffId).then(d => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
+                callApiPrefetch('getLapsedContracts', d => {
                     if (d && !d.error && d.success) {
                         sessionStorage.setItem(myLapsedCacheKey, JSON.stringify(d));
                     }
-                });
+                }, state.user.staffId);
             }
 
             // 1. Reward Data
             if (!sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`)) {
-                callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                    if (!d.error) {
-                        d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
-                    }
-                });
+                callApiPrefetch('getRewardData', d => {
+                    d.month = state.currentMonth;
+                    sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
+                    sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
+                }, state.user.staffId, state.currentMonth);
             }
 
             // 1-2. Branch Commission Data (for 지사대표)
             if (state.user.role === '지사대표' && !state.data.branchCommData) {
-                callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                    if (!d.error && d.success) {
-                        d.month = state.currentMonth;
-                        state.data.branchCommData = d;
-                        if (state.currentView === 'branch') render();
-                    }
-                });
+                callApiPrefetch('getBranchCommissionData', d => {
+                    d.month = state.currentMonth;
+                    state.data.branchCommData = d;
+                    if (state.currentView === 'branch') render();
+                }, state.user.staffId, state.currentMonth);
             }
 
             // 2. Recruitment Data
             if (state.user.isRecruiter && !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`)) {
-                callApi('getRecruitmentData', state.user.staffId, state.currentMonth).then(d => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                    if (!d.error) {
-                        d.month = state.currentMonth;
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
-                    }
-                });
+                callApiPrefetch('getRecruitmentData', d => {
+                    d.month = state.currentMonth;
+                    sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_recruitment`, JSON.stringify(d));
+                }, state.user.staffId, state.currentMonth);
             }
 
             // 3. Admin Summary
             if ((isBranchRepAny() || isAdminAny()) &&
                 !sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`)) {
-                callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
+                callApiPrefetch('getAdminSummary', d => {
                     let parsed = typeof d === 'string' ? (() => { try { return JSON.parse(d); } catch (e) { return d; } })() : d;
-                    if (!parsed.error) {
-                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
+                    sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`, JSON.stringify(parsed));
 
-                        // [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
-                        if (parsed.reward) {
-                            const allMembers = [...(parsed.reward.active || []), ...(parsed.reward.resigned || [])];
-                            // 메인 스레드 부하 방지를 위해 최대 30명까지만 순차적 선로딩 적용
-                            const membersToPrefetch = allMembers.slice(0, 30);
+                    // [UX 개선] 관리자 테이블 팝업 미리 캐싱 (Prefetch)
+                    if (parsed.reward) {
+                        const allMembers = [...(parsed.reward.active || []), ...(parsed.reward.resigned || [])];
+                        // 최대 30명까지만 선로딩
+                        const membersToPrefetch = allMembers.slice(0, 30);
 
-                            membersToPrefetch.forEach((m, idx) => {
-                                setTimeout(() => {
-                                    if (!state.user) return; // [FIX] 로그아웃 후 setTimeout 콜백 방지
-                                    const id = String(m.id || m['사번']);
-                                    const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
-                                    if (!sessionStorage.getItem(rKey)) {
-                                        callApi('getRewardData', id, state.currentMonth).then(rd => {
-                                            if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                                            if (rd && !rd.error) {
-                                                rd.month = state.currentMonth;
-                                                sessionStorage.setItem(rKey, JSON.stringify(rd));
-                                            }
-                                        });
-                                    }
+                        membersToPrefetch.forEach((m) => {
+                            const id = String(m.id || m['사번']);
+                            const rKey = `DATA_${id}_${state.currentMonth}_dashboard`;
+                            if (!sessionStorage.getItem(rKey)) {
+                                callApiPrefetch('getRewardData', rd => {
+                                    rd.month = state.currentMonth;
+                                    sessionStorage.setItem(rKey, JSON.stringify(rd));
+                                }, id, state.currentMonth);
+                            }
 
-                                    if (state.user && state.user.role === '지사대표') {
-                                        ['nl', 'l', 'm'].forEach(cType => {
-                                            ['pay', 'refund'].forEach(pType => {
-                                                const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
-                                                if (!sessionStorage.getItem(cKey)) {
-                                                    callApi('getBranchMemberCommissionDetails', state.user.staffId, id, state.currentMonth, cType, pType).then(cd => {
-                                                        if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                                                        if (cd && cd.success && !cd.error) sessionStorage.setItem(cKey, JSON.stringify(cd));
-                                                    });
-                                                }
-                                            });
-                                        });
-                                    }
-                                }, idx * 800); // 0.8초 간격 분산 호출
-                            });
-                        }
+                            if (state.user && state.user.role === '지사대표') {
+                                ['nl', 'l', 'm'].forEach(cType => {
+                                    ['pay', 'refund'].forEach(pType => {
+                                        const cKey = `DATA_COMM_${id}_${state.currentMonth}_${cType}_${pType}`;
+                                        if (!sessionStorage.getItem(cKey)) {
+                                            callApiPrefetch('getBranchMemberCommissionDetails', cd => {
+                                                if (cd && cd.success) sessionStorage.setItem(cKey, JSON.stringify(cd));
+                                            }, state.user.staffId, id, state.currentMonth, cType, pType);
+                                        }
+                                    });
+                                });
+                            }
+                        });
                     }
-                });
+                }, state.currentMonth, state.user.staffId);
             }
 
             // 4. Lapse Data (Home/My Lapsed)
             if (!state.lapseLoaded) {
-                callApi('getLapseManagementData', state.user.staffId, 'collector').then(res => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
+                callApiPrefetch('getLapseManagementData', res => {
                     if (res.success) {
                         state.lapseData = {
                             lapsed: res.lapsed || [],
@@ -8321,82 +8342,66 @@
                         state.lapseLoaded = true;
                         updateHomeLapseCounts(); // Refresh UI specifically
                     }
-                });
+                }, state.user.staffId, 'collector');
             }
 
             // 5. Lapse Admin Summary
             if ((isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.lapseAdminSummary) {
-                callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter').then(res => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                    if (!res.error && res.success) {
+                callApiPrefetch('getAdminLapseArrearsSummary', res => {
+                    if (res.success) {
                         state.data.lapseAdminSummary = res.list || [];
                         state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                         state.data.lapseAdminSummaryType = 'recruiter';
 
                         // [UX 개선] 실효연체 팝업 미리 캐싱 (Prefetch)
                         const membersToPrefetch = state.data.lapseAdminSummary.slice(0, 30);
-                        membersToPrefetch.forEach((m, idx) => {
-                            setTimeout(() => {
-                                if (!state.user) return; // [FIX] 로그아웃 후 setTimeout 콜백 방지
-                                const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
-                                if (!sessionStorage.getItem(cacheKey)) {
-                                    callApi('getLapseManagementData', m.id, 'recruiter').then(ld => {
-                                        if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                                        if (ld && !ld.error && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
-                                    });
-                                }
-                            }, idx * 1000); // 1초 간격
+                        membersToPrefetch.forEach((m) => {
+                            const cacheKey = `DATA_LAPSE_DETAIL_${m.id}_recruiter`;
+                            if (!sessionStorage.getItem(cacheKey)) {
+                                callApiPrefetch('getLapseManagementData', ld => {
+                                    if (ld && ld.success) sessionStorage.setItem(cacheKey, JSON.stringify(ld));
+                                }, m.id, 'recruiter');
+                            }
                         });
                     }
-                });
+                }, state.user.staffId, 'recruiter');
             }
 
             // 6. Retention Admin Summary
             if ((isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) &&
                 !state.data.retentionAdminSummary) {
-                callApi('getAdminRetentionSummary', state.user.staffId).then(res => {
-                    if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                    if (!res.error && res.success) {
+                callApiPrefetch('getAdminRetentionSummary', res => {
+                    if (res.success) {
                         state.data.retentionAdminSummary = res.list || [];
 
                         // [UX 개선] 통산유지율 팝업 미리 캐싱 (Prefetch)
                         const membersToPrefetch = state.data.retentionAdminSummary.slice(0, 30);
-                        membersToPrefetch.forEach((m, idx) => {
-                            setTimeout(() => {
-                                if (!state.user) return; // [FIX] 로그아웃 후 setTimeout 콜백 방지
-                                const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${m.id}`;
-                                if (!sessionStorage.getItem(cacheKey)) {
-                                    callApi('getLapsedContractsByRecruiter', state.user.staffId, m.id).then(rd => {
-                                        if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                                        if (rd && !rd.error && rd.success) sessionStorage.setItem(cacheKey, JSON.stringify(rd));
-                                    });
-                                }
-                            }, 5000 + (idx * 1000)); // 다른 프리페치와 안겹치도록 지연 대기 후 1초 간격 실행
+                        membersToPrefetch.forEach((m) => {
+                            const cacheKey = `DATA_LAPSED_REC_${state.user.staffId}_${m.id}`;
+                            if (!sessionStorage.getItem(cacheKey)) {
+                                callApiPrefetch('getLapsedContractsByRecruiter', rd => {
+                                    if (rd && rd.success) sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                }, state.user.staffId, m.id);
+                            }
                         });
                     }
-                });
+                }, state.user.staffId);
             }
 
             // 7. New Contracts (Both NL and L)
             if (state.user.role === '지사대표') {
                 if (!state.data.newContractNl || state.data.newContractNl_month !== state.currentMonth) {
-                    callApi('getNewContractList', state.user.staffId, state.currentMonth, 'nl').then(res => {
-                        if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                        if (!res.error && res.success) {
-                            state.data.newContractNl = res.list || [];
-                            state.data.newContractNl_month = state.currentMonth;
-                        }
-                    });
+                    callApiPrefetch('getNewContractList', res => {
+                        state.data.newContractNl = res.list || [];
+                        state.data.newContractNl_month = state.currentMonth;
+                    }, state.user.staffId, state.currentMonth, 'nl');
                 }
                 if (!state.data.newContractL || state.data.newContractL_month !== state.currentMonth) {
-                    callApi('getNewContractList', state.user.staffId, state.currentMonth, 'l').then(res => {
-                        if (!state.user) return; // [FIX] 로그아웃 후 콜백 방지
-                        if (!res.error && res.success) {
-                            state.data.newContractL = res.list || [];
-                            state.data.newContractL_month = state.currentMonth;
-                        }
-                    });
+                    callApiPrefetch('getNewContractList', res => {
+                        state.data.newContractL = res.list || [];
+                        state.data.newContractL_month = state.currentMonth;
+                    }, state.user.staffId, state.currentMonth, 'l');
                 }
             }
 
@@ -8412,13 +8417,12 @@
             }
             if (!state.activityState.loaded) {
                 const as = state.activityState;
-                callApi('getActivityData', state.user.staffId, as.year, as.week).then(res => {
-                    if (!state.user) return; // 로그아웃 후 콜백 방지
+                callApiPrefetch('getActivityData', res => {
                     if (res && res.success) {
                         as.data = res;
                         as.loaded = true;
                     }
-                });
+                }, state.user.staffId, as.year, as.week);
             }
 
             // 9. Performance Analysis Prefetch (실적분석 사전 캐싱)
@@ -8438,27 +8442,25 @@
                 state.perfAnalysisYear = perfYear;
                 state.perfAnalysisMonth = perfMonth;
 
-                callApi('getPerformanceAnalysisData', state.user.staffId, perfYear, perfMonth).then(res => {
-                    if (!state.user) return; // 로그아웃 후 콜백 방지
+                callApiPrefetch('getPerformanceAnalysisData', res => {
                     if (res && res.success) {
                         state.perfAnalysisData = res;
                         state.perfAnalysisLoaded = true;
                     }
-                });
+                }, state.user.staffId, perfYear, perfMonth);
             }
 
             // 10. Bond Management Prefetch (채권관리 사전 캐싱)
             if (state.user.role === '지사대표' && !state.bondLoaded) {
-                callApi('getBondManagementData', state.user.staffId, '').then(res => {
-                    if (!state.user) return; // 로그아웃 후 콜백 방지
-                    if (res && res.success && !res.error) {
+                callApiPrefetch('getBondManagementData', res => {
+                    if (res && res.success) {
                         state.bondData = res.list || [];
                         state.bondTargetMonth = res.month || '';
                         state.bondDataMonth = state.currentMonth;
                         state.bondUpdates = {};
                         state.bondLoaded = true;
                     }
-                });
+                }, state.user.staffId, '');
             }
         }
 
