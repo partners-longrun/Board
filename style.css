@@ -1,0 +1,160 @@
+﻿        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .loader {
+            border-top-color: #F37321;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        /* Sidebar Styles */
+        .sidebar-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 260px;
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+
+        .nav-sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0.75rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            color: #94a3b8; /* slate-400 */
+        }
+
+        .nav-sidebar-link:hover {
+            background-color: rgba(243, 115, 33, 0.1);
+            color: #f37321;
+        }
+
+        .nav-sidebar-link.active {
+            background-color: #f37321;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(243, 115, 33, 0.25);
+        }
+
+        /* Responsive Main Content Adjustment */
+        @media (min-width: 1024px) {
+            .main-content-area {
+                margin-left: 260px !important;
+                width: calc(100% - 260px) !important;
+            }
+        }
+
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .truncate-product {
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f8fafc;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+            border: 2px solid #f8fafc;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Mobile FAB (Floating Action Button) */
+        .mobile-fab-container {
+            position: fixed;
+            right: 16px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .fab-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #F37321;
+            color: #FFFFFF;
+            border: none;
+            box-shadow: 0 8px 16px rgba(243, 115, 33, 0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .fab-btn:hover {
+            background-color: #d96316;
+            transform: scale(1.1);
+            box-shadow: 0 12px 20px rgba(243, 115, 33, 0.3);
+        }
+
+        .fab-btn:active {
+            transform: scale(0.95);
+        }
+
+        .fab-icon {
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .fab-text {
+            font-size: 10px;
+            margin-top: 2px;
+            font-weight: 700;
+        }
+
+        @media (min-width: 1024px) {
+            .mobile-fab-container {
+                display: none !important;
+            }
+        }
+
+        body.modal-open .mobile-fab-container {
+            display: none !important;
+        }
