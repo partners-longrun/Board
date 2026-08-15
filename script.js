@@ -1,4 +1,4 @@
-﻿        // --- 0. API Configuration ---
+        // --- 0. API Configuration ---
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
@@ -515,6 +515,18 @@
                             <p class="text-[11px] text-gray-400 mt-0.5">월별 총 수당 예측 및 분석</p>
                         </div>
                     </div>` : ''}
+
+                    <!-- 시상조정 빠른 카드 -->
+                    ${isBranchRepAny() ? `
+                    <div onclick="navigate('rewardAdjust')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-300 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">시상조정</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">시상 데이터 조정 및 엑셀 업로드</p>
+                        </div>
+                    </div>` : ''}
                 </div>
             `;
 
@@ -863,7 +875,8 @@
                 retentionAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
                 performanceAnalysis: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>',
                 bondAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
-                totalAllowanceForecast: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>'
+                totalAllowanceForecast: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>',
+                rewardAdjust: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>'
             };
 
             container.innerHTML = `
@@ -897,6 +910,7 @@
                              ${isBranchRepAny() ? sidebarLink('bondAdmin', '채권관리', icons.bondAdmin) : ''}
                              ${(isBranchRepAny() || isOpsAny() || hasRole('실장') || hasRole('실적분석')) ? sidebarLink('performanceAnalysis', '실적분석', icons.performanceAnalysis) : ''}
                              ${isForecastAllowed() ? sidebarLink('totalAllowanceForecast', '총수당예상', icons.totalAllowanceForecast) : ''}
+                             ${isBranchRepAny() ? sidebarLink('rewardAdjust', '시상조정', icons.rewardAdjust) : ''}
                         </div>` : ''}
                     </nav>
 
@@ -953,7 +967,8 @@
                                             retentionAdmin: '유지율',
                                             bondAdmin: '채권관리',
                                             performanceAnalysis: '실적분석',
-                                            totalAllowanceForecast: '총수당예상'
+                                            totalAllowanceForecast: '총수당예상',
+                                            rewardAdjust: '시상조정'
                                         };
                                         return viewMap[state.currentView] || '시스템';
                                     })()}
@@ -1032,6 +1047,9 @@
                             ${isForecastAllowed() ? `<a href="#" data-nav="totalAllowanceForecast" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'totalAllowanceForecast' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.totalAllowanceForecast}</span> 총수당예상
                             </a>` : ''}
+                            ${isBranchRepAny() ? `<a href="#" data-nav="rewardAdjust" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'rewardAdjust' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.rewardAdjust}</span> 시상조정
+                            </a>` : ''}
                         </div>
                         <div class="p-6 border-t border-gray-100 grid grid-cols-2 gap-3">
                              <button id="changePwBtnM" class="flex items-center justify-center p-4 bg-gray-50 text-gray-600 font-bold rounded-2xl active:bg-gray-100 text-sm">
@@ -1070,6 +1088,7 @@
             else if (state.currentView === 'bondAdmin') main.appendChild(createBondAdminView());
             else if (state.currentView === 'performanceAnalysis') main.appendChild(createPerformanceAnalysisView());
             else if (state.currentView === 'totalAllowanceForecast') main.appendChild(createTotalAllowanceForecastView());
+            else if (state.currentView === 'rewardAdjust') main.appendChild(createRewardAdjustView());
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -8145,6 +8164,827 @@
                 alert('실패: ' + (res.message || ' Unknown Error'));
             }
         });
+
+        // === Section: Reward Adjustment View ===
+        function createRewardAdjustView() {
+            const container = document.createElement('div');
+            container.className = 'space-y-6';
+
+            // 로컬 상태
+            let listData = [];
+            let originalMap = {}; // key -> originalRow
+            let editedItems = {}; // key -> updatedFields
+            let userList = [];
+            let defaultsList = [];
+            let selectedRows = new Set();
+
+            // 1. 헤더 영역 및 업로드 패널
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
+                                시상 조정 및 업로드
+                            </h2>
+                            <p class="text-xs text-gray-500 mt-1">엑셀 파일을 대량 업로드하고 시상 지급 배분율을 조정합니다. (지사대표 전용)</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <!-- 파일 업로드 트리거 -->
+                            <label class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl shadow-lg shadow-orange-100 transition cursor-pointer text-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                엑셀 파일 업로드 (다중 선택)
+                                <input type="file" id="excelFileInput" multiple accept=".xlsx, .xls" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 검색 필터바 -->
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">시상종류</label>
+                            <select id="adjRewardType" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                <option value="2차년인센">2차년인센</option>
+                                <option value="생보법인">생보법인</option>
+                                <option value="손보법인">손보법인</option>
+                                <option value="생보개인">생보개인</option>
+                                <option value="손보개인">손보개인</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">마감월</label>
+                            <select id="adjMonth" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                ${state.months.map(m => `<option value="${m}" ${m === state.currentMonth ? 'selected' : ''}>${m}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">보험사</label>
+                            <select id="adjCompany" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                <option value="전체">전체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">소속</label>
+                            <select id="adjBranch" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                <option value="전체">전체</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">모집인 (이름/사번)</label>
+                            <input type="text" id="adjAgent" placeholder="전체" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">지급/환수</label>
+                            <select id="adjPayRefund" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                <option value="전체">전체</option>
+                                <option value="지급">지급</option>
+                                <option value="환수">환수</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-4">
+                        <button id="adjSearchBtn" class="px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm">
+                            조회하기
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 데이터 목록 카드 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-bold text-gray-700">검색 결과 <span id="adjResultCount" class="text-primary font-black ml-1">0</span>건</span>
+                            <span id="unsavedBadge" class="hidden px-2.5 py-0.5 bg-yellow-100 text-yellow-800 font-bold rounded-full text-[10px]">저장되지 않은 변경사항 있음</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="batchEditBtn" disabled class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold rounded-lg text-xs transition">
+                                선택 일괄수정
+                            </button>
+                            <button id="saveAdjustBtn" disabled class="px-4 py-1.5 bg-primary hover:bg-primaryHover disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-md shadow-orange-100 transition">
+                                변경사항 저장
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 테이블 컨테이너 -->
+                    <div class="overflow-x-auto border border-gray-100 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold select-none">
+                                    <th class="p-3 text-center w-10"><input type="checkbox" id="selectAllCheckbox"></th>
+                                    <th class="p-3">마감월</th>
+                                    <th class="p-3">보험사</th>
+                                    <th class="p-3">소속</th>
+                                    <th class="p-3">지급/환수</th>
+                                    <th class="p-3">증권번호</th>
+                                    <th class="p-3">계약자</th>
+                                    <th class="p-3">계약일</th>
+                                    <th class="p-3">회차</th>
+                                    <th class="p-3 text-right">보험료</th>
+                                    <th class="p-3">상품명</th>
+                                    <th class="p-3">시상내용</th>
+                                    <th class="p-3 text-center">시상률</th>
+                                    <th class="p-3">지급대상자명</th>
+                                    <th class="p-3 text-center">지급비율1</th>
+                                    <th class="p-3">모집자명</th>
+                                    <th class="p-3 text-center">지급비율2</th>
+                                    <th class="p-3">상세내역 (비고)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjTableBody" class="divide-y divide-gray-50">
+                                <tr>
+                                    <td colspan="18" class="p-8 text-center text-gray-400 font-medium">검색 조건 설정 후 [조회하기] 버튼을 눌러주세요.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            // 모달/UI 생성을 위한 함수 내 변수
+            const excelFileInput = container.querySelector('#excelFileInput');
+            const adjRewardType = container.querySelector('#adjRewardType');
+            const adjMonth = container.querySelector('#adjMonth');
+            const adjCompany = container.querySelector('#adjCompany');
+            const adjBranch = container.querySelector('#adjBranch');
+            const adjAgent = container.querySelector('#adjAgent');
+            const adjPayRefund = container.querySelector('#adjPayRefund');
+            const adjSearchBtn = container.querySelector('#adjSearchBtn');
+            const adjTableBody = container.querySelector('#adjTableBody');
+            const adjResultCount = container.querySelector('#adjResultCount');
+            const selectAllCheckbox = container.querySelector('#selectAllCheckbox');
+            const batchEditBtn = container.querySelector('#batchEditBtn');
+            const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
+            const unsavedBadge = container.querySelector('#unsavedBadge');
+
+            // 2. 조회 실행 함수
+            async function fetchAdjustData() {
+                showLoading(true);
+                selectedRows.clear();
+                selectAllCheckbox.checked = false;
+                editedItems = {};
+                unsavedBadge.classList.add('hidden');
+                saveAdjustBtn.disabled = true;
+                batchEditBtn.disabled = true;
+
+                const filter = {
+                    rewardType: adjRewardType.value,
+                    month: adjMonth.value,
+                    company: adjCompany.value,
+                    branch: adjBranch.value,
+                    agent: adjAgent.value.trim() || '전체',
+                    payRefund: adjPayRefund.value
+                };
+
+                const res = await callApi('getRewardAdjustData', state.user.staffId, filter);
+                showLoading(false);
+
+                if (res.error) {
+                    alert('조회 실패: ' + res.message);
+                    return;
+                }
+
+                listData = res.list || [];
+                userList = res.users || [];
+                defaultsList = res.defaults || [];
+
+                // 오리지널 데이터 맵
+                originalMap = {};
+                listData.forEach(item => {
+                    const key = getRowKey(item);
+                    originalMap[key] = { ...item };
+                });
+
+                // 필터 바 드롭다운 갱신
+                if (adjCompany.children.length <= 1) {
+                    const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
+                    companies.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c; opt.textContent = c;
+                        adjCompany.appendChild(opt);
+                    });
+                }
+                if (adjBranch.children.length <= 1) {
+                    const branches = [...new Set(listData.map(x => String(x['소속2'] || '').trim()).filter(Boolean))].sort();
+                    branches.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b; opt.textContent = b;
+                        adjBranch.appendChild(opt);
+                    });
+                }
+
+                renderTable();
+            }
+
+            // 고유 행 키 생성
+            function getRowKey(row) {
+                const m = String(row['마감월'] || '').trim();
+                const c = String(row['보험사'] || '').trim();
+                const p = String(row['증권번호'] || '').trim();
+                const a = String(row['사번'] || '').trim();
+                const r = String(row['납입회차'] || '').trim();
+                return `${m}_${c}_${p}_${a}_${r}`;
+            }
+
+            // 테이블 드로우
+            function renderTable() {
+                adjTableBody.innerHTML = '';
+                adjResultCount.textContent = listData.length;
+
+                if (listData.length === 0) {
+                    adjTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="18" class="p-8 text-center text-gray-400 font-medium">검색된 데이터가 없습니다.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
+
+                listData.forEach((row) => {
+                    const key = getRowKey(row);
+                    const isEdited = !!editedItems[key];
+                    const tr = document.createElement('tr');
+                    tr.className = `hover:bg-slate-50/50 transition-colors ${isEdited ? 'bg-blue-50/40' : ''}`;
+                    tr.dataset.key = key;
+
+                    const curLeaderName = isEdited && editedItems[key]['지사장명'] !== undefined ? editedItems[key]['지사장명'] : (row['지사장명'] || '');
+                    const curLeaderId = isEdited && editedItems[key]['지사장사번'] !== undefined ? editedItems[key]['지사장사번'] : (row['지사장사번'] || '');
+                    const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : Number(row['지급비율1'] || 0);
+                    const curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
+                    const curNote = isEdited && editedItems[key]['상세내역'] !== undefined ? editedItems[key]['상세내역'] : (row['상세내역'] || '');
+
+                    const isPay = String(row['지급/환수'] || '').includes('지급');
+                    const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
+
+                    const curBranch = String(row['소속2'] || '').trim();
+                    const filteredUsers = userList.filter(u => u.branch === curBranch || !curBranch);
+                    const userOptions = filteredUsers.map(u => `<option value="${u.id}" ${String(u.id) === String(curLeaderId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('');
+
+                    const selectHtml = isAdjustment ? `
+                        <select class="leader-select bg-transparent border border-gray-200 rounded px-1.5 py-1 w-32 focus:bg-white focus:border-primary outline-none cursor-pointer">
+                            <option value="">(선택 안 됨)</option>
+                            ${userOptions}
+                        </select>
+                    ` : `<span>${row['지급대상자명'] || ''}</span>`;
+
+                    const ratio1Input = isAdjustment ? `
+                        <div class="flex items-center gap-1 justify-center">
+                            <input type="number" min="0" max="100" class="ratio1-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio1 * 100)}">%
+                        </div>
+                    ` : `<span class="text-gray-400">-</span>`;
+
+                    const ratio2Input = isAdjustment ? `
+                        <div class="flex items-center gap-1 justify-center">
+                            <input type="number" min="0" max="100" class="ratio2-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
+                        </div>
+                    ` : `<span>${Math.round(curRatio2 * 100)}%</span>`;
+
+                    const noteInput = isAdjustment ? `
+                        <input type="text" class="note-input w-full border border-gray-200 rounded px-2 py-1" value="${curNote}" placeholder="지급 사유 입력">
+                    ` : `<span class="truncate block max-w-[120px]" title="${row['상세내역'] || ''}">${row['상세내역'] || ''}</span>`;
+
+                    tr.innerHTML = `
+                        <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
+                        <td class="p-3 font-semibold text-gray-500">${row['마감월'] || ''}</td>
+                        <td class="p-3 font-bold">${row['보험사'] || ''}</td>
+                        <td class="p-3 text-gray-500">${row['소속2'] || ''}</td>
+                        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
+                        <td class="p-3 text-gray-600 font-mono">${row['증권번호'] || ''}</td>
+                        <td class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
+                        <td class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
+                        <td class="p-3 text-center">${row['납입회차'] || ''}</td>
+                        <td class="p-3 text-right font-bold text-slate-700">${formatMoney(row['보험료'])}</td>
+                        <td class="p-3 text-gray-600 max-w-[150px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
+                        <td class="p-3 text-gray-500 max-w-[150px] truncate" title="${row['시상내용'] || ''}">${row['시상내용'] || ''}</td>
+                        <td class="p-3 text-center font-bold text-indigo-600">${row['시상률'] || '0%'}</td>
+                        
+                        <td class="p-3">${selectHtml}</td>
+                        <td class="p-3 text-center">${ratio1Input}</td>
+                        <td class="p-3 font-medium">${row['모집인'] || ''}</td>
+                        <td class="p-3 text-center">${ratio2Input}</td>
+                        <td class="p-3">${noteInput}</td>
+                    `;
+
+                    // 체크박스 핸들러
+                    const checkbox = tr.querySelector('.row-checkbox');
+                    checkbox.addEventListener('change', (e) => {
+                        if (e.target.checked) selectedRows.add(key);
+                        else selectedRows.delete(key);
+                        updateBatchEditButtonState();
+                    });
+
+                    if (isAdjustment) {
+                        const selectEl = tr.querySelector('.leader-select');
+                        const r1El = tr.querySelector('.ratio1-input');
+                        const r2El = tr.querySelector('.ratio2-input');
+                        const noteEl = tr.querySelector('.note-input');
+
+                        const markAsEdited = () => {
+                            if (!editedItems[key]) editedItems[key] = {};
+                            
+                            const origLeaderPay = Number(row['지사장지급액'] || 0);
+                            const origFpPay = Number(row['FP지급액'] || 0);
+                            const origTotalPay = origLeaderPay + origFpPay;
+                            
+                            const val1 = parseInt(r1El.value) || 0;
+                            const val2 = parseInt(r2El.value) || 0;
+
+                            const selectedUserId = selectEl.value;
+                            const selectedUserOpt = selectEl.options[selectEl.selectedIndex];
+                            const selectedUserName = selectedUserId ? selectedUserOpt.text.split(' (')[0] : '';
+
+                            editedItems[key] = {
+                                '마감월': row['마감월'],
+                                '보험사': row['보험사'],
+                                '증권번호': row['증권번호'],
+                                '사번': row['사번'],
+                                '납입회차': row['납입회차'] || '',
+                                '지사장명': selectedUserName,
+                                '지사장사번': selectedUserId,
+                                '지급비율1': val1 / 100,
+                                '지급비율2': val2 / 100,
+                                '지사장지급액': origTotalPay * (val1 / 100),
+                                'FP지급액': origTotalPay * (val2 / 100),
+                                '상세내역': noteEl.value
+                            };
+
+                            tr.classList.add('bg-blue-50/40');
+                            unsavedBadge.classList.remove('hidden');
+                            saveAdjustBtn.disabled = false;
+                        };
+
+                        selectEl.addEventListener('change', markAsEdited);
+                        noteEl.addEventListener('input', markAsEdited);
+
+                        r1El.addEventListener('input', () => {
+                            let val1 = parseInt(r1El.value) || 0;
+                            if (val1 > 100) val1 = 100;
+                            if (val1 < 0) val1 = 0;
+                            r1El.value = val1;
+                            r2El.value = 100 - val1;
+                            markAsEdited();
+                        });
+
+                        r2El.addEventListener('input', () => {
+                            let val2 = parseInt(r2El.value) || 0;
+                            if (val2 > 100) val2 = 100;
+                            if (val2 < 0) val2 = 0;
+                            r2El.value = val2;
+                            r1El.value = 100 - val2;
+                            markAsEdited();
+                        });
+                    }
+
+                    adjTableBody.appendChild(tr);
+                });
+            }
+
+            function updateBatchEditButtonState() {
+                batchEditBtn.disabled = selectedRows.size === 0;
+                selectAllCheckbox.checked = selectedRows.size === listData.length && listData.length > 0;
+            }
+
+            selectAllCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                container.querySelectorAll('.row-checkbox').forEach(cb => {
+                    cb.checked = isChecked;
+                    const key = cb.closest('tr').dataset.key;
+                    if (isChecked) selectedRows.add(key);
+                    else selectedRows.delete(key);
+                });
+                updateBatchEditButtonState();
+            });
+
+            batchEditBtn.addEventListener('click', () => {
+                if (selectedRows.size === 0) return;
+                showBatchEditModal();
+            });
+
+            function showBatchEditModal() {
+                const modalId = 'batch-edit-modal';
+                let modal = document.getElementById(modalId);
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = modalId;
+                    modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+                    document.body.appendChild(modal);
+                }
+
+                const userOptions = userList.map(u => `<option value="${u.id}">${u.name} (${u.id}) [${u.branch}]</option>`).join('');
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 flex flex-col">
+                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                            <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
+                                선택 건 일괄 수정 (${selectedRows.size}건)
+                            </h3>
+                            <button id="closeBatchModalBtn" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        <div class="p-6 space-y-4 text-left text-sm">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자 (지사장)</label>
+                                <select id="modalLeaderSelect" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none cursor-pointer focus:border-primary font-bold">
+                                    <option value="keep">(기존 값 유지)</option>
+                                    <option value="">(비움)</option>
+                                    ${userOptions}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지사장 지급비율</label>
+                                    <div class="flex items-center gap-1.5">
+                                        <input type="number" id="modalRatio1" min="0" max="100" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="유지">
+                                        <span class="font-bold text-gray-500">%</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">모집자 (FP) 지급비율</label>
+                                    <div class="flex items-center gap-1.5">
+                                        <input type="number" id="modalRatio2" min="0" max="100" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="유지">
+                                        <span class="font-bold text-gray-500">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 mb-1">상세내역 (비고)</label>
+                                <input type="text" id="modalNote" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary" placeholder="(기존 값 유지)">
+                            </div>
+                        </div>
+                        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+                            <button id="cancelBatchModalBtn" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition text-xs">취소</button>
+                            <button id="applyBatchModalBtn" class="px-5 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl transition text-xs shadow-md shadow-orange-100">적용하기</button>
+                        </div>
+                    </div>
+                `;
+
+                const modalLeaderSelect = modal.querySelector('#modalLeaderSelect');
+                const modalRatio1 = modal.querySelector('#modalRatio1');
+                const modalRatio2 = modal.querySelector('#modalRatio2');
+                const modalNote = modal.querySelector('#modalNote');
+                const closeBtn = modal.querySelector('#closeBatchModalBtn');
+                const cancelBtn = modal.querySelector('#cancelBatchModalBtn');
+                const applyBtn = modal.querySelector('#applyBatchModalBtn');
+
+                const closeModal = () => {
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                };
+
+                closeBtn.addEventListener('click', closeModal);
+                cancelBtn.addEventListener('click', closeModal);
+
+                modalRatio1.addEventListener('input', () => {
+                    let v = parseInt(modalRatio1.value);
+                    if (isNaN(v)) return;
+                    if (v > 100) v = 100;
+                    if (v < 0) v = 0;
+                    modalRatio1.value = v;
+                    modalRatio2.value = 100 - v;
+                });
+                modalRatio2.addEventListener('input', () => {
+                    let v = parseInt(modalRatio2.value);
+                    if (isNaN(v)) return;
+                    if (v > 100) v = 100;
+                    if (v < 0) v = 0;
+                    modalRatio2.value = v;
+                    modalRatio1.value = 100 - v;
+                });
+
+                applyBtn.addEventListener('click', () => {
+                    const leaderVal = modalLeaderSelect.value;
+                    const r1Val = modalRatio1.value !== '' ? parseInt(modalRatio1.value) : null;
+                    const r2Val = modalRatio2.value !== '' ? parseInt(modalRatio2.value) : null;
+                    const noteVal = modalNote.value;
+
+                    let selectedUserName = '';
+                    if (leaderVal !== 'keep' && leaderVal !== '') {
+                        const opt = modalLeaderSelect.options[modalLeaderSelect.selectedIndex];
+                        selectedUserName = opt.text.split(' (')[0];
+                    }
+
+                    selectedRows.forEach(key => {
+                        const row = originalMap[key];
+                        if (!row) return;
+
+                        if (!editedItems[key]) editedItems[key] = {};
+
+                        const curLeaderName = editedItems[key]['지사장명'] !== undefined ? editedItems[key]['지사장명'] : (row['지사장명'] || '');
+                        const curLeaderId = editedItems[key]['지사장사번'] !== undefined ? editedItems[key]['지사장사번'] : (row['지사장사번'] || '');
+                        const curRatio1 = editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : Number(row['지급비율1'] || 0);
+                        const curRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
+                        const curNote = editedItems[key]['상세내역'] !== undefined ? editedItems[key]['상세내역'] : (row['상세내역'] || '');
+
+                        const origLeaderPay = Number(row['지사장지급액'] || 0);
+                        const origFpPay = Number(row['FP지급액'] || 0);
+                        const origTotalPay = origLeaderPay + origFpPay;
+
+                        const finalLeaderId = leaderVal === 'keep' ? curLeaderId : leaderVal;
+                        const finalLeaderName = leaderVal === 'keep' ? curLeaderName : selectedUserName;
+                        const finalRatio1 = r1Val !== null ? (r1Val / 100) : curRatio1;
+                        const finalRatio2 = r2Val !== null ? (r2Val / 100) : curRatio2;
+                        const finalNote = noteVal === '' ? curNote : noteVal;
+
+                        editedItems[key] = {
+                            '마감월': row['마감월'],
+                            '보험사': row['보험사'],
+                            '증권번호': row['증권번호'],
+                            '사번': row['사번'],
+                            '납입회차': row['납입회차'] || '',
+                            '지사장명': finalLeaderName,
+                            '지사장사번': finalLeaderId,
+                            '지급비율1': finalRatio1,
+                            '지급비율2': finalRatio2,
+                            '지사장지급액': origTotalPay * finalRatio1,
+                            'FP지급액': origTotalPay * finalRatio2,
+                            '상세내역': finalNote
+                        };
+                    });
+
+                    closeModal();
+                    renderTable();
+                    saveAdjustBtn.disabled = false;
+                    unsavedBadge.classList.remove('hidden');
+                });
+
+                document.body.classList.add('modal-open');
+                modal.style.display = 'flex';
+            }
+
+            saveAdjustBtn.addEventListener('click', async () => {
+                const itemsToSave = Object.values(editedItems);
+                if (itemsToSave.length === 0) return;
+
+                showLoading(true);
+                const res = await callApi('saveRewardAdjustData', state.user.staffId, adjRewardType.value, itemsToSave);
+                showLoading(false);
+
+                if (res.error) {
+                    alert('저장 오류: ' + res.message);
+                } else {
+                    alert(res.message || '변경 내용이 성공적으로 저장되었습니다.');
+                    fetchAdjustData();
+                }
+            });
+
+            excelFileInput.addEventListener('change', handleExcelFiles);
+
+            function handleExcelFiles(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+
+                showLoading(true);
+                const parsedFiles = [];
+                let loadedCount = 0;
+
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        try {
+                            const data = evt.target.result;
+                            const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[firstSheetName];
+                            
+                            const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                            
+                            parsedFiles.push({
+                                filename: file.name,
+                                rows: json
+                            });
+                        } catch(err) {
+                            console.error('파일 파싱 에러: ' + file.name, err);
+                        } finally {
+                            loadedCount++;
+                            if (loadedCount === files.length) {
+                                showLoading(false);
+                                showExcelSheetMappingModal(parsedFiles);
+                                excelFileInput.value = '';
+                            }
+                        }
+                    };
+                    reader.onerror = () => {
+                        loadedCount++;
+                        if (loadedCount === files.length) showLoading(false);
+                    };
+                    reader.readAsBinaryString(file);
+                });
+            }
+
+            function showExcelSheetMappingModal(parsedFiles) {
+                const modalId = 'excel-mapping-modal';
+                let modal = document.getElementById(modalId);
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = modalId;
+                    modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+                    document.body.appendChild(modal);
+                }
+
+                const recommendSheet = (filename) => {
+                    const name = filename.toLowerCase();
+                    if (name.includes('2차년') || name.includes('인센')) return '2차년인센';
+                    if (name.includes('생보') && name.includes('법인')) return '생보법인';
+                    if (name.includes('손보') && name.includes('법인')) return '손보법인';
+                    if (name.includes('생보') && (name.includes('개인') || name.includes('시상'))) return '생보개인';
+                    if (name.includes('손보') && (name.includes('개인') || name.includes('시상'))) return '손보개인';
+                    return '2차년인센';
+                };
+
+                const extractMonth = (rows) => {
+                    if (rows.length > 0) {
+                        const mVal = rows[0]['마감월'] || rows[0]['마감월별'];
+                        if (mVal) {
+                            const str = String(mVal).trim().replace(/\D/g, '');
+                            if (str.length >= 6) return str.substring(0, 6);
+                        }
+                    }
+                    return adjMonth.value;
+                };
+
+                let rowsHtml = parsedFiles.map((file, idx) => {
+                    const recommended = recommendSheet(file.filename);
+                    const fileMonth = extractMonth(file.rows);
+
+                    return `
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-100 pb-3" data-idx="${idx}">
+                            <div class="truncate max-w-[200px]" title="${file.filename}">
+                                <p class="font-bold text-gray-800 text-xs truncate">${file.filename}</p>
+                                <p class="text-[10px] text-gray-400 mt-0.5">데이터 ${file.rows.length}행</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-gray-400 font-bold mb-0.5">마감월</label>
+                                    <input type="text" class="file-month-input w-20 border border-gray-200 rounded px-2 py-1 text-center font-bold text-xs" value="${fileMonth}" placeholder="yyyyMM">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-gray-400 font-bold mb-0.5">저장할 시트</label>
+                                    <select class="file-sheet-select bg-white border border-gray-200 rounded px-2 py-1 text-xs outline-none cursor-pointer focus:border-primary font-bold">
+                                        <option value="2차년인센" ${recommended === '2차년인센' ? 'selected' : ''}>2차년인센</option>
+                                        <option value="생보법인" ${recommended === '생보법인' ? 'selected' : ''}>생보법인</option>
+                                        <option value="손보법인" ${recommended === '손보법인' ? 'selected' : ''}>손보법인</option>
+                                        <option value="생보개인" ${recommended === '생보개인' ? 'selected' : ''}>생보개인</option>
+                                        <option value="손보개인" ${recommended === '손보개인' ? 'selected' : ''}>손보개인</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
+                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                            <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
+                                파일별 저장 대상 설정 (${parsedFiles.length}개 파일)
+                            </h3>
+                            <button id="closeMappingModalBtn" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                        <div class="p-6 overflow-y-auto max-h-[350px] space-y-4 text-left">
+                            ${rowsHtml}
+                        </div>
+                        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                            <p class="text-[10px] text-gray-500 font-bold">* 업로드 시 해당 마감월 데이터가 덮어씌워집니다.</p>
+                            <div class="flex gap-2">
+                                <button id="cancelMappingModalBtn" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition text-xs">취소</button>
+                                <button id="startUploadBtn" class="px-5 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl transition text-xs shadow-md shadow-orange-100">업로드 시작</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const closeBtn = modal.querySelector('#closeMappingModalBtn');
+                const cancelBtn = modal.querySelector('#cancelMappingModalBtn');
+                const startBtn = modal.querySelector('#startUploadBtn');
+
+                const closeModal = () => {
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                };
+
+                closeBtn.addEventListener('click', closeModal);
+                cancelBtn.addEventListener('click', closeModal);
+
+                startBtn.addEventListener('click', () => {
+                    const confirmMsg = "정말로 업로드를 진행하시겠습니까?\n업로드 시 매칭된 마감월의 기존 시트 데이터는 완전히 삭제되고 새로운 파일 데이터로 덮어쓰기(Overwrite) 됩니다.";
+                    if (!confirm(confirmMsg)) return;
+
+                    const uploadQueue = [];
+                    const items = modal.querySelectorAll('[data-idx]');
+                    items.forEach(el => {
+                        const idx = parseInt(el.dataset.idx);
+                        const fileObj = parsedFiles[idx];
+                        const month = el.querySelector('.file-month-input').value.trim();
+                        const sheetName = el.querySelector('.file-sheet-select').value;
+
+                        uploadQueue.push({
+                            filename: fileObj.filename,
+                            sheetName: sheetName,
+                            month: month,
+                            rows: fileObj.rows
+                        });
+                    });
+
+                    closeModal();
+                    runUploadQueue(uploadQueue);
+                });
+
+                document.body.classList.add('modal-open');
+                modal.style.display = 'flex';
+            }
+
+            async function runUploadQueue(uploadQueue) {
+                const modalId = 'upload-progress-modal';
+                let modal = document.getElementById(modalId);
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = modalId;
+                    modal.className = "fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4";
+                    document.body.appendChild(modal);
+                }
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-fadeIn">
+                        <h3 class="font-bold text-lg text-gray-800 mb-2">엑셀 파일 업로드 중...</h3>
+                        <p class="text-xs text-gray-500 mb-5" id="progressStatus">준비 중...</p>
+                        
+                        <div class="w-full bg-gray-100 rounded-full h-3.5 mb-6 overflow-hidden border border-gray-100/50">
+                            <div id="progressBarFill" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+
+                        <div class="text-left text-xs bg-gray-50 p-4 rounded-xl border border-gray-100 max-h-[150px] overflow-y-auto font-mono space-y-1" id="progressLogs">
+                        </div>
+                    </div>
+                `;
+
+                const statusEl = modal.querySelector('#progressStatus');
+                const progressFill = modal.querySelector('#progressBarFill');
+                const logsEl = modal.querySelector('#progressLogs');
+
+                modal.style.display = 'flex';
+                document.body.classList.add('modal-open');
+
+                const totalFiles = uploadQueue.length;
+                let successCount = 0;
+                let failCount = 0;
+
+                const log = (msg) => {
+                    const p = document.createElement('p');
+                    p.className = 'text-[10px] text-gray-600 leading-tight';
+                    p.textContent = msg;
+                    logsEl.appendChild(p);
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                };
+
+                for (let i = 0; i < totalFiles; i++) {
+                    const task = uploadQueue[i];
+                    const percent = Math.round((i / totalFiles) * 100);
+                    
+                    statusEl.textContent = `진행 중: ${i + 1} / ${totalFiles} (${percent}%)`;
+                    progressFill.style.width = `${percent}%`;
+                    log(`[${i + 1}/${totalFiles}] ${task.filename} -> ${task.sheetName} (${task.month}) 전송 중...`);
+
+                    const res = await callApi('uploadRewardExcelData', state.user.staffId, task.sheetName, task.month, task.rows);
+
+                    if (res.error) {
+                        failCount++;
+                        log(`❌ 실패: ${task.filename} - ${res.message}`);
+                    } else {
+                        successCount++;
+                        log(`✅ 성공: ${task.filename} (${res.count}건 저장됨)`);
+                    }
+                }
+
+                statusEl.textContent = `완료: 성공 ${successCount}건, 실패 ${failCount}건`;
+                progressFill.style.width = `100%`;
+                
+                const btnWrapper = document.createElement('div');
+                btnWrapper.className = 'mt-6 text-center';
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'px-6 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-md';
+                closeBtn.textContent = '확인';
+                closeBtn.onclick = () => {
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                    fetchAdjustData();
+                };
+                btnWrapper.appendChild(closeBtn);
+                modal.firstElementChild.appendChild(btnWrapper);
+            }
+
+            adjSearchBtn.addEventListener('click', fetchAdjustData);
+
+            setTimeout(fetchAdjustData, 100);
+
+            return container;
+        }
 
         // --- 10. Initialization --- 
         document.addEventListener('DOMContentLoaded', () => {

@@ -1,4 +1,4 @@
-﻿        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
 
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
@@ -157,4 +157,14 @@
 
         body.modal-open .mobile-fab-container {
             display: none !important;
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
+        }
+
+        .ratio1-input:focus, .ratio2-input:focus, .note-input:focus, .leader-select:focus {
+            outline: none;
+            border-color: #F37321 !important;
+            box-shadow: 0 0 0 2px rgba(243, 115, 33, 0.15) !important;
         }
