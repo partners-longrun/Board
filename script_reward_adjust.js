@@ -1,4 +1,4 @@
-        // === Section: Reward Adjustment View ===
+﻿        // === Section: Reward Adjustment View ===
         function createRewardAdjustView() {
             const container = document.createElement('div');
             container.className = 'space-y-6';
@@ -14,6 +14,38 @@
             
             // 엑셀 파싱 원천 데이터 임시 보관소
             let uploadedParsedRows = []; 
+
+            // 202510부터 전월(현재 일 기준)까지의 마감월 목록 동적 생성 헬퍼
+            function getAdjMonthsList() {
+                const months = [];
+                const startYear = 2025;
+                const startMonth = 10;
+                
+                const now = new Date();
+                // 전월 계산
+                const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const endYear = prevDate.getFullYear();
+                const endMonth = prevDate.getMonth() + 1;
+                
+                let currYear = startYear;
+                let currMonth = startMonth;
+                
+                while (currYear < endYear || (currYear === endYear && currMonth <= endMonth)) {
+                    const mStr = String(currMonth).padStart(2, '0');
+                    months.push(`${currYear}${mStr}`);
+                    
+                    currMonth++;
+                    if (currMonth > 12) {
+                        currMonth = 1;
+                        currYear++;
+                    }
+                }
+                // 최신 월(전월)이 가장 상단에 오도록 내림차순 정렬
+                return months.reverse();
+            }
+
+            const adjMonths = getAdjMonthsList();
+            const defaultSelectedMonth = adjMonths[0] || ''; // 내림차순 첫 항목 = 전월
 
             // 천원 단위 쉼표 포맷 헬퍼
             function formatNumberWithCommas(val) {
@@ -51,7 +83,7 @@
                         <div>
                             <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">마감월</label>
                             <select id="adjMonth" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                ${state.months.map(m => `<option value="${m}" ${m === state.currentMonth ? 'selected' : ''}>${m}</option>`).join('')}
+                                ${adjMonths.map(m => `<option value="${m}" ${m === defaultSelectedMonth ? 'selected' : ''}>${m}</option>`).join('')}
                             </select>
                         </div>
                         <div>
@@ -317,7 +349,7 @@
                     const rateFloat = Number(row['시상률'] || 0);
                     const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    // 지급대상자1 (지사장 - 재직자 목록 그대로 유지)
+                    // 지급대상자1
                     const selectLeaderHtml = isAdjustment ? `
                         <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -325,7 +357,7 @@
                         </select>
                     ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    // 지급대상자2 (FP - 퇴사자 포함 전체 목록 allUserList 주입)
+                    // 지급대상자2
                     const selectFpHtml = `
                         <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -514,8 +546,6 @@
                 const targetCount = mode === 'selected' ? selectedRows.size : listData.length;
                 const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
                 const userOptions = userList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
-                
-                // 지급대상자2 일괄적용용 퇴사자 포함 전체 옵션 리스트
                 const allUserOptions = allUserList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
                 modal.innerHTML = `
@@ -924,7 +954,7 @@
 
             // 마감월별 Chunking 분할 덮어쓰기 로직 연계
             async function startDataUploadProcess(rewardType) {
-                // 1. 유니크한 마감월 추출
+                // 1. 유니크한 마감월 추출 (문자열 6자리 수치로 극도로 강건하게 획득)
                 const monthsInRows = [...new Set(uploadedParsedRows.map(r => {
                     let m = r['마감월'];
                     if (m instanceof Date) {
@@ -934,9 +964,20 @@
                             return `${y}${mm}`;
                         } catch(e) {}
                     }
-                    if (m && String(m).trim().length === 6) return String(m).trim();
-                    let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '');
-                    if (d.length >= 6) return d.substring(0, 6);
+                    let mStr = String(m || '').replace(/[^0-9]/g, '').trim();
+                    if (mStr.length === 6) return mStr;
+
+                    let dVal = r['계약일자'] || r['계약일'];
+                    if (dVal instanceof Date) {
+                        try {
+                            const y = dVal.getFullYear();
+                            const mm = String(dVal.getMonth() + 1).padStart(2, '0');
+                            return `${y}${mm}`;
+                        } catch(e) {}
+                    }
+                    let dStr = String(dVal || '').replace(/[^0-9]/g, '').trim();
+                    if (dStr.length >= 6) return dStr.substring(0, 6);
+
                     return '';
                 }).filter(Boolean))];
 
@@ -979,8 +1020,17 @@
 
                     const rowsForMonth = uploadedParsedRows.filter(r => {
                         let rowM = r['마감월'];
-                        if (rowM && String(rowM).trim().length === 6) return String(rowM).trim() === m;
-                        let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '');
+                        if (rowM instanceof Date) {
+                            try {
+                                const y = rowM.getFullYear();
+                                const mm = String(rowM.getMonth() + 1).padStart(2, '0');
+                                return `${y}${mm}` === m;
+                            } catch(e) {}
+                        }
+                        let mStr = String(rowM || '').replace(/[^0-9]/g, '').trim();
+                        if (mStr.length === 6) return mStr === m;
+
+                        let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '').trim();
                         if (d.length >= 6) return d.substring(0, 6) === m;
                         return m === adjMonth.value; 
                     });
@@ -996,18 +1046,48 @@
                     }
                 }
 
-                // 완료 안내 및 UI 갱신
+                // 완료 안내 및 UI 갱신 (자동 선택 및 자동 조회 기능 강화)
                 updateProgressBar(100, '모든 데이터 저장 완료!');
                 setTimeout(() => {
                     uploadProgressSection.classList.add('hidden');
                     alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건`);
                     
-                    // 업로드한 종류와 마감월로 자동 선택
+                    // 업로드한 종류와 마감월로 필터 동적 자동 전환 및 즉시 조회 실행
                     if (monthsInRows.length > 0) {
                         const latestMonth = monthsInRows.sort().reverse()[0];
+                        
+                        // 해당 마감월이 셀렉트박스 옵션에 없는 경우 동적으로 옵션 노드 추가 (공란화 버그 원천 봉쇄)
+                        let exists = false;
+                        for (let i = 0; i < adjMonth.options.length; i++) {
+                            if (adjMonth.options[i].value === latestMonth) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!exists) {
+                            const opt = document.createElement('option');
+                            opt.value = latestMonth;
+                            opt.textContent = latestMonth;
+                            
+                            // 내림차순 정렬 유지를 위해 알맞은 위치에 삽입
+                            let inserted = false;
+                            for (let i = 0; i < adjMonth.options.length; i++) {
+                                if (latestMonth > adjMonth.options[i].value) {
+                                    adjMonth.insertBefore(opt, adjMonth.options[i]);
+                                    inserted = true;
+                                    break;
+                                }
+                            }
+                            if (!inserted) {
+                                adjMonth.appendChild(opt);
+                            }
+                        }
+                        
                         adjRewardType.value = rewardType;
                         adjMonth.value = latestMonth;
                     }
+                    
                     fetchAdjustData();
                 }, 800);
             }
