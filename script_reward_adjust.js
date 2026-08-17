@@ -1,4 +1,4 @@
-﻿        // === Section: Reward Adjustment View ===
+        // === Section: Reward Adjustment View ===
         function createRewardAdjustView() {
             const container = document.createElement('div');
             container.className = 'space-y-6';
@@ -118,12 +118,18 @@
                     </div>
                 </div>
 
-                <!-- 2단계: 엑셀 파일 대량 업로드 영역 (초간소화 높이 최소화 슬림 레이아웃) -->
+                <!-- 2단계: 엑셀 파일 대량 업로드 영역 및 내보내기 버튼 -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                    <div id="dropZone" class="border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl p-3 text-center cursor-pointer transition flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        <span class="text-xs text-gray-500 font-bold">여기에 엑셀 파일들을 드래그하거나 클릭하여 업로드하세요. (최대 100개)</span>
-                        <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div id="dropZone" class="flex-grow border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl p-3 text-center cursor-pointer transition flex items-center justify-center gap-2 w-full md:w-auto">
+                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            <span class="text-xs text-gray-500 font-bold">여기에 엑셀 파일들을 드래그하거나 클릭하여 업로드하세요. (최대 100개)</span>
+                            <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
+                        </div>
+                        <button id="exportAdjustBtn" class="flex-shrink-0 w-full md:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            조정내용 파일로 내보내기
+                        </button>
                     </div>
 
                     <!-- 업로드 파일 목록 및 전송 진행 바 -->
@@ -213,6 +219,7 @@
 
             const dropZone = container.querySelector('#dropZone');
             const excelFilesInput = container.querySelector('#excelFilesInput');
+            const exportAdjustBtn = container.querySelector('#exportAdjustBtn');
             const uploadProgressSection = container.querySelector('#uploadProgressSection');
             const progressStatusText = container.querySelector('#progressStatusText');
             const progressPercentText = container.querySelector('#progressPercentText');
@@ -222,6 +229,160 @@
             adjRewardType.addEventListener('change', () => {
                 adjCompany.innerHTML = '<option value="전체">전체</option>';
                 adjBranch.innerHTML = '<option value="전체">전체</option>';
+            });
+
+            // 조정내용 파일로 내보내기 버튼 이벤트
+            exportAdjustBtn.addEventListener('click', async () => {
+                const targetMonth = adjMonth.value;
+                if (!targetMonth) {
+                    alert('조회할 마감월이 선택되지 않았습니다.');
+                    return;
+                }
+
+                if (!confirm(`${targetMonth} 마감월의 조정내용을 엑셀 파일로 내보내시겠습니까?\n(2차년인센, 손보법인, 생보법인 데이터가 각각 다른 시트에 저장됩니다.)`)) {
+                    return;
+                }
+
+                showLoading(true);
+                try {
+                    const res = await callApi('getRewardAdjustExportData', state.user.staffId, targetMonth);
+                    showLoading(false);
+
+                    if (res.error || !res.success) {
+                        alert('데이터를 가져오지 못했습니다: ' + (res.message || '네트워크 오류'));
+                        return;
+                    }
+
+                    const exportData = res.data || {};
+                    const sheetsList = ['2차년인센', '손보법인', '생보법인'];
+                    
+                    // 데이터가 하나라도 있는지 체크
+                    let hasData = false;
+                    sheetsList.forEach(s => {
+                        if (exportData[s] && exportData[s].length > 0) hasData = true;
+                    });
+
+                    if (!hasData) {
+                        alert(`${targetMonth} 마감월에 해당하는 FP지급액 1원 이상의 데이터가 존재하지 않습니다.`);
+                        return;
+                    }
+
+                    // ExcelJS를 사용하여 워크북 생성
+                    const workbook = new ExcelJS.Workbook();
+
+                    sheetsList.forEach(sheetName => {
+                        const list = exportData[sheetName] || [];
+                        const worksheet = workbook.addWorksheet(sheetName);
+
+                        // 첫 행 고정
+                        worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
+
+                        // 헤더
+                        const headers = ['현금구분', '분류(지사조정/적립)', '사번', '이름', '지급기준액', '증권번호', '적요', '보험사'];
+                        const headerRow = worksheet.addRow(headers);
+
+                        // 헤더 스타일링 (연한초록색 배경: #E2EFDA, 맑은 고딕, 굵게, 테두리)
+                        headerRow.eachCell((cell) => {
+                            cell.fill = {
+                                type: 'pattern',
+                                pattern: 'solid',
+                                fgColor: { argb: 'FFE2EFDA' }
+                            };
+                            cell.font = {
+                                name: '맑은 고딕',
+                                size: 10,
+                                bold: true,
+                                color: { argb: 'FF333333' }
+                            };
+                            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                            cell.border = {
+                                top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                            };
+                        });
+
+                        // 데이터 채우기
+                        list.forEach(row => {
+                            const dataRow = worksheet.addRow([
+                                row['현금구분'] || '',
+                                row['분류(지사조정/적립)'] || '',
+                                row['사번'] || '',
+                                row['이름'] || '',
+                                Number(row['지급기준액'] || 0),
+                                row['증권번호'] || '',
+                                row['적요'] || '',
+                                row['보험사'] || ''
+                            ]);
+
+                            // 셀 정렬 및 포맷팅
+                            dataRow.eachCell((cell, colNumber) => {
+                                cell.font = { name: '맑은 고딕', size: 10 };
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                    left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                    bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                    right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+                                };
+
+                                // 정렬 및 넘버 포맷
+                                if ([1, 2, 3, 4, 8].includes(colNumber)) {
+                                    // 현금구분, 분류, 사번, 이름, 보험사
+                                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                } else if (colNumber === 5) {
+                                    // 지급기준액
+                                    cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false };
+                                    cell.numFmt = '#,##0';
+                                } else {
+                                    // 증권번호, 적요
+                                    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                                }
+
+                                if (colNumber === 3 || colNumber === 6) {
+                                    cell.numFmt = '@'; // 사번, 증권번호 텍스트 지정
+                                }
+                            });
+                        });
+
+                        // 열 너비 자동 조정
+                        worksheet.columns.forEach((column) => {
+                            let maxLen = 10;
+                            column.eachCell({ includeEmpty: false }, (cell) => {
+                                const valStr = String(cell.value || '');
+                                let len = 0;
+                                for (let i = 0; i < valStr.length; i++) {
+                                    len += valStr.charCodeAt(i) > 128 ? 2 : 1;
+                                }
+                                if (len > maxLen) maxLen = len;
+                            });
+                            column.width = maxLen + 2;
+                        });
+                    });
+
+                    // 저장년월일 계산 (YYYYMMDD)
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const date = String(now.getDate()).padStart(2, '0');
+                    const dateStr = `${year}${month}${date}`;
+
+                    const fileName = `지사용 시상조정 파일_${dateStr}.xlsx`;
+
+                    const data = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                    const url = window.URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.download = fileName;
+                    anchor.click();
+                    window.URL.revokeObjectURL(url);
+
+                } catch (e) {
+                    showLoading(false);
+                    console.error(e);
+                    alert('엑셀 파일 생성 중 오류가 발생했습니다: ' + e.message);
+                }
             });
 
             // 2. 조회 실행 함수
