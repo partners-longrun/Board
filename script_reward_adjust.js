@@ -1,4 +1,4 @@
-﻿        // === Section: Reward Adjustment View ===
+        // === Section: Reward Adjustment View ===
         function createRewardAdjustView() {
             const container = document.createElement('div');
             container.className = 'space-y-6';
@@ -842,7 +842,7 @@
                     reader.onload = (e) => {
                         try {
                             const data = new Uint8Array(e.target.result);
-                            const workbook = workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                             const firstSheetName = workbook.SheetNames[0];
                             const sheet = workbook.Sheets[firstSheetName];
                             
