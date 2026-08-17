@@ -10,6 +10,9 @@
             let userList = [];
             let defaultsList = [];
             let selectedRows = new Set();
+            
+            // 엑셀 파싱 원천 데이터 임시 보관소
+            let uploadedParsedRows = []; 
 
             // 천원 단위 쉼표 포맷 헬퍼
             function formatNumberWithCommas(val) {
@@ -78,6 +81,34 @@
                             <button id="adjSearchBtn" class="w-full px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm h-[38px]">
                                 조회하기
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2단계: 엑셀 파일 대량 업로드 영역 -->
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                            <svg class="w-4.5 h-4.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            대량 엑셀 업로드 (최대 100개 파일 지원)
+                        </h3>
+                        <span class="text-[10px] bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded">상대참조 매핑 지원</span>
+                    </div>
+                    
+                    <div id="dropZone" class="border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2">
+                        <svg class="w-10 h-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p class="text-xs text-gray-500 font-bold">마우스로 복수의 엑셀 파일들을 드래그해 놓거나, 여기를 클릭하여 선택하세요.</p>
+                        <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
+                    </div>
+
+                    <!-- 업로드 파일 목록 및 전송 진행 바 -->
+                    <div id="uploadProgressSection" class="hidden space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                        <div class="flex items-center justify-between text-xs font-bold text-gray-600">
+                            <span id="progressStatusText">대기 중...</span>
+                            <span id="progressPercentText">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-primary h-full transition-all duration-200" style="width: 0%;"></div>
                         </div>
                     </div>
                 </div>
@@ -154,6 +185,13 @@
             const batchEditAllBtn = container.querySelector('#batchEditAllBtn');
             const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
             const unsavedBadge = container.querySelector('#unsavedBadge');
+
+            const dropZone = container.querySelector('#dropZone');
+            const excelFilesInput = container.querySelector('#excelFilesInput');
+            const uploadProgressSection = container.querySelector('#uploadProgressSection');
+            const progressStatusText = container.querySelector('#progressStatusText');
+            const progressPercentText = container.querySelector('#progressPercentText');
+            const progressBar = container.querySelector('#progressBar');
 
             // 시상종류 변경 시 필터값 초기화
             adjRewardType.addEventListener('change', () => {
@@ -277,7 +315,6 @@
                     const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
                     const curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
 
-                    // 공백 완전 제거 및 한 줄 강제 노출 설정
                     const cleanPayRefund = String(row['지급/환수'] || '').replace(/\s+/g, '');
                     const isPay = cleanPayRefund.includes('지급');
                     const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
@@ -589,7 +626,6 @@
                 const cancelBtn = modal.querySelector('#cancelBatchModalBtn');
                 const closeBtn = modal.querySelector('#closeBatchModalBtn');
 
-                // 일괄수정 모달 금액 입력에도 천원단위 쉼표 포맷 연동
                 modalPay2.addEventListener('input', (e) => {
                     let raw = e.target.value.replace(/,/g, '');
                     let amt = parseInt(raw) || 0;
@@ -740,6 +776,240 @@
                     fetchAdjustData();
                 }
             });
+
+            // 8. 대량 엑셀 업로드 인터랙션 바인딩 (Chunking, 상대참조 매핑 지원)
+            dropZone.addEventListener('click', () => excelFilesInput.click());
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-primary/50', 'bg-orange-50/10');
+            });
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-primary/50', 'bg-orange-50/10');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-primary/50', 'bg-orange-50/10');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) handleExcelFiles(files);
+            });
+            excelFilesInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files.length > 0) handleExcelFiles(files);
+            });
+
+            // 복수 파일 비동기 로컬 파싱 프로세스 (SheetJS)
+            async function handleExcelFiles(files) {
+                uploadedParsedRows = [];
+                uploadProgressSection.classList.remove('hidden');
+                updateProgressBar(0, '엑셀 파일 해석 중...');
+
+                const fileArray = Array.from(files).filter(f => f.name.endsWith('.xlsx'));
+                if (fileArray.length === 0) {
+                    alert('xlsx 확장자의 엑셀 파일만 업로드할 수 있습니다.');
+                    uploadProgressSection.classList.add('hidden');
+                    return;
+                }
+
+                if (fileArray.length > 100) {
+                    alert('한 번에 최대 100개 파일까지만 업로드할 수 있습니다.');
+                    uploadProgressSection.classList.add('hidden');
+                    return;
+                }
+
+                let parsedCount = 0;
+                for (const file of fileArray) {
+                    try {
+                        const data = await readExcelFileAsync(file);
+                        uploadedParsedRows = uploadedParsedRows.concat(data);
+                    } catch(e) {
+                        console.error(`${file.name} 파싱 실패:`, e);
+                    }
+                    parsedCount++;
+                    const pct = Math.round((parsedCount / fileArray.length) * 50); // 파싱은 최대 50%까지 바를 채움
+                    updateProgressBar(pct, `파일 해석 중... (${parsedCount}/${fileArray.length})`);
+                }
+
+                if (uploadedParsedRows.length === 0) {
+                    alert('파싱된 데이터가 존재하지 않거나 엑셀 파일이 비어 있습니다.');
+                    uploadProgressSection.classList.add('hidden');
+                    return;
+                }
+
+                // 저장 대상 시트 선택 모달 노출
+                showUploadTargetModal();
+            }
+
+            function readExcelFileAsync(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                            const firstSheetName = workbook.SheetNames[0];
+                            const sheet = workbook.Sheets[firstSheetName];
+                            
+                            // XLSX 데이터를 JSON 오브젝트 배열로 변환
+                            const rawJson = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                            resolve(rawJson);
+                        } catch(err) {
+                            reject(err);
+                        }
+                    };
+                    reader.onerror = (err) => reject(err);
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            function updateProgressBar(percent, statusText) {
+                progressBar.style.width = percent + '%';
+                progressPercentText.textContent = percent + '%';
+                progressStatusText.textContent = statusText;
+            }
+
+            // 시상종류 선택 모달 신설
+            function showUploadTargetModal() {
+                const modalId = 'upload-target-select-modal';
+                let modal = document.getElementById(modalId);
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = modalId;
+                    modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+                    document.body.appendChild(modal);
+                }
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-100 flex flex-col">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-white flex justify-between items-center">
+                            <h3 class="font-bold text-base text-gray-800 flex items-center gap-1.5">
+                                <span class="w-1.5 h-4.5 bg-primary rounded-full block"></span>
+                                저장 대상 시트 선택
+                            </h3>
+                        </div>
+                        <div class="p-6 space-y-4 text-left">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">어느 시트에 업로드한 데이터를 저장할까요?</label>
+                            <select id="modalUploadType" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-bold focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary focus:border-primary outline-none cursor-pointer">
+                                <option value="2차년인센">2차년인센</option>
+                                <option value="생보법인">생보법인</option>
+                                <option value="손보법인">손보법인</option>
+                                <option value="생보개인">생보개인</option>
+                                <option value="손보개인">손보개인</option>
+                            </select>
+                        </div>
+                        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 text-xs">
+                            <button id="cancelUploadTargetBtn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition">취소</button>
+                            <button id="submitUploadTargetBtn" class="px-4 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl transition shadow-md shadow-orange-100">업로드 시작</button>
+                        </div>
+                    </div>
+                `;
+
+                const cancelBtn = modal.querySelector('#cancelUploadTargetBtn');
+                const submitBtn = modal.querySelector('#submitUploadTargetBtn');
+                const modalUploadType = modal.querySelector('#modalUploadType');
+
+                const closeModal = () => {
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+                    uploadProgressSection.classList.add('hidden');
+                };
+
+                cancelBtn.addEventListener('click', closeModal);
+
+                submitBtn.addEventListener('click', async () => {
+                    const selectedSheet = modalUploadType.value;
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+
+                    // 데이터 전송 순차 실행 및 덮어쓰기 여부 확인
+                    startDataUploadProcess(selectedSheet);
+                });
+
+                document.body.classList.add('modal-open');
+                modal.style.display = 'flex';
+            }
+
+            // 마감월별 Chunking 분할 덮어쓰기 로직 연계
+            async function startDataUploadProcess(rewardType) {
+                // 1. 유니크한 마감월 추출
+                const monthsInRows = [...new Set(uploadedParsedRows.map(r => {
+                    let m = r['마감월'];
+                    if (m instanceof Date) {
+                        return Utilities.formatDate(m, 'Asia/Seoul', 'yyyyMM'); // Apps Script 헬퍼가 없으므로 js 파싱
+                    }
+                    if (m && String(m).trim().length === 6) return String(m).trim();
+                    // 날짜 스트링 포맷 유추
+                    let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '');
+                    if (d.length >= 6) return d.substring(0, 6);
+                    return '';
+                }).filter(Boolean))];
+
+                if (monthsInRows.length === 0) {
+                    // 마감월이 없을 경우, 현재 선택된 마감월로 폴백 적용
+                    monthsInRows.push(adjMonth.value);
+                }
+
+                // 2. 백엔드와 통신하여 각 마감월 기존 데이터 존재 유무 조사
+                updateProgressBar(60, '대상 시트의 기존 데이터 조사 중...');
+                let existOverwriteConfirmNeeded = false;
+                const existingMonths = [];
+
+                for (const m of monthsInRows) {
+                    const checkRes = await callApi('checkExistingMonthData', state.user.staffId, rewardType, m);
+                    if (!checkRes.error && checkRes.exists) {
+                        existOverwriteConfirmNeeded = true;
+                        existingMonths.push(m);
+                    }
+                }
+
+                let overwrite = false;
+                if (existOverwriteConfirmNeeded) {
+                    const confirmMsg = `선택하신 [${rewardType}] 시트에 아래 마감월의 기존 데이터가 이미 존재합니다.\n\n대상 마감월: ${existingMonths.join(', ')}\n\n기존 데이터를 모두 지우고 업로드한 내용으로 완전히 덮어쓰시겠습니까?\n(취소를 선택할 경우 데이터가 덮어씌워지지 않고 중단됩니다.)`;
+                    if (!confirm(confirmMsg)) {
+                        uploadProgressSection.classList.add('hidden');
+                        return;
+                    }
+                    overwrite = true;
+                }
+
+                // 3. 마감월 단위 데이터 순차 업로드 전송 (Sequential Chunking)
+                let successCount = 0;
+                let failCount = 0;
+                let step = 0;
+
+                for (const m of monthsInRows) {
+                    step++;
+                    const progressVal = 60 + Math.round((step / monthsInRows.length) * 40);
+                    updateProgressBar(progressVal, `[${rewardType}] ${m} 마감월 데이터 저장 중... (${step}/${monthsInRows.length})`);
+
+                    // 해당 마감월 데이터만 필터링
+                    const rowsForMonth = uploadedParsedRows.filter(r => {
+                        let rowM = r['마감월'];
+                        if (rowM && String(rowM).trim().length === 6) return String(rowM).trim() === m;
+                        let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '');
+                        if (d.length >= 6) return d.substring(0, 6) === m;
+                        return m === adjMonth.value; // fallback
+                    });
+
+                    if (rowsForMonth.length === 0) continue;
+
+                    // 백엔드 API 호출로 저장
+                    const saveRes = await callApi('uploadRewardExcelData', state.user.staffId, rewardType, m, rowsForMonth);
+                    if (!saveRes.error && saveRes.success) {
+                        successCount += rowsForMonth.length;
+                    } else {
+                        console.error(`${m} 마감월 전송 실패:`, saveRes.message);
+                        failCount += rowsForMonth.length;
+                    }
+                }
+
+                // 완료 안내 및 UI 갱신
+                updateProgressBar(100, '모든 데이터 저장 완료!');
+                setTimeout(() => {
+                    uploadProgressSection.classList.add('hidden');
+                    alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건`);
+                    fetchAdjustData();
+                }, 800);
+            }
 
             adjSearchBtn.addEventListener('click', fetchAdjustData);
 
