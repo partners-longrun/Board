@@ -8,6 +8,7 @@
             let originalMap = {}; // key -> originalRow
             let editedItems = {}; // key -> updatedFields
             let userList = [];
+            let allUserList = []; // 퇴사자 포함 전체 사용자 목록
             let defaultsList = [];
             let selectedRows = new Set();
             
@@ -221,6 +222,7 @@
 
                 listData = res.list || [];
                 userList = res.users || [];
+                allUserList = res.allUsers || []; // 전체 사용자 목록 수급
                 defaultsList = res.defaults || [];
 
                 originalMap = {};
@@ -315,7 +317,7 @@
                     const rateFloat = Number(row['시상률'] || 0);
                     const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    // 지급대상자1
+                    // 지급대상자1 (지사장 - 재직자 목록 그대로 유지)
                     const selectLeaderHtml = isAdjustment ? `
                         <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -323,11 +325,11 @@
                         </select>
                     ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    // 지급대상자2
+                    // 지급대상자2 (FP - 퇴사자 포함 전체 목록 allUserList 주입)
                     const selectFpHtml = `
                         <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
-                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curFpId) ? 'selected' : ''}>${u.name}</option>`).join('')}
+                            ${allUserList.map(u => `<option value="${u.id}" ${String(u.id) === String(curFpId) ? 'selected' : ''}>${u.name}</option>`).join('')}
                         </select>
                     `;
 
@@ -512,6 +514,9 @@
                 const targetCount = mode === 'selected' ? selectedRows.size : listData.length;
                 const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
                 const userOptions = userList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                
+                // 지급대상자2 일괄적용용 퇴사자 포함 전체 옵션 리스트
+                const allUserOptions = allUserList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
                 modal.innerHTML = `
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
@@ -542,7 +547,7 @@
                             <!-- 2. 지급대상자1 -->
                             <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2 ${isAdjustment ? '' : 'opacity-40'}">
                                 <div class="flex-1">
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자1 (지사장)</label>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자1 (지사장 - 재직자)</label>
                                     <select id="modalLeaderSelect" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none cursor-pointer focus:border-primary font-bold">
                                         <option value="">(비움)</option>
                                         ${userOptions}
@@ -557,10 +562,10 @@
                             <!-- 3. 지급대상자2 -->
                             <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
                                 <div class="flex-1">
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자2 (FP/지급자)</label>
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자2 (FP/지급자 - 퇴사자포함)</label>
                                     <select id="modalFpSelect" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none cursor-pointer focus:border-primary font-bold">
                                         <option value="">(비움)</option>
-                                        ${userOptions}
+                                        ${allUserOptions}
                                     </select>
                                 </div>
                                 <div class="flex items-center gap-1.5 pt-4">
@@ -736,7 +741,7 @@
                             '지급액1': finalPay1,
                             '지급비율1': finalRatio1,
                             '지급대상자2명': finalFpName,
-                            '지급대상자2사번': valFpId,
+                            '지급대상자2사번': finalFpId,
                             '지급액2': finalPay2,
                             '지급비율2': finalRatio2
                         };
@@ -837,7 +842,7 @@
                     reader.onload = (e) => {
                         try {
                             const data = new Uint8Array(e.target.result);
-                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                            const workbook = workbook = XLSX.read(data, { type: 'array', cellDates: true });
                             const firstSheetName = workbook.SheetNames[0];
                             const sheet = workbook.Sheets[firstSheetName];
                             
@@ -923,7 +928,6 @@
                 const monthsInRows = [...new Set(uploadedParsedRows.map(r => {
                     let m = r['마감월'];
                     if (m instanceof Date) {
-                        // Date 오브젝트 yyyyMM 파싱
                         try {
                             const y = m.getFullYear();
                             const mm = String(m.getMonth() + 1).padStart(2, '0');
@@ -992,7 +996,7 @@
                     }
                 }
 
-                // 완료 안내 및 UI 갱신 (자동 선택 및 자동 조회 기능 탑재)
+                // 완료 안내 및 UI 갱신
                 updateProgressBar(100, '모든 데이터 저장 완료!');
                 setTimeout(() => {
                     uploadProgressSection.classList.add('hidden');
