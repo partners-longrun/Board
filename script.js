@@ -1,4 +1,4 @@
-        // --- 0. API Configuration ---
+﻿        // --- 0. API Configuration ---
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
@@ -8178,24 +8178,16 @@
             let defaultsList = [];
             let selectedRows = new Set();
 
-            // 1. 헤더 영역 및 업로드 패널
+            // 1. 헤더 영역 및 검색 필터 패널
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                         <div>
                             <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
                                 <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
-                                시상 조정 및 업로드
+                                시상 조정
                             </h2>
-                            <p class="text-xs text-gray-500 mt-1">엑셀 파일을 대량 업로드하고 시상 지급 배분율을 조정합니다. (지사대표 전용)</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <!-- 파일 업로드 트리거 -->
-                            <label class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl shadow-lg shadow-orange-100 transition cursor-pointer text-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                엑셀 파일 업로드 (다중 선택)
-                                <input type="file" id="excelFileInput" multiple accept=".xlsx, .xls" class="hidden">
-                            </label>
+                            <p class="text-xs text-gray-500 mt-1">시상 지급 대상을 검색/변경하고 비율 및 지급액을 조정합니다. (지사대표 전용)</p>
                         </div>
                     </div>
 
@@ -8260,6 +8252,9 @@
                             <button id="batchEditBtn" disabled class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold rounded-lg text-xs transition">
                                 선택 일괄수정
                             </button>
+                            <button id="batchEditAllBtn" disabled class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold rounded-lg text-xs transition">
+                                전체 일괄수정
+                            </button>
                             <button id="saveAdjustBtn" disabled class="px-4 py-1.5 bg-primary hover:bg-primaryHover disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-md shadow-orange-100 transition">
                                 변경사항 저장
                             </button>
@@ -8268,7 +8263,7 @@
 
                     <!-- 테이블 컨테이너 -->
                     <div class="overflow-x-auto border border-gray-100 rounded-xl">
-                        <table class="w-full text-left border-collapse text-xs">
+                        <table class="w-full text-left border-collapse text-[11px]">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold select-none">
                                     <th class="p-3 text-center w-10"><input type="checkbox" id="selectAllCheckbox"></th>
@@ -8278,22 +8273,24 @@
                                     <th class="p-3">지급/환수</th>
                                     <th class="p-3">증권번호</th>
                                     <th class="p-3">계약자</th>
-                                    <th class="p-3">계약일</th>
-                                    <th class="p-3">회차</th>
+                                    <th class="p-3 font-mono">계약일</th>
+                                    <th class="p-3 text-center">회차</th>
                                     <th class="p-3 text-right">보험료</th>
                                     <th class="p-3">상품명</th>
                                     <th class="p-3">시상내용</th>
+                                    <th class="p-3 text-right">시상금</th>
                                     <th class="p-3 text-center">시상률</th>
-                                    <th class="p-3">지급대상자명</th>
+                                    <th class="p-3">지급대상자1</th>
+                                    <th class="p-3 text-right">지급액1</th>
                                     <th class="p-3 text-center">지급비율1</th>
-                                    <th class="p-3">모집자명</th>
+                                    <th class="p-3">지급대상자2</th>
+                                    <th class="p-3 text-right">지급액2</th>
                                     <th class="p-3 text-center">지급비율2</th>
-                                    <th class="p-3">상세내역 (비고)</th>
                                 </tr>
                             </thead>
                             <tbody id="adjTableBody" class="divide-y divide-gray-50">
                                 <tr>
-                                    <td colspan="18" class="p-8 text-center text-gray-400 font-medium">검색 조건 설정 후 [조회하기] 버튼을 눌러주세요.</td>
+                                    <td colspan="20" class="p-8 text-center text-gray-400 font-medium">검색 조건 설정 후 [조회하기] 버튼을 눌러주세요.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -8301,8 +8298,7 @@
                 </div>
             `;
 
-            // 모달/UI 생성을 위한 함수 내 변수
-            const excelFileInput = container.querySelector('#excelFileInput');
+            // DOM 요소 선택
             const adjRewardType = container.querySelector('#adjRewardType');
             const adjMonth = container.querySelector('#adjMonth');
             const adjCompany = container.querySelector('#adjCompany');
@@ -8314,6 +8310,7 @@
             const adjResultCount = container.querySelector('#adjResultCount');
             const selectAllCheckbox = container.querySelector('#selectAllCheckbox');
             const batchEditBtn = container.querySelector('#batchEditBtn');
+            const batchEditAllBtn = container.querySelector('#batchEditAllBtn');
             const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
             const unsavedBadge = container.querySelector('#unsavedBadge');
 
@@ -8326,6 +8323,7 @@
                 unsavedBadge.classList.add('hidden');
                 saveAdjustBtn.disabled = true;
                 batchEditBtn.disabled = true;
+                batchEditAllBtn.disabled = true;
 
                 const filter = {
                     rewardType: adjRewardType.value,
@@ -8348,14 +8346,13 @@
                 userList = res.users || [];
                 defaultsList = res.defaults || [];
 
-                // 오리지널 데이터 맵
                 originalMap = {};
                 listData.forEach(item => {
                     const key = getRowKey(item);
                     originalMap[key] = { ...item };
                 });
 
-                // 필터 바 드롭다운 갱신
+                // 필터 바 갱신 (최초 1회만 고유 값 채우기)
                 if (adjCompany.children.length <= 1) {
                     const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
                     companies.forEach(c => {
@@ -8373,10 +8370,13 @@
                     });
                 }
 
+                if (listData.length > 0) {
+                    batchEditAllBtn.disabled = false;
+                }
+
                 renderTable();
             }
 
-            // 고유 행 키 생성
             function getRowKey(row) {
                 const m = String(row['마감월'] || '').trim();
                 const c = String(row['보험사'] || '').trim();
@@ -8386,7 +8386,7 @@
                 return `${m}_${c}_${p}_${a}_${r}`;
             }
 
-            // 테이블 드로우
+            // 3. 테이블 드로우 함수
             function renderTable() {
                 adjTableBody.innerHTML = '';
                 adjResultCount.textContent = listData.length;
@@ -8394,7 +8394,7 @@
                 if (listData.length === 0) {
                     adjTableBody.innerHTML = `
                         <tr>
-                            <td colspan="18" class="p-8 text-center text-gray-400 font-medium">검색된 데이터가 없습니다.</td>
+                            <td colspan="20" class="p-8 text-center text-gray-400 font-medium">검색된 데이터가 없습니다.</td>
                         </tr>
                     `;
                     return;
@@ -8409,41 +8409,48 @@
                     tr.className = `hover:bg-slate-50/50 transition-colors ${isEdited ? 'bg-blue-50/40' : ''}`;
                     tr.dataset.key = key;
 
-                    const curLeaderName = isEdited && editedItems[key]['지사장명'] !== undefined ? editedItems[key]['지사장명'] : (row['지사장명'] || '');
-                    const curLeaderId = isEdited && editedItems[key]['지사장사번'] !== undefined ? editedItems[key]['지사장사번'] : (row['지사장사번'] || '');
-                    const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : Number(row['지급비율1'] || 0);
+                    // 상태 값 매핑 (수정본 or 원본)
+                    const curContent = isEdited && editedItems[key]['시상내용'] !== undefined ? editedItems[key]['시상내용'] : (row['시상내용'] || '');
+                    
+                    const curLeaderName = isEdited && editedItems[key]['지급대상자1명'] !== undefined ? editedItems[key]['지급대상자1명'] : (row['지급대상자1명'] || '');
+                    const curLeaderId = isEdited && editedItems[key]['지급대상자1사번'] !== undefined ? editedItems[key]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
+                    
+                    const curFpName = isEdited && editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
+                    const curFpId = isEdited && editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
+
+                    const curPay1 = isEdited && editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : '');
+                    const curPay2 = isEdited && editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
+
+                    const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
                     const curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
-                    const curNote = isEdited && editedItems[key]['상세내역'] !== undefined ? editedItems[key]['상세내역'] : (row['상세내역'] || '');
 
                     const isPay = String(row['지급/환수'] || '').includes('지급');
                     const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
 
-                    const curBranch = String(row['소속2'] || '').trim();
-                    const filteredUsers = userList.filter(u => u.branch === curBranch || !curBranch);
-                    const userOptions = filteredUsers.map(u => `<option value="${u.id}" ${String(u.id) === String(curLeaderId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('');
+                    // 시상률 백분율 포맷 (예: 2.45 -> 245%)
+                    const rateFloat = Number(row['시상률'] || 0);
+                    const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    const selectHtml = isAdjustment ? `
-                        <select class="leader-select bg-transparent border border-gray-200 rounded px-1.5 py-1 w-32 focus:bg-white focus:border-primary outline-none cursor-pointer">
+                    // 지급대상자1 (법인/인센만 select, 개인은 해당없음)
+                    const selectLeaderHtml = isAdjustment ? `
+                        <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-28 focus:bg-white focus:border-primary outline-none cursor-pointer">
                             <option value="">(선택 안 됨)</option>
-                            ${userOptions}
+                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curLeaderId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('')}
                         </select>
-                    ` : `<span>${row['지급대상자명'] || ''}</span>`;
+                    ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    const ratio1Input = isAdjustment ? `
-                        <div class="flex items-center gap-1 justify-center">
-                            <input type="number" min="0" max="100" class="ratio1-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio1 * 100)}">%
-                        </div>
-                    ` : `<span class="text-gray-400">-</span>`;
+                    // 지급대상자2 (모든 시트 select)
+                    const selectFpHtml = `
+                        <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-28 focus:bg-white focus:border-primary outline-none cursor-pointer">
+                            <option value="">(선택 안 됨)</option>
+                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curFpId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('')}
+                        </select>
+                    `;
 
-                    const ratio2Input = isAdjustment ? `
-                        <div class="flex items-center gap-1 justify-center">
-                            <input type="number" min="0" max="100" class="ratio2-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
-                        </div>
-                    ` : `<span>${Math.round(curRatio2 * 100)}%</span>`;
-
-                    const noteInput = isAdjustment ? `
-                        <input type="text" class="note-input w-full border border-gray-200 rounded px-2 py-1" value="${curNote}" placeholder="지급 사유 입력">
-                    ` : `<span class="truncate block max-w-[120px]" title="${row['상세내역'] || ''}">${row['상세내역'] || ''}</span>`;
+                    // 금액 및 비율 포맷팅
+                    const rewardAmtText = isAdjustment ? formatMoney(row['시상금']) : '-';
+                    const pay1Text = (isAdjustment && curPay1 !== '') ? formatMoney(curPay1) : '-';
+                    const ratio1Text = (isAdjustment && curRatio1 !== '') ? Math.round(curRatio1 * 100) + '%' : '-';
 
                     tr.innerHTML = `
                         <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
@@ -8455,87 +8462,121 @@
                         <td class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
                         <td class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
                         <td class="p-3 text-center">${row['납입회차'] || ''}</td>
-                        <td class="p-3 text-right font-bold text-slate-700">${formatMoney(row['보험료'])}</td>
-                        <td class="p-3 text-gray-600 max-w-[150px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
-                        <td class="p-3 text-gray-500 max-w-[150px] truncate" title="${row['시상내용'] || ''}">${row['시상내용'] || ''}</td>
-                        <td class="p-3 text-center font-bold text-indigo-600">${row['시상률'] || '0%'}</td>
+                        <td class="p-3 text-right font-bold text-slate-500">${formatMoney(row['보험료'])}</td>
+                        <td class="p-3 text-gray-600 max-w-[120px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
                         
-                        <td class="p-3">${selectHtml}</td>
-                        <td class="p-3 text-center">${ratio1Input}</td>
-                        <td class="p-3 font-medium">${row['모집인'] || ''}</td>
-                        <td class="p-3 text-center">${ratio2Input}</td>
-                        <td class="p-3">${noteInput}</td>
+                        <!-- 5개 수정 가능 열 및 연동 셀 -->
+                        <td class="p-2"><input type="text" class="content-input w-28 border border-gray-200 rounded px-1.5 py-0.5" value="${curContent}"></td>
+                        <td class="p-3 text-right font-bold text-gray-800">${rewardAmtText}</td>
+                        <td class="p-3 text-center font-bold text-indigo-600">${ratePercentText}</td>
+                        
+                        <td class="p-2">${selectLeaderHtml}</td>
+                        <td class="p-3 text-right font-bold text-slate-700 pay1-cell">${pay1Text}</td>
+                        <td class="p-3 text-center font-bold text-gray-600 ratio1-cell">${ratio1Text}</td>
+                        
+                        <td class="p-2">${selectFpHtml}</td>
+                        <td class="p-2 text-right">
+                            <input type="number" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold" value="${curPay2}">
+                        </td>
+                        <td class="p-2 text-center">
+                            <div class="flex items-center gap-0.5 justify-center">
+                                <input type="number" min="0" class="ratio2-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
+                            </div>
+                        </td>
                     `;
 
-                    // 체크박스 핸들러
+                    // 각 요소 맵 구성
+                    const contentEl = tr.querySelector('.content-input');
+                    const selectLeaderEl = tr.querySelector('.leader-select');
+                    const selectFpEl = tr.querySelector('.fp-select');
+                    const pay1Cell = tr.querySelector('.pay1-cell');
+                    const ratio1Cell = tr.querySelector('.ratio1-cell');
+                    const pay2El = tr.querySelector('.pay2-input');
+                    const ratio2El = tr.querySelector('.ratio2-input');
+
+                    const premium = Number(row['보험료'] || 0);
+                    const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
+
+                    const handleEditing = () => {
+                        if (!editedItems[key]) editedItems[key] = {};
+
+                        const valContent = contentEl.value.trim();
+                        const valLeaderId = selectLeaderEl ? selectLeaderEl.value : '';
+                        const valLeaderName = valLeaderId ? selectLeaderEl.options[selectLeaderEl.selectedIndex].text.split(' (')[0] : '';
+                        const valFpId = selectFpEl.value;
+                        const valFpName = valFpId ? selectFpEl.options[selectFpEl.selectedIndex].text.split(' (')[0] : '';
+                        
+                        const valPay2 = parseInt(pay2El.value) || 0;
+                        const valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
+
+                        let finalRatio2 = valRatio2;
+                        let finalPay2 = valPay2;
+                        let finalRatio1 = 0;
+                        let finalPay1 = 0;
+
+                        if (isAdjustment) {
+                            finalRatio1 = rateFloat - finalRatio2;
+                            finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
+                            
+                            ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
+                            pay1Cell.textContent = formatMoney(finalPay1);
+                        }
+
+                        editedItems[key] = {
+                            '마감월': row['마감월'],
+                            '보험사': row['보험사'],
+                            '증권번호': row['증권번호'],
+                            '사번': row['사번'],
+                            '납입회차': row['납입회차'] || '',
+                            '시상률': rateFloat,
+                            '시상내용': valContent,
+                            '지급대상자1명': valLeaderName,
+                            '지급대상자1사번': valLeaderId,
+                            '지급액1': finalPay1,
+                            '지급비율1': finalRatio1,
+                            '지급대상자2명': valFpName,
+                            '지급대상자2사번': valFpId,
+                            '지급액2': finalPay2,
+                            '지급비율2': finalRatio2
+                        };
+
+                        tr.classList.add('bg-blue-50/40');
+                        unsavedBadge.classList.remove('hidden');
+                        saveAdjustBtn.disabled = false;
+                    };
+
+                    contentEl.addEventListener('input', handleEditing);
+                    if (selectLeaderEl) selectLeaderEl.addEventListener('change', handleEditing);
+                    selectFpEl.addEventListener('change', handleEditing);
+
+                    // 지급비율2 변경 시 연동
+                    ratio2El.addEventListener('input', () => {
+                        let r2 = parseFloat(ratio2El.value) || 0;
+                        if (r2 < 0) r2 = 0;
+                        
+                        let p2 = premium !== 0 ? Math.round(premium * (r2 / 100)) : 0;
+                        pay2El.value = p2;
+                        handleEditing();
+                    });
+
+                    // 지급액2 변경 시 연동
+                    pay2El.addEventListener('input', () => {
+                        let p2 = parseInt(pay2El.value) || 0;
+                        if (p2 < 0) p2 = 0;
+
+                        if (premium !== 0) {
+                            let r2 = (p2 / premium) * 100;
+                            ratio2El.value = r2.toFixed(2);
+                        }
+                        handleEditing();
+                    });
+
                     const checkbox = tr.querySelector('.row-checkbox');
                     checkbox.addEventListener('change', (e) => {
                         if (e.target.checked) selectedRows.add(key);
                         else selectedRows.delete(key);
                         updateBatchEditButtonState();
                     });
-
-                    if (isAdjustment) {
-                        const selectEl = tr.querySelector('.leader-select');
-                        const r1El = tr.querySelector('.ratio1-input');
-                        const r2El = tr.querySelector('.ratio2-input');
-                        const noteEl = tr.querySelector('.note-input');
-
-                        const markAsEdited = () => {
-                            if (!editedItems[key]) editedItems[key] = {};
-                            
-                            const origLeaderPay = Number(row['지사장지급액'] || 0);
-                            const origFpPay = Number(row['FP지급액'] || 0);
-                            const origTotalPay = origLeaderPay + origFpPay;
-                            
-                            const val1 = parseInt(r1El.value) || 0;
-                            const val2 = parseInt(r2El.value) || 0;
-
-                            const selectedUserId = selectEl.value;
-                            const selectedUserOpt = selectEl.options[selectEl.selectedIndex];
-                            const selectedUserName = selectedUserId ? selectedUserOpt.text.split(' (')[0] : '';
-
-                            editedItems[key] = {
-                                '마감월': row['마감월'],
-                                '보험사': row['보험사'],
-                                '증권번호': row['증권번호'],
-                                '사번': row['사번'],
-                                '납입회차': row['납입회차'] || '',
-                                '지사장명': selectedUserName,
-                                '지사장사번': selectedUserId,
-                                '지급비율1': val1 / 100,
-                                '지급비율2': val2 / 100,
-                                '지사장지급액': origTotalPay * (val1 / 100),
-                                'FP지급액': origTotalPay * (val2 / 100),
-                                '상세내역': noteEl.value
-                            };
-
-                            tr.classList.add('bg-blue-50/40');
-                            unsavedBadge.classList.remove('hidden');
-                            saveAdjustBtn.disabled = false;
-                        };
-
-                        selectEl.addEventListener('change', markAsEdited);
-                        noteEl.addEventListener('input', markAsEdited);
-
-                        r1El.addEventListener('input', () => {
-                            let val1 = parseInt(r1El.value) || 0;
-                            if (val1 > 100) val1 = 100;
-                            if (val1 < 0) val1 = 0;
-                            r1El.value = val1;
-                            r2El.value = 100 - val1;
-                            markAsEdited();
-                        });
-
-                        r2El.addEventListener('input', () => {
-                            let val2 = parseInt(r2El.value) || 0;
-                            if (val2 > 100) val2 = 100;
-                            if (val2 < 0) val2 = 0;
-                            r2El.value = val2;
-                            r1El.value = 100 - val2;
-                            markAsEdited();
-                        });
-                    }
 
                     adjTableBody.appendChild(tr);
                 });
@@ -8559,11 +8600,17 @@
 
             batchEditBtn.addEventListener('click', () => {
                 if (selectedRows.size === 0) return;
-                showBatchEditModal();
+                showBatchEditModal('selected');
             });
 
-            function showBatchEditModal() {
-                const modalId = 'batch-edit-modal';
+            batchEditAllBtn.addEventListener('click', () => {
+                if (listData.length === 0) return;
+                showBatchEditModal('all');
+            });
+
+            // 6. 일괄수정 모달 구현
+            function showBatchEditModal(mode) {
+                const modalId = 'batch-edit-1step-modal';
                 let modal = document.getElementById(modalId);
                 if (!modal) {
                     modal = document.createElement('div');
@@ -8572,47 +8619,91 @@
                     document.body.appendChild(modal);
                 }
 
-                const userOptions = userList.map(u => `<option value="${u.id}">${u.name} (${u.id}) [${u.branch}]</option>`).join('');
+                const targetCount = mode === 'selected' ? selectedRows.size : listData.length;
+                const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
+                const userOptions = userList.map(u => `<option value="${u.id}">${u.name} (${u.id})</option>`).join('');
 
                 modal.innerHTML = `
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 flex flex-col">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
                         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
                             <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
                                 <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
-                                선택 건 일괄 수정 (${selectedRows.size}건)
+                                일괄 조정 (${mode === 'selected' ? '선택' : '전체'} ${targetCount}건)
                             </h3>
                             <button id="closeBatchModalBtn" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                        <div class="p-6 space-y-4 text-left text-sm">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자 (지사장)</label>
-                                <select id="modalLeaderSelect" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none cursor-pointer focus:border-primary font-bold">
-                                    <option value="keep">(기존 값 유지)</option>
-                                    <option value="">(비움)</option>
-                                    ${userOptions}
-                                </select>
+                        <div class="p-6 space-y-4 text-left text-sm max-h-[400px] overflow-y-auto">
+                            <p class="text-xs text-slate-400 font-bold mb-2">* 우측의 '수정적용' 체크를 활성화한 항목만 일괄 변경됩니다.</p>
+                            
+                            <!-- 1. 시상내용 -->
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">시상내용</label>
+                                    <input type="text" id="modalContent" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary" placeholder="내용 입력">
+                                </div>
+                                <div class="flex items-center gap-1.5 pt-4">
+                                    <input type="checkbox" id="chkContent" class="w-4 h-4 cursor-pointer">
+                                    <label for="chkContent" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
+                                </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">지사장 지급비율</label>
+
+                            <!-- 2. 지급대상자1 -->
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2 ${isAdjustment ? '' : 'opacity-40'}">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자1 (지사장)</label>
+                                    <select id="modalLeaderSelect" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none cursor-pointer focus:border-primary font-bold">
+                                        <option value="">(비움)</option>
+                                        ${userOptions}
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-1.5 pt-4">
+                                    <input type="checkbox" id="chkLeader" ${isAdjustment ? '' : 'disabled'} class="w-4 h-4 cursor-pointer">
+                                    <label for="chkLeader" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
+                                </div>
+                            </div>
+
+                            <!-- 3. 지급대상자2 -->
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급대상자2 (FP/지급자)</label>
+                                    <select id="modalFpSelect" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none cursor-pointer focus:border-primary font-bold">
+                                        <option value="">(비움)</option>
+                                        ${userOptions}
+                                    </select>
+                                </div>
+                                <div class="flex items-center gap-1.5 pt-4">
+                                    <input type="checkbox" id="chkFp" class="w-4 h-4 cursor-pointer">
+                                    <label for="chkFp" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
+                                </div>
+                            </div>
+
+                            <!-- 4. 지급액2 -->
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급액2</label>
+                                    <input type="number" id="modalPay2" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary font-bold" placeholder="금액 입력">
+                                </div>
+                                <div class="flex items-center gap-1.5 pt-4">
+                                    <input type="checkbox" id="chkPay2" class="w-4 h-4 cursor-pointer">
+                                    <label for="chkPay2" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
+                                </div>
+                            </div>
+
+                            <!-- 5. 지급비율2 -->
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-bold text-gray-500 mb-1">지급비율2</label>
                                     <div class="flex items-center gap-1.5">
-                                        <input type="number" id="modalRatio1" min="0" max="100" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="유지">
+                                        <input type="number" id="modalRatio2" disabled min="0" max="100" class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="비율 입력">
                                         <span class="font-bold text-gray-500">%</span>
                                     </div>
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-500 mb-1">모집자 (FP) 지급비율</label>
-                                    <div class="flex items-center gap-1.5">
-                                        <input type="number" id="modalRatio2" min="0" max="100" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="유지">
-                                        <span class="font-bold text-gray-500">%</span>
-                                    </div>
+                                <div class="flex items-center gap-1.5 pt-4">
+                                    <input type="checkbox" id="chkRatio2" class="w-4 h-4 cursor-pointer">
+                                    <label for="chkRatio2" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
                                 </div>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 mb-1">상세내역 (비고)</label>
-                                <input type="text" id="modalNote" class="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary" placeholder="(기존 값 유지)">
                             </div>
                         </div>
                         <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
@@ -8622,86 +8713,133 @@
                     </div>
                 `;
 
+                const chkContent = modal.querySelector('#chkContent');
+                const modalContent = modal.querySelector('#modalContent');
+                const chkLeader = modal.querySelector('#chkLeader');
                 const modalLeaderSelect = modal.querySelector('#modalLeaderSelect');
-                const modalRatio1 = modal.querySelector('#modalRatio1');
+                const chkFp = modal.querySelector('#chkFp');
+                const modalFpSelect = modal.querySelector('#modalFpSelect');
+                const chkPay2 = modal.querySelector('#chkPay2');
+                const modalPay2 = modal.querySelector('#modalPay2');
+                const chkRatio2 = modal.querySelector('#chkRatio2');
                 const modalRatio2 = modal.querySelector('#modalRatio2');
-                const modalNote = modal.querySelector('#modalNote');
-                const closeBtn = modal.querySelector('#closeBatchModalBtn');
-                const cancelBtn = modal.querySelector('#cancelBatchModalBtn');
+
                 const applyBtn = modal.querySelector('#applyBatchModalBtn');
+                const cancelBtn = modal.querySelector('#cancelBatchModalBtn');
+                const closeBtn = modal.querySelector('#closeBatchModalBtn');
+
+                const setToggle = (chk, input) => {
+                    chk.addEventListener('change', () => {
+                        input.disabled = !chk.checked;
+                        if (chk.checked) {
+                            input.classList.remove('bg-slate-50');
+                            input.classList.add('bg-white');
+                        } else {
+                            input.classList.remove('bg-white');
+                            input.classList.add('bg-slate-50');
+                            input.value = '';
+                        }
+                    });
+                };
+                setToggle(chkContent, modalContent);
+                if (isAdjustment) setToggle(chkLeader, modalLeaderSelect);
+                setToggle(chkFp, modalFpSelect);
+                setToggle(chkPay2, modalPay2);
+                setToggle(chkRatio2, modalRatio2);
 
                 const closeModal = () => {
                     modal.style.display = 'none';
                     document.body.classList.remove('modal-open');
                 };
-
                 closeBtn.addEventListener('click', closeModal);
                 cancelBtn.addEventListener('click', closeModal);
 
-                modalRatio1.addEventListener('input', () => {
-                    let v = parseInt(modalRatio1.value);
-                    if (isNaN(v)) return;
-                    if (v > 100) v = 100;
-                    if (v < 0) v = 0;
-                    modalRatio1.value = v;
-                    modalRatio2.value = 100 - v;
-                });
-                modalRatio2.addEventListener('input', () => {
-                    let v = parseInt(modalRatio2.value);
-                    if (isNaN(v)) return;
-                    if (v > 100) v = 100;
-                    if (v < 0) v = 0;
-                    modalRatio2.value = v;
-                    modalRatio1.value = 100 - v;
-                });
-
                 applyBtn.addEventListener('click', () => {
-                    const leaderVal = modalLeaderSelect.value;
-                    const r1Val = modalRatio1.value !== '' ? parseInt(modalRatio1.value) : null;
-                    const r2Val = modalRatio2.value !== '' ? parseInt(modalRatio2.value) : null;
-                    const noteVal = modalNote.value;
+                    const useContent = chkContent.checked;
+                    const useLeader = isAdjustment && chkLeader.checked;
+                    const useFp = chkFp.checked;
+                    const usePay2 = chkPay2.checked;
+                    const useRatio2 = chkRatio2.checked;
 
-                    let selectedUserName = '';
-                    if (leaderVal !== 'keep' && leaderVal !== '') {
-                        const opt = modalLeaderSelect.options[modalLeaderSelect.selectedIndex];
-                        selectedUserName = opt.text.split(' (')[0];
+                    const valContent = modalContent.value.trim();
+                    const valLeaderId = modalLeaderSelect.value;
+                    const valLeaderName = valLeaderId ? modalLeaderSelect.options[modalLeaderSelect.selectedIndex].text.split(' (')[0] : '';
+                    const valFpId = modalFpSelect.value;
+                    const valFpName = valFpId ? modalFpSelect.options[modalFpSelect.selectedIndex].text.split(' (')[0] : '';
+                    const valPay2 = parseInt(modalPay2.value) || 0;
+                    const valRatio2 = (parseFloat(modalRatio2.value) || 0) / 100;
+
+                    const targetKeys = [];
+                    if (mode === 'selected') {
+                        selectedRows.forEach(k => targetKeys.push(k));
+                    } else {
+                        listData.forEach(item => targetKeys.push(getRowKey(item)));
                     }
 
-                    selectedRows.forEach(key => {
-                        const row = originalMap[key];
+                    targetKeys.forEach(k => {
+                        const row = originalMap[k];
                         if (!row) return;
 
-                        if (!editedItems[key]) editedItems[key] = {};
+                        if (!editedItems[k]) editedItems[k] = {};
 
-                        const curLeaderName = editedItems[key]['지사장명'] !== undefined ? editedItems[key]['지사장명'] : (row['지사장명'] || '');
-                        const curLeaderId = editedItems[key]['지사장사번'] !== undefined ? editedItems[key]['지사장사번'] : (row['지사장사번'] || '');
-                        const curRatio1 = editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : Number(row['지급비율1'] || 0);
-                        const curRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
-                        const curNote = editedItems[key]['상세내역'] !== undefined ? editedItems[key]['상세내역'] : (row['상세내역'] || '');
+                        const curContent = editedItems[k]['시상내용'] !== undefined ? editedItems[k]['시상내용'] : (row['시상내용'] || '');
+                        const curLeaderName = editedItems[k]['지급대상자1명'] !== undefined ? editedItems[k]['지급대상자1명'] : (row['지급대상자1명'] || '');
+                        const curLeaderId = editedItems[k]['지급대상자1사번'] !== undefined ? editedItems[k]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
+                        const curFpName = editedItems[k]['지급대상자2명'] !== undefined ? editedItems[k]['지급대상자2명'] : (row['지급대상자2명'] || '');
+                        const curFpId = editedItems[k]['지급대상자2사번'] !== undefined ? editedItems[k]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
+                        
+                        const curPay2 = editedItems[k]['지급액2'] !== undefined ? editedItems[k]['지급액2'] : Number(row['지급액2'] || 0);
+                        const curRatio2 = editedItems[k]['지급비율2'] !== undefined ? editedItems[k]['지급비율2'] : Number(row['지급비율2'] || 0);
 
-                        const origLeaderPay = Number(row['지사장지급액'] || 0);
-                        const origFpPay = Number(row['FP지급액'] || 0);
-                        const origTotalPay = origLeaderPay + origFpPay;
+                        const premium = Number(row['보험료'] || 0);
+                        const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
+                        const rateFloat = Number(row['시상률'] || 0);
 
-                        const finalLeaderId = leaderVal === 'keep' ? curLeaderId : leaderVal;
-                        const finalLeaderName = leaderVal === 'keep' ? curLeaderName : selectedUserName;
-                        const finalRatio1 = r1Val !== null ? (r1Val / 100) : curRatio1;
-                        const finalRatio2 = r2Val !== null ? (r2Val / 100) : curRatio2;
-                        const finalNote = noteVal === '' ? curNote : noteVal;
+                        let finalContent = useContent ? valContent : curContent;
+                        let finalLeaderId = useLeader ? valLeaderId : curLeaderId;
+                        let finalLeaderName = useLeader ? valLeaderName : curLeaderName;
+                        let finalFpId = useFp ? valFpId : curFpId;
+                        let finalFpName = useFp ? valFpName : curFpName;
 
-                        editedItems[key] = {
+                        let finalRatio2 = curRatio2;
+                        let finalPay2 = curPay2;
+
+                        if (usePay2) {
+                            finalPay2 = valPay2;
+                            if (premium !== 0) {
+                                finalRatio2 = finalPay2 / premium;
+                            }
+                        } else if (useRatio2) {
+                            finalRatio2 = valRatio2;
+                            if (premium !== 0) {
+                                finalPay2 = Math.round(premium * finalRatio2);
+                            }
+                        }
+
+                        let finalRatio1 = 0;
+                        let finalPay1 = 0;
+
+                        if (isAdjustment) {
+                            finalRatio1 = rateFloat - finalRatio2;
+                            finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
+                        }
+
+                        editedItems[k] = {
                             '마감월': row['마감월'],
                             '보험사': row['보험사'],
                             '증권번호': row['증권번호'],
                             '사번': row['사번'],
                             '납입회차': row['납입회차'] || '',
-                            '지사장명': finalLeaderName,
-                            '지사장사번': finalLeaderId,
+                            '시상률': rateFloat,
+                            '시상내용': finalContent,
+                            '지급대상자1명': finalLeaderName,
+                            '지급대상자1사번': finalLeaderId,
+                            '지급액1': finalPay1,
                             '지급비율1': finalRatio1,
-                            '지급비율2': finalRatio2,
-                            '지사장지급액': origTotalPay * finalRatio1,
-                            'FP지급액': origTotalPay * finalRatio2,
-                            '상세내역': finalNote
+                            '지급대상자2명': finalFpName,
+                            '지급대상자2사번': finalFpId,
+                            '지급액2': finalPay2,
+                            '지급비율2': finalRatio2
                         };
                     });
 
@@ -8715,6 +8853,7 @@
                 modal.style.display = 'flex';
             }
 
+            // 7. 저장 호출 연계
             saveAdjustBtn.addEventListener('click', async () => {
                 const itemsToSave = Object.values(editedItems);
                 if (itemsToSave.length === 0) return;
@@ -8731,261 +8870,10 @@
                 }
             });
 
-            excelFileInput.addEventListener('change', handleExcelFiles);
-
-            function handleExcelFiles(e) {
-                const files = Array.from(e.target.files);
-                if (files.length === 0) return;
-
-                showLoading(true);
-                const parsedFiles = [];
-                let loadedCount = 0;
-
-                files.forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (evt) => {
-                        try {
-                            const data = evt.target.result;
-                            const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
-                            const firstSheetName = workbook.SheetNames[0];
-                            const worksheet = workbook.Sheets[firstSheetName];
-                            
-                            const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-                            
-                            parsedFiles.push({
-                                filename: file.name,
-                                rows: json
-                            });
-                        } catch(err) {
-                            console.error('파일 파싱 에러: ' + file.name, err);
-                        } finally {
-                            loadedCount++;
-                            if (loadedCount === files.length) {
-                                showLoading(false);
-                                showExcelSheetMappingModal(parsedFiles);
-                                excelFileInput.value = '';
-                            }
-                        }
-                    };
-                    reader.onerror = () => {
-                        loadedCount++;
-                        if (loadedCount === files.length) showLoading(false);
-                    };
-                    reader.readAsBinaryString(file);
-                });
-            }
-
-            function showExcelSheetMappingModal(parsedFiles) {
-                const modalId = 'excel-mapping-modal';
-                let modal = document.getElementById(modalId);
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = modalId;
-                    modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
-                    document.body.appendChild(modal);
-                }
-
-                const recommendSheet = (filename) => {
-                    const name = filename.toLowerCase();
-                    if (name.includes('2차년') || name.includes('인센')) return '2차년인센';
-                    if (name.includes('생보') && name.includes('법인')) return '생보법인';
-                    if (name.includes('손보') && name.includes('법인')) return '손보법인';
-                    if (name.includes('생보') && (name.includes('개인') || name.includes('시상'))) return '생보개인';
-                    if (name.includes('손보') && (name.includes('개인') || name.includes('시상'))) return '손보개인';
-                    return '2차년인센';
-                };
-
-                const extractMonth = (rows) => {
-                    if (rows.length > 0) {
-                        const mVal = rows[0]['마감월'] || rows[0]['마감월별'];
-                        if (mVal) {
-                            const str = String(mVal).trim().replace(/\D/g, '');
-                            if (str.length >= 6) return str.substring(0, 6);
-                        }
-                    }
-                    return adjMonth.value;
-                };
-
-                let rowsHtml = parsedFiles.map((file, idx) => {
-                    const recommended = recommendSheet(file.filename);
-                    const fileMonth = extractMonth(file.rows);
-
-                    return `
-                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-100 pb-3" data-idx="${idx}">
-                            <div class="truncate max-w-[200px]" title="${file.filename}">
-                                <p class="font-bold text-gray-800 text-xs truncate">${file.filename}</p>
-                                <p class="text-[10px] text-gray-400 mt-0.5">데이터 ${file.rows.length}행</p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div>
-                                    <label class="block text-[9px] text-gray-400 font-bold mb-0.5">마감월</label>
-                                    <input type="text" class="file-month-input w-20 border border-gray-200 rounded px-2 py-1 text-center font-bold text-xs" value="${fileMonth}" placeholder="yyyyMM">
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] text-gray-400 font-bold mb-0.5">저장할 시트</label>
-                                    <select class="file-sheet-select bg-white border border-gray-200 rounded px-2 py-1 text-xs outline-none cursor-pointer focus:border-primary font-bold">
-                                        <option value="2차년인센" ${recommended === '2차년인센' ? 'selected' : ''}>2차년인센</option>
-                                        <option value="생보법인" ${recommended === '생보법인' ? 'selected' : ''}>생보법인</option>
-                                        <option value="손보법인" ${recommended === '손보법인' ? 'selected' : ''}>손보법인</option>
-                                        <option value="생보개인" ${recommended === '생보개인' ? 'selected' : ''}>생보개인</option>
-                                        <option value="손보개인" ${recommended === '손보개인' ? 'selected' : ''}>손보개인</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                modal.innerHTML = `
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
-                        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-                            <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
-                                <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
-                                파일별 저장 대상 설정 (${parsedFiles.length}개 파일)
-                            </h3>
-                            <button id="closeMappingModalBtn" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-                        </div>
-                        <div class="p-6 overflow-y-auto max-h-[350px] space-y-4 text-left">
-                            ${rowsHtml}
-                        </div>
-                        <div class="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
-                            <p class="text-[10px] text-gray-500 font-bold">* 업로드 시 해당 마감월 데이터가 덮어씌워집니다.</p>
-                            <div class="flex gap-2">
-                                <button id="cancelMappingModalBtn" class="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-xl transition text-xs">취소</button>
-                                <button id="startUploadBtn" class="px-5 py-2 bg-primary hover:bg-primaryHover text-white font-bold rounded-xl transition text-xs shadow-md shadow-orange-100">업로드 시작</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                const closeBtn = modal.querySelector('#closeMappingModalBtn');
-                const cancelBtn = modal.querySelector('#cancelMappingModalBtn');
-                const startBtn = modal.querySelector('#startUploadBtn');
-
-                const closeModal = () => {
-                    modal.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                };
-
-                closeBtn.addEventListener('click', closeModal);
-                cancelBtn.addEventListener('click', closeModal);
-
-                startBtn.addEventListener('click', () => {
-                    const confirmMsg = "정말로 업로드를 진행하시겠습니까?\n업로드 시 매칭된 마감월의 기존 시트 데이터는 완전히 삭제되고 새로운 파일 데이터로 덮어쓰기(Overwrite) 됩니다.";
-                    if (!confirm(confirmMsg)) return;
-
-                    const uploadQueue = [];
-                    const items = modal.querySelectorAll('[data-idx]');
-                    items.forEach(el => {
-                        const idx = parseInt(el.dataset.idx);
-                        const fileObj = parsedFiles[idx];
-                        const month = el.querySelector('.file-month-input').value.trim();
-                        const sheetName = el.querySelector('.file-sheet-select').value;
-
-                        uploadQueue.push({
-                            filename: fileObj.filename,
-                            sheetName: sheetName,
-                            month: month,
-                            rows: fileObj.rows
-                        });
-                    });
-
-                    closeModal();
-                    runUploadQueue(uploadQueue);
-                });
-
-                document.body.classList.add('modal-open');
-                modal.style.display = 'flex';
-            }
-
-            async function runUploadQueue(uploadQueue) {
-                const modalId = 'upload-progress-modal';
-                let modal = document.getElementById(modalId);
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = modalId;
-                    modal.className = "fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4";
-                    document.body.appendChild(modal);
-                }
-
-                modal.innerHTML = `
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center animate-fadeIn">
-                        <h3 class="font-bold text-lg text-gray-800 mb-2">엑셀 파일 업로드 중...</h3>
-                        <p class="text-xs text-gray-500 mb-5" id="progressStatus">준비 중...</p>
-                        
-                        <div class="w-full bg-gray-100 rounded-full h-3.5 mb-6 overflow-hidden border border-gray-100/50">
-                            <div id="progressBarFill" class="bg-primary h-full rounded-full transition-all duration-300" style="width: 0%"></div>
-                        </div>
-
-                        <div class="text-left text-xs bg-gray-50 p-4 rounded-xl border border-gray-100 max-h-[150px] overflow-y-auto font-mono space-y-1" id="progressLogs">
-                        </div>
-                    </div>
-                `;
-
-                const statusEl = modal.querySelector('#progressStatus');
-                const progressFill = modal.querySelector('#progressBarFill');
-                const logsEl = modal.querySelector('#progressLogs');
-
-                modal.style.display = 'flex';
-                document.body.classList.add('modal-open');
-
-                const totalFiles = uploadQueue.length;
-                let successCount = 0;
-                let failCount = 0;
-
-                const log = (msg) => {
-                    const p = document.createElement('p');
-                    p.className = 'text-[10px] text-gray-600 leading-tight';
-                    p.textContent = msg;
-                    logsEl.appendChild(p);
-                    logsEl.scrollTop = logsEl.scrollHeight;
-                };
-
-                for (let i = 0; i < totalFiles; i++) {
-                    const task = uploadQueue[i];
-                    const percent = Math.round((i / totalFiles) * 100);
-                    
-                    statusEl.textContent = `진행 중: ${i + 1} / ${totalFiles} (${percent}%)`;
-                    progressFill.style.width = `${percent}%`;
-                    log(`[${i + 1}/${totalFiles}] ${task.filename} -> ${task.sheetName} (${task.month}) 전송 중...`);
-
-                    const res = await callApi('uploadRewardExcelData', state.user.staffId, task.sheetName, task.month, task.rows);
-
-                    if (res.error) {
-                        failCount++;
-                        log(`❌ 실패: ${task.filename} - ${res.message}`);
-                    } else {
-                        successCount++;
-                        log(`✅ 성공: ${task.filename} (${res.count}건 저장됨)`);
-                    }
-                }
-
-                statusEl.textContent = `완료: 성공 ${successCount}건, 실패 ${failCount}건`;
-                progressFill.style.width = `100%`;
-                
-                const btnWrapper = document.createElement('div');
-                btnWrapper.className = 'mt-6 text-center';
-                const closeBtn = document.createElement('button');
-                closeBtn.className = 'px-6 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-md';
-                closeBtn.textContent = '확인';
-                closeBtn.onclick = () => {
-                    modal.style.display = 'none';
-                    document.body.classList.remove('modal-open');
-                    fetchAdjustData();
-                };
-                btnWrapper.appendChild(closeBtn);
-                modal.firstElementChild.appendChild(btnWrapper);
-            }
-
             adjSearchBtn.addEventListener('click', fetchAdjustData);
-
-            setTimeout(fetchAdjustData, 100);
 
             return container;
         }
-
         // --- 10. Initialization --- 
         document.addEventListener('DOMContentLoaded', () => {
             // Check if already on a specific route without session
