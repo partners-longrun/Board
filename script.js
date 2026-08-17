@@ -8234,7 +8234,7 @@
                             <input type="text" id="adjAgent" placeholder="전체" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">지급/환수</label>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">구분</label>
                             <select id="adjPayRefund" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
                                 <option value="전체">전체</option>
                                 <option value="지급">지급</option>
@@ -8269,19 +8269,19 @@
                         </div>
                     </div>
 
-                    <!-- 테이블 컨테이너 (보험사/계약자/지급환수 절대 너비 적용) -->
+                    <!-- 테이블 컨테이너 -->
                     <div class="overflow-x-auto border border-gray-100 rounded-xl">
                         <table class="w-full text-left border-collapse text-[11px]">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold select-none">
                                     <th class="p-3 text-center w-10"><input type="checkbox" id="selectAllCheckbox"></th>
                                     <th class="p-3">마감월</th>
-                                    <th style="width: 100px; min-width: 100px;" class="p-3">보험사</th>
-                                    <th style="width: 75px; min-width: 75px;" class="p-3">소속</th>
-                                    <th style="width: 60px; min-width: 60px;" class="p-3 text-center">지급/환수</th>
+                                    <th style="width: 100px; min-width: 100px; white-space: nowrap;" class="p-3">보험사</th>
+                                    <th style="width: 75px; min-width: 75px; white-space: nowrap;" class="p-3">소속</th>
+                                    <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 text-center">구분</th>
                                     <th class="p-3">증권번호</th>
-                                    <th style="width: 60px; min-width: 60px;" class="p-3">계약자</th>
-                                    <th style="width: 85px; min-width: 85px;" class="p-3 font-mono">계약일</th>
+                                    <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3">계약자</th>
+                                    <th style="width: 85px; min-width: 85px; white-space: nowrap;" class="p-3 font-mono">계약일</th>
                                     <th class="p-3 text-center">회차</th>
                                     <th class="p-3 text-right">보험료</th>
                                     <th class="p-3">상품명</th>
@@ -8322,7 +8322,7 @@
             const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
             const unsavedBadge = container.querySelector('#unsavedBadge');
 
-            // 시상종류 변경 시 필터값 초기화 (이전 갱신값 고정 방지)
+            // 시상종류 변경 시 필터값 초기화
             adjRewardType.addEventListener('change', () => {
                 adjCompany.innerHTML = '<option value="전체">전체</option>';
                 adjBranch.innerHTML = '<option value="전체">전체</option>';
@@ -8444,14 +8444,16 @@
                     const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
                     const curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
 
-                    const isPay = String(row['지급/환수'] || '').includes('지급');
+                    // 공백 완전 제거 및 한 줄 강제 노출 설정
+                    const cleanPayRefund = String(row['지급/환수'] || '').replace(/\s+/g, '');
+                    const isPay = cleanPayRefund.includes('지급');
                     const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
 
                     // 시상률 백분율 포맷
                     const rateFloat = Number(row['시상률'] || 0);
                     const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    // 지급대상자1 (이름만 노출, 폭 좁게 지정)
+                    // 지급대상자1
                     const selectLeaderHtml = isAdjustment ? `
                         <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -8459,7 +8461,7 @@
                         </select>
                     ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    // 지급대상자2 (이름만 노출, 폭 좁게 지정)
+                    // 지급대상자2
                     const selectFpHtml = `
                         <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -8475,12 +8477,14 @@
                     tr.innerHTML = `
                         <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
                         <td class="p-3 font-semibold text-gray-500">${row['마감월'] || ''}</td>
-                        <td style="width: 100px; min-width: 100px;" class="p-3 font-bold">${row['보험사'] || ''}</td>
-                        <td style="width: 75px; min-width: 75px;" class="p-3 text-gray-500">${row['소속2'] || ''}</td>
-                        <td style="width: 60px; min-width: 60px;" class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
+                        <td style="width: 100px; min-width: 100px; white-space: nowrap;" class="p-3 font-bold">${row['보험사'] || ''}</td>
+                        <td style="width: 75px; min-width: 75px; white-space: nowrap;" class="p-3 text-gray-500">${row['소속2'] || ''}</td>
+                        <td style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 text-center">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-extrabold whitespace-nowrap inline-block ${badgeClass}">${cleanPayRefund}</span>
+                        </td>
                         <td class="p-3 text-gray-600 font-mono">${row['증권번호'] || ''}</td>
-                        <td style="width: 60px; min-width: 60px;" class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
-                        <td style="width: 85px; min-width: 85px;" class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
+                        <td style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
+                        <td style="width: 85px; min-width: 85px; white-space: nowrap;" class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
                         <td class="p-3 text-center">${row['납입회차'] || ''}</td>
                         <td class="p-3 text-right font-bold text-slate-500">${formatMoney(row['보험료'])}</td>
                         <td class="p-3 text-gray-600 max-w-[120px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
@@ -8580,7 +8584,7 @@
                         handleEditing();
                     });
 
-                    // 지급액2 변경 시 연동 (천원 단위 쉼표 포맷 적용)
+                    // 지급액2 변경 시 연동
                     pay2El.addEventListener('input', (e) => {
                         let raw = e.target.value.replace(/,/g, '');
                         let p2 = parseInt(raw) || 0;
