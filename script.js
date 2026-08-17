@@ -8178,6 +8178,14 @@
             let defaultsList = [];
             let selectedRows = new Set();
 
+            // 천원 단위 쉼표 포맷 헬퍼
+            function formatNumberWithCommas(val) {
+                if (val === undefined || val === null || val === '') return '0';
+                let clean = String(val).replace(/[^0-9-]/g, '');
+                if (!clean) return '0';
+                return Number(clean).toLocaleString('ko-KR');
+            }
+
             // 1. 헤더 영역 및 검색 필터 패널
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -8191,8 +8199,8 @@
                         </div>
                     </div>
 
-                    <!-- 검색 필터바 -->
-                    <div class="grid grid-cols-2 md:grid-cols-6 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                    <!-- 검색 필터바 (조회하기 버튼 같은 행 오른쪽 정렬 배치) -->
+                    <div class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50 items-end">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">시상종류</label>
                             <select id="adjRewardType" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
@@ -8233,11 +8241,11 @@
                                 <option value="환수">환수</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="flex justify-end gap-2 mt-4">
-                        <button id="adjSearchBtn" class="px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm">
-                            조회하기
-                        </button>
+                        <div class="col-span-2 md:col-span-1 flex justify-end">
+                            <button id="adjSearchBtn" class="w-full px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm h-[38px]">
+                                조회하기
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -8261,19 +8269,19 @@
                         </div>
                     </div>
 
-                    <!-- 테이블 컨테이너 -->
+                    <!-- 테이블 컨테이너 (특정 열 절대 폭 지정) -->
                     <div class="overflow-x-auto border border-gray-100 rounded-xl">
                         <table class="w-full text-left border-collapse text-[11px]">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold select-none">
                                     <th class="p-3 text-center w-10"><input type="checkbox" id="selectAllCheckbox"></th>
                                     <th class="p-3">마감월</th>
-                                    <th class="p-3">보험사</th>
-                                    <th class="p-3">소속</th>
-                                    <th class="p-3">지급/환수</th>
+                                    <th style="width: 75px; min-width: 75px;" class="p-3">보험사</th>
+                                    <th style="width: 75px; min-width: 75px;" class="p-3">소속</th>
+                                    <th style="width: 50px; min-width: 50px;" class="p-3 text-center">지급/환수</th>
                                     <th class="p-3">증권번호</th>
                                     <th class="p-3">계약자</th>
-                                    <th class="p-3 font-mono">계약일</th>
+                                    <th style="width: 85px; min-width: 85px;" class="p-3 font-mono">계약일</th>
                                     <th class="p-3 text-center">회차</th>
                                     <th class="p-3 text-right">보험료</th>
                                     <th class="p-3">상품명</th>
@@ -8386,7 +8394,7 @@
                 return `${m}_${c}_${p}_${a}_${r}`;
             }
 
-            // 3. 테이블 드로우 함수
+            // 3. 테이블 드로우 함수 (절대폭 지정 및 지급액 쉼표, 태그 노출 방지 조치)
             function renderTable() {
                 adjTableBody.innerHTML = '';
                 adjResultCount.textContent = listData.length;
@@ -8427,23 +8435,23 @@
                     const isPay = String(row['지급/환수'] || '').includes('지급');
                     const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
 
-                    // 시상률 백분율 포맷 (예: 2.45 -> 245%)
+                    // 시상률 백분율 포맷
                     const rateFloat = Number(row['시상률'] || 0);
                     const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    // 지급대상자1 (법인/인센만 select, 개인은 해당없음)
+                    // 지급대상자1 드롭다운 (사번은 보이지 않게 폭 좁게 지정)
                     const selectLeaderHtml = isAdjustment ? `
-                        <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-28 focus:bg-white focus:border-primary outline-none cursor-pointer">
-                            <option value="">(선택 안 됨)</option>
-                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curLeaderId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('')}
+                        <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
+                            <option value="">(없음)</option>
+                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curLeaderId) ? 'selected' : ''}>${u.name}</option>`).join('')}
                         </select>
                     ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    // 지급대상자2 (모든 시트 select)
+                    // 지급대상자2 드롭다운 (사번은 보이지 않게 폭 좁게 지정)
                     const selectFpHtml = `
-                        <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-28 focus:bg-white focus:border-primary outline-none cursor-pointer">
-                            <option value="">(선택 안 됨)</option>
-                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curFpId) ? 'selected' : ''}>${u.name} (${u.id})</option>`).join('')}
+                        <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
+                            <option value="">(없음)</option>
+                            ${userList.map(u => `<option value="${u.id}" ${String(u.id) === String(curFpId) ? 'selected' : ''}>${u.name}</option>`).join('')}
                         </select>
                     `;
 
@@ -8455,12 +8463,12 @@
                     tr.innerHTML = `
                         <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
                         <td class="p-3 font-semibold text-gray-500">${row['마감월'] || ''}</td>
-                        <td class="p-3 font-bold">${row['보험사'] || ''}</td>
-                        <td class="p-3 text-gray-500">${row['소속2'] || ''}</td>
-                        <td class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
+                        <td style="width: 75px; min-width: 75px;" class="p-3 font-bold">${row['보험사'] || ''}</td>
+                        <td style="width: 75px; min-width: 75px;" class="p-3 text-gray-500">${row['소속2'] || ''}</td>
+                        <td style="width: 50px; min-width: 50px;" class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
                         <td class="p-3 text-gray-600 font-mono">${row['증권번호'] || ''}</td>
                         <td class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
-                        <td class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
+                        <td style="width: 85px; min-width: 85px;" class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
                         <td class="p-3 text-center">${row['납입회차'] || ''}</td>
                         <td class="p-3 text-right font-bold text-slate-500">${formatMoney(row['보험료'])}</td>
                         <td class="p-3 text-gray-600 max-w-[120px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
@@ -8476,7 +8484,7 @@
                         
                         <td class="p-2">${selectFpHtml}</td>
                         <td class="p-2 text-right">
-                            <input type="number" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold" value="${curPay2}">
+                            <input type="text" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold" value="${formatNumberWithCommas(curPay2)}">
                         </td>
                         <td class="p-2 text-center">
                             <div class="flex items-center gap-0.5 justify-center">
@@ -8502,11 +8510,12 @@
 
                         const valContent = contentEl.value.trim();
                         const valLeaderId = selectLeaderEl ? selectLeaderEl.value : '';
-                        const valLeaderName = valLeaderId ? selectLeaderEl.options[selectLeaderEl.selectedIndex].text.split(' (')[0] : '';
+                        const valLeaderName = valLeaderId ? selectLeaderEl.options[selectLeaderEl.selectedIndex].text : '';
                         const valFpId = selectFpEl.value;
-                        const valFpName = valFpId ? selectFpEl.options[selectFpEl.selectedIndex].text.split(' (')[0] : '';
+                        const valFpName = valFpId ? selectFpEl.options[selectFpEl.selectedIndex].text : '';
                         
-                        const valPay2 = parseInt(pay2El.value) || 0;
+                        const rawPay2Val = pay2El.value.replace(/,/g, '');
+                        const valPay2 = parseInt(rawPay2Val) || 0;
                         const valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
 
                         let finalRatio2 = valRatio2;
@@ -8519,7 +8528,8 @@
                             finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
                             
                             ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
-                            pay1Cell.textContent = formatMoney(finalPay1);
+                            // [FIX] innerHTML 을 사용하여 돈 포맷 HTML이 텍스트(<span> 태그 날 문자열)로 노출되는 현상 해결
+                            pay1Cell.innerHTML = formatMoney(finalPay1);
                         }
 
                         editedItems[key] = {
@@ -8555,14 +8565,17 @@
                         if (r2 < 0) r2 = 0;
                         
                         let p2 = premium !== 0 ? Math.round(premium * (r2 / 100)) : 0;
-                        pay2El.value = p2;
+                        pay2El.value = formatNumberWithCommas(p2);
                         handleEditing();
                     });
 
-                    // 지급액2 변경 시 연동
-                    pay2El.addEventListener('input', () => {
-                        let p2 = parseInt(pay2El.value) || 0;
+                    // 지급액2 변경 시 연동 (천원 단위 쉼표 포맷 적용)
+                    pay2El.addEventListener('input', (e) => {
+                        let raw = e.target.value.replace(/,/g, '');
+                        let p2 = parseInt(raw) || 0;
                         if (p2 < 0) p2 = 0;
+                        
+                        e.target.value = formatNumberWithCommas(p2);
 
                         if (premium !== 0) {
                             let r2 = (p2 / premium) * 100;
@@ -8608,7 +8621,7 @@
                 showBatchEditModal('all');
             });
 
-            // 6. 일괄수정 모달 구현
+            // 6. 일괄수정 모달 구현 (이름만 드롭다운 노출)
             function showBatchEditModal(mode) {
                 const modalId = 'batch-edit-1step-modal';
                 let modal = document.getElementById(modalId);
@@ -8621,7 +8634,7 @@
 
                 const targetCount = mode === 'selected' ? selectedRows.size : listData.length;
                 const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
-                const userOptions = userList.map(u => `<option value="${u.id}">${u.name} (${u.id})</option>`).join('');
+                const userOptions = userList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
                 modal.innerHTML = `
                     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
@@ -8683,7 +8696,7 @@
                             <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
                                 <div class="flex-1">
                                     <label class="block text-xs font-bold text-gray-500 mb-1">지급액2</label>
-                                    <input type="number" id="modalPay2" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary font-bold" placeholder="금액 입력">
+                                    <input type="text" id="modalPay2" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary font-bold" placeholder="금액 입력">
                                 </div>
                                 <div class="flex items-center gap-1.5 pt-4">
                                     <input type="checkbox" id="chkPay2" class="w-4 h-4 cursor-pointer">
@@ -8728,6 +8741,14 @@
                 const cancelBtn = modal.querySelector('#cancelBatchModalBtn');
                 const closeBtn = modal.querySelector('#closeBatchModalBtn');
 
+                // 일괄수정 모달 금액 입력에도 천원단위 쉼표 포맷 연동
+                modalPay2.addEventListener('input', (e) => {
+                    let raw = e.target.value.replace(/,/g, '');
+                    let amt = parseInt(raw) || 0;
+                    if (amt < 0) amt = 0;
+                    e.target.value = formatNumberWithCommas(amt);
+                });
+
                 const setToggle = (chk, input) => {
                     chk.addEventListener('change', () => {
                         input.disabled = !chk.checked;
@@ -8763,10 +8784,12 @@
 
                     const valContent = modalContent.value.trim();
                     const valLeaderId = modalLeaderSelect.value;
-                    const valLeaderName = valLeaderId ? modalLeaderSelect.options[modalLeaderSelect.selectedIndex].text.split(' (')[0] : '';
+                    const valLeaderName = valLeaderId ? modalLeaderSelect.options[modalLeaderSelect.selectedIndex].text : '';
                     const valFpId = modalFpSelect.value;
-                    const valFpName = valFpId ? modalFpSelect.options[modalFpSelect.selectedIndex].text.split(' (')[0] : '';
-                    const valPay2 = parseInt(modalPay2.value) || 0;
+                    const valFpName = valFpId ? modalFpSelect.options[modalFpSelect.selectedIndex].text : '';
+                    
+                    const rawPay2Val = modalPay2.value.replace(/,/g, '');
+                    const valPay2 = parseInt(rawPay2Val) || 0;
                     const valRatio2 = (parseFloat(modalRatio2.value) || 0) / 100;
 
                     const targetKeys = [];
@@ -8837,7 +8860,7 @@
                             '지급액1': finalPay1,
                             '지급비율1': finalRatio1,
                             '지급대상자2명': finalFpName,
-                            '지급대상자2사번': finalFpId,
+                            '지급대상자2사번': valFpId,
                             '지급액2': finalPay2,
                             '지급비율2': finalRatio2
                         };
