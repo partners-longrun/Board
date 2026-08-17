@@ -8199,7 +8199,7 @@
                         </div>
                     </div>
 
-                    <!-- 검색 필터바 (조회하기 버튼 같은 행 오른쪽 정렬 배치) -->
+                    <!-- 검색 필터바 -->
                     <div class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50 items-end">
                         <div>
                             <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">시상종류</label>
@@ -8269,18 +8269,18 @@
                         </div>
                     </div>
 
-                    <!-- 테이블 컨테이너 (특정 열 절대 폭 지정) -->
+                    <!-- 테이블 컨테이너 (보험사/계약자/지급환수 절대 너비 적용) -->
                     <div class="overflow-x-auto border border-gray-100 rounded-xl">
                         <table class="w-full text-left border-collapse text-[11px]">
                             <thead>
                                 <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold select-none">
                                     <th class="p-3 text-center w-10"><input type="checkbox" id="selectAllCheckbox"></th>
                                     <th class="p-3">마감월</th>
-                                    <th style="width: 75px; min-width: 75px;" class="p-3">보험사</th>
+                                    <th style="width: 100px; min-width: 100px;" class="p-3">보험사</th>
                                     <th style="width: 75px; min-width: 75px;" class="p-3">소속</th>
-                                    <th style="width: 50px; min-width: 50px;" class="p-3 text-center">지급/환수</th>
+                                    <th style="width: 60px; min-width: 60px;" class="p-3 text-center">지급/환수</th>
                                     <th class="p-3">증권번호</th>
-                                    <th class="p-3">계약자</th>
+                                    <th style="width: 60px; min-width: 60px;" class="p-3">계약자</th>
                                     <th style="width: 85px; min-width: 85px;" class="p-3 font-mono">계약일</th>
                                     <th class="p-3 text-center">회차</th>
                                     <th class="p-3 text-right">보험료</th>
@@ -8322,6 +8322,12 @@
             const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
             const unsavedBadge = container.querySelector('#unsavedBadge');
 
+            // 시상종류 변경 시 필터값 초기화 (이전 갱신값 고정 방지)
+            adjRewardType.addEventListener('change', () => {
+                adjCompany.innerHTML = '<option value="전체">전체</option>';
+                adjBranch.innerHTML = '<option value="전체">전체</option>';
+            });
+
             // 2. 조회 실행 함수
             async function fetchAdjustData() {
                 showLoading(true);
@@ -8360,23 +8366,29 @@
                     originalMap[key] = { ...item };
                 });
 
-                // 필터 바 갱신 (최초 1회만 고유 값 채우기)
-                if (adjCompany.children.length <= 1) {
-                    const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
-                    companies.forEach(c => {
-                        const opt = document.createElement('option');
-                        opt.value = c; opt.textContent = c;
-                        adjCompany.appendChild(opt);
-                    });
-                }
-                if (adjBranch.children.length <= 1) {
-                    const branches = [...new Set(listData.map(x => String(x['소속2'] || '').trim()).filter(Boolean))].sort();
-                    branches.forEach(b => {
-                        const opt = document.createElement('option');
-                        opt.value = b; opt.textContent = b;
-                        adjBranch.appendChild(opt);
-                    });
-                }
+                // 필터 바 드롭다운 동적 재구축 및 이전 선택값 자동 복원
+                const prevComp = adjCompany.value;
+                const prevBranch = adjBranch.value;
+
+                adjCompany.innerHTML = '<option value="전체">전체</option>';
+                adjBranch.innerHTML = '<option value="전체">전체</option>';
+
+                const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
+                companies.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c; opt.textContent = c;
+                    adjCompany.appendChild(opt);
+                });
+
+                const branches = [...new Set(listData.map(x => String(x['소속2'] || '').trim()).filter(Boolean))].sort();
+                branches.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b; opt.textContent = b;
+                    adjBranch.appendChild(opt);
+                });
+
+                if (companies.includes(prevComp)) adjCompany.value = prevComp;
+                if (branches.includes(prevBranch)) adjBranch.value = prevBranch;
 
                 if (listData.length > 0) {
                     batchEditAllBtn.disabled = false;
@@ -8394,7 +8406,7 @@
                 return `${m}_${c}_${p}_${a}_${r}`;
             }
 
-            // 3. 테이블 드로우 함수 (절대폭 지정 및 지급액 쉼표, 태그 노출 방지 조치)
+            // 3. 테이블 드로우 함수
             function renderTable() {
                 adjTableBody.innerHTML = '';
                 adjResultCount.textContent = listData.length;
@@ -8439,7 +8451,7 @@
                     const rateFloat = Number(row['시상률'] || 0);
                     const ratePercentText = Math.round(rateFloat * 100) + '%';
 
-                    // 지급대상자1 드롭다운 (사번은 보이지 않게 폭 좁게 지정)
+                    // 지급대상자1 (이름만 노출, 폭 좁게 지정)
                     const selectLeaderHtml = isAdjustment ? `
                         <select class="leader-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -8447,7 +8459,7 @@
                         </select>
                     ` : `<span class="text-gray-400 font-medium">해당없음</span>`;
 
-                    // 지급대상자2 드롭다운 (사번은 보이지 않게 폭 좁게 지정)
+                    // 지급대상자2 (이름만 노출, 폭 좁게 지정)
                     const selectFpHtml = `
                         <select class="fp-select bg-transparent border border-gray-200 rounded px-1 py-0.5 w-20 focus:bg-white focus:border-primary outline-none cursor-pointer text-xs font-semibold">
                             <option value="">(없음)</option>
@@ -8463,11 +8475,11 @@
                     tr.innerHTML = `
                         <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
                         <td class="p-3 font-semibold text-gray-500">${row['마감월'] || ''}</td>
-                        <td style="width: 75px; min-width: 75px;" class="p-3 font-bold">${row['보험사'] || ''}</td>
+                        <td style="width: 100px; min-width: 100px;" class="p-3 font-bold">${row['보험사'] || ''}</td>
                         <td style="width: 75px; min-width: 75px;" class="p-3 text-gray-500">${row['소속2'] || ''}</td>
-                        <td style="width: 50px; min-width: 50px;" class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
+                        <td style="width: 60px; min-width: 60px;" class="p-3 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${badgeClass}">${row['지급/환수'] || ''}</span></td>
                         <td class="p-3 text-gray-600 font-mono">${row['증권번호'] || ''}</td>
-                        <td class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
+                        <td style="width: 60px; min-width: 60px;" class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
                         <td style="width: 85px; min-width: 85px;" class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
                         <td class="p-3 text-center">${row['납입회차'] || ''}</td>
                         <td class="p-3 text-right font-bold text-slate-500">${formatMoney(row['보험료'])}</td>
@@ -8528,7 +8540,6 @@
                             finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
                             
                             ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
-                            // [FIX] innerHTML 을 사용하여 돈 포맷 HTML이 텍스트(<span> 태그 날 문자열)로 노출되는 현상 해결
                             pay1Cell.innerHTML = formatMoney(finalPay1);
                         }
 
@@ -8621,7 +8632,7 @@
                 showBatchEditModal('all');
             });
 
-            // 6. 일괄수정 모달 구현 (이름만 드롭다운 노출)
+            // 6. 일괄수정 모달 구현
             function showBatchEditModal(mode) {
                 const modalId = 'batch-edit-1step-modal';
                 let modal = document.getElementById(modalId);
