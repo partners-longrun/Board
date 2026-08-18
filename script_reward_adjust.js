@@ -364,6 +364,150 @@
                         });
                     });
 
+                    // 4번째 시트: '요약' 시트 생성 (앞의 3개 시트 내용 취합)
+                    const summaryMap = {};
+                    sheetsList.forEach(sheetName => {
+                        const list = exportData[sheetName] || [];
+                        list.forEach(row => {
+                            const id = String(row['사번'] || '').trim();
+                            const name = String(row['이름'] || '').trim();
+                            if (!id) return;
+
+                            if (!summaryMap[id]) {
+                                summaryMap[id] = {
+                                    id: id,
+                                    name: name,
+                                    '생보법인_pay': 0,
+                                    '생보법인_refund': 0,
+                                    '손보법인_pay': 0,
+                                    '손보법인_refund': 0,
+                                    '2차년인센_pay': 0,
+                                    '2차년인센_refund': 0
+                                };
+                            }
+                            if (!summaryMap[id].name && name) {
+                                summaryMap[id].name = name;
+                            }
+
+                            const amt = Number(row['지급기준액'] || 0);
+                            if (amt > 0) {
+                                summaryMap[id][`${sheetName}_pay`] += amt;
+                            } else if (amt < 0) {
+                                summaryMap[id][`${sheetName}_refund`] += amt;
+                            }
+                        });
+                    });
+
+                    // 정렬: 1순위 박용수(2024030027), 2순위 성정우(2025020084), 나머지 사번 오름차순
+                    const summaryList = Object.values(summaryMap);
+                    summaryList.sort((a, b) => {
+                        if (a.id === '2024030027') return -1;
+                        if (b.id === '2024030027') return 1;
+                        if (a.id === '2025020084') return -1;
+                        if (b.id === '2025020084') return 1;
+                        return a.id.localeCompare(b.id);
+                    });
+
+                    const summarySheet = workbook.addWorksheet('요약');
+                    summarySheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 2 }];
+
+                    // 1행 및 2행 헤더 추가
+                    summarySheet.addRow(['사번', '이름', '생보법인', '', '손보법인', '', '2차년인센', '']);
+                    summarySheet.addRow(['', '', '지급', '환수', '지급', '환수', '지급', '환수']);
+
+                    // 셀 병합
+                    summarySheet.mergeCells('A1:A2');
+                    summarySheet.mergeCells('B1:B2');
+                    summarySheet.mergeCells('C1:D1');
+                    summarySheet.mergeCells('E1:F1');
+                    summarySheet.mergeCells('G1:H1');
+
+                    // 헤더 스타일링 (연한 하늘색 배경: #DDEBF7, 맑은 고딕, 굵게, 테두리)
+                    const headerStyle = {
+                        fill: {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFDDEBF7' }
+                        },
+                        font: {
+                            name: '맑은 고딕',
+                            size: 10,
+                            bold: true,
+                            color: { argb: 'FF000000' }
+                        },
+                        alignment: { vertical: 'middle', horizontal: 'center', wrapText: false },
+                        border: {
+                            top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                            right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                        }
+                    };
+
+                    for (let r = 1; r <= 2; r++) {
+                        const rowObj = summarySheet.getRow(r);
+                        for (let c = 1; c <= 8; c++) {
+                            const cell = rowObj.getCell(c);
+                            cell.fill = headerStyle.fill;
+                            cell.font = headerStyle.font;
+                            cell.alignment = headerStyle.alignment;
+                            cell.border = headerStyle.border;
+                        }
+                    }
+
+                    // 요약 데이터 채우기
+                    summaryList.forEach(item => {
+                        const p1 = item['생보법인_pay'];
+                        const r1 = item['생보법인_refund'];
+                        const p2 = item['손보법인_pay'];
+                        const r2 = item['손보법인_refund'];
+                        const p3 = item['2차년인센_pay'];
+                        const r3 = item['2차년인센_refund'];
+
+                        const dataRow = summarySheet.addRow([
+                            item.id,
+                            item.name,
+                            p1 !== 0 ? p1 : '',
+                            r1 !== 0 ? r1 : '',
+                            p2 !== 0 ? p2 : '',
+                            r2 !== 0 ? r2 : '',
+                            p3 !== 0 ? p3 : '',
+                            r3 !== 0 ? r3 : ''
+                        ]);
+
+                        dataRow.eachCell((cell, colNumber) => {
+                            cell.font = { name: '맑은 고딕', size: 10 };
+                            cell.border = {
+                                top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+                                right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+                            };
+
+                            if (colNumber === 1 || colNumber === 2) {
+                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                if (colNumber === 1) cell.numFmt = '@';
+                            } else {
+                                cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false };
+                                cell.numFmt = '#,##0';
+                            }
+                        });
+                    });
+
+                    // 요약 시트 열 너비 자동 조정
+                    summarySheet.columns.forEach((column) => {
+                        let maxLen = 10;
+                        column.eachCell({ includeEmpty: false }, (cell) => {
+                            const valStr = String(cell.value || '');
+                            let len = 0;
+                            for (let i = 0; i < valStr.length; i++) {
+                                len += valStr.charCodeAt(i) > 128 ? 2 : 1;
+                            }
+                            if (len > maxLen) maxLen = len;
+                        });
+                        column.width = maxLen + 3;
+                    });
+
                     // 저장년월일 계산 (YYYYMMDD)
                     const now = new Date();
                     const year = now.getFullYear();
