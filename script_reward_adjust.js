@@ -893,7 +893,7 @@
                     const premium = Number(row['보험료'] || 0);
                     const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
 
-                    const handleEditing = () => {
+                    const handleEditing = (source) => {
                         if (!editedItems[key]) editedItems[key] = {};
 
                         const valContent = contentEl.value.trim();
@@ -912,11 +912,33 @@
                         let finalPay1 = 0;
 
                         if (isAdjustment) {
-                            finalRatio1 = rateFloat - finalRatio2;
-                            finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
-                            
-                            ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
-                            pay1Cell.innerHTML = formatMoney(finalPay1);
+                            if (source === 'pay2') {
+                                // [공식: 지급액2 입력 시] 시상금 = 지급액1 + 지급액2
+                                finalPay2 = valPay2;
+                                finalPay1 = totalReward - finalPay2;
+
+                                if (premium !== 0) {
+                                    finalRatio2 = finalPay2 / premium;
+                                    finalRatio1 = finalPay1 / premium;
+                                    ratio2El.value = Number((finalRatio2 * 100).toFixed(2));
+                                } else {
+                                    finalRatio1 = rateFloat - finalRatio2;
+                                }
+
+                                ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
+                                pay1Cell.innerHTML = formatMoney(finalPay1);
+                            } else {
+                                // [공식: 지급비율2 입력 시 (기본)] 시상률 = 지급비율1 + 지급비율2
+                                finalRatio2 = valRatio2;
+                                finalRatio1 = rateFloat - finalRatio2;
+
+                                finalPay2 = premium !== 0 ? Math.trunc(premium * finalRatio2) : 0;
+                                finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+
+                                pay2El.value = formatNumberWithCommas(finalPay2);
+                                ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
+                                pay1Cell.innerHTML = formatMoney(finalPay1);
+                            }
                         }
 
                         editedItems[key] = {
@@ -942,22 +964,18 @@
                         saveAdjustBtn.disabled = false;
                     };
 
-                    contentEl.addEventListener('input', handleEditing);
-                    if (selectLeaderEl) selectLeaderEl.addEventListener('change', handleEditing);
-                    selectFpEl.addEventListener('change', handleEditing);
+                    contentEl.addEventListener('input', () => handleEditing('content'));
+                    if (selectLeaderEl) selectLeaderEl.addEventListener('change', () => handleEditing('leader'));
+                    selectFpEl.addEventListener('change', () => handleEditing('fp'));
 
-                    // 지급비율2 변경 시 연동 (소수점 버림)
+                    // 지급비율2 변경 시 연동 (공식: 시상률 = 지급비율1 + 지급비율2, 소수점 버림)
                     ratio2El.addEventListener('input', () => {
                         let val = ratio2El.value;
                         if (val === '-' || val === '') return;
-                        let r2 = parseFloat(val) || 0;
-                        
-                        let p2 = premium !== 0 ? Math.trunc(premium * (r2 / 100)) : 0;
-                        pay2El.value = formatNumberWithCommas(p2);
-                        handleEditing();
+                        handleEditing('ratio2');
                     });
 
-                    // 지급액2 변경 시 연동 (마이너스 값 허용)
+                    // 지급액2 변경 시 연동 (공식: 시상금 = 지급액1 + 지급액2, 마이너스 값 허용)
                     pay2El.addEventListener('input', (e) => {
                         let val = e.target.value;
                         if (val === '-') return;
@@ -966,12 +984,7 @@
                         if (isNaN(p2)) p2 = 0;
                         
                         e.target.value = formatNumberWithCommas(p2);
-
-                        if (premium !== 0) {
-                            let r2 = (p2 / premium) * 100;
-                            ratio2El.value = Number(r2.toFixed(2));
-                        }
-                        handleEditing();
+                        handleEditing('pay2');
                     });
 
                     const checkbox = tr.querySelector('.row-checkbox');
@@ -1219,24 +1232,34 @@
                         let finalRatio2 = curRatio2;
                         let finalPay2 = curPay2;
 
-                        if (usePay2) {
-                            finalPay2 = valPay2;
-                            if (premium !== 0) {
-                                finalRatio2 = finalPay2 / premium;
-                            }
-                        } else if (useRatio2) {
-                            finalRatio2 = valRatio2;
-                            if (premium !== 0) {
-                                finalPay2 = Math.trunc(premium * finalRatio2);
-                            }
-                        }
-
                         let finalRatio1 = 0;
                         let finalPay1 = 0;
 
                         if (isAdjustment) {
-                            finalRatio1 = rateFloat - finalRatio2;
-                            finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                            if (usePay2) {
+                                // [공식: 지급액2 입력 시] 시상금 = 지급액1 + 지급액2
+                                finalPay2 = valPay2;
+                                finalPay1 = totalReward - finalPay2;
+                                if (premium !== 0) {
+                                    finalRatio2 = finalPay2 / premium;
+                                    finalRatio1 = finalPay1 / premium;
+                                } else {
+                                    finalRatio1 = rateFloat - finalRatio2;
+                                }
+                            } else if (useRatio2) {
+                                // [공식: 지급비율2 입력 시] 시상률 = 지급비율1 + 지급비율2
+                                finalRatio2 = valRatio2;
+                                finalRatio1 = rateFloat - finalRatio2;
+                                if (premium !== 0) {
+                                    finalPay2 = Math.trunc(premium * finalRatio2);
+                                    finalPay1 = Math.trunc(premium * finalRatio1);
+                                } else {
+                                    finalPay1 = totalReward - finalPay2;
+                                }
+                            } else {
+                                finalRatio1 = rateFloat - finalRatio2;
+                                finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                            }
                         }
 
                         editedItems[k] = {
