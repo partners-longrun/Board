@@ -50,9 +50,13 @@
             // 천원 단위 쉼표 포맷 헬퍼
             function formatNumberWithCommas(val) {
                 if (val === undefined || val === null || val === '') return '0';
-                let clean = String(val).replace(/[^0-9-]/g, '');
-                if (!clean) return '0';
-                return Number(clean).toLocaleString('ko-KR');
+                if (val === '-') return '-';
+                let str = String(val).trim();
+                let isNegative = str.startsWith('-');
+                let clean = str.replace(/[^0-9]/g, '');
+                if (!clean) return isNegative ? '-' : '0';
+                let formatted = Number(clean).toLocaleString('ko-KR');
+                return isNegative ? '-' + formatted : formatted;
             }
 
             // 1. 헤더 영역 및 검색 필터 패널
@@ -239,7 +243,7 @@
                     return;
                 }
 
-                if (!confirm(`${targetMonth} 마감월의 조정내용을 엑셀 파일로 내보내시겠습니까?\n(2차년인센, 손보법인, 생보법인 데이터가 각각 다른 시트에 저장됩니다.)`)) {
+                if (!confirm(`${targetMonth} 마감월의 조정내용을 엑셀 파일로 내보내시겠습니까?\n(생보법인, 손보법인, 2차년인센 데이터가 각각 다른 시트에 저장됩니다.)`)) {
                     return;
                 }
 
@@ -254,7 +258,7 @@
                     }
 
                     const exportData = res.data || {};
-                    const sheetsList = ['2차년인센', '손보법인', '생보법인'];
+                    const sheetsList = ['생보법인', '손보법인', '2차년인센'];
                     
                     // 데이터가 하나라도 있는지 체크
                     let hasData = false;
@@ -263,7 +267,7 @@
                     });
 
                     if (!hasData) {
-                        alert(`${targetMonth} 마감월에 해당하는 FP지급액 1원 이상의 데이터가 존재하지 않습니다.`);
+                        alert(`${targetMonth} 마감월에 해당하는 FP지급액(0이 아닌 금액) 데이터가 존재하지 않습니다.`);
                         return;
                     }
 
@@ -561,7 +565,7 @@
                         </td>
                         <td class="p-2 text-center">
                             <div class="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" class="ratio2-input w-12 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
+                                <input type="number" step="any" class="ratio2-input w-14 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
                             </div>
                         </td>
                     `;
@@ -598,7 +602,7 @@
 
                         if (isAdjustment) {
                             finalRatio1 = rateFloat - finalRatio2;
-                            finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
+                            finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
                             
                             ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
                             pay1Cell.innerHTML = formatMoney(finalPay1);
@@ -631,27 +635,30 @@
                     if (selectLeaderEl) selectLeaderEl.addEventListener('change', handleEditing);
                     selectFpEl.addEventListener('change', handleEditing);
 
-                    // 지급비율2 변경 시 연동
+                    // 지급비율2 변경 시 연동 (소수점 버림)
                     ratio2El.addEventListener('input', () => {
-                        let r2 = parseFloat(ratio2El.value) || 0;
-                        if (r2 < 0) r2 = 0;
+                        let val = ratio2El.value;
+                        if (val === '-' || val === '') return;
+                        let r2 = parseFloat(val) || 0;
                         
-                        let p2 = premium !== 0 ? Math.round(premium * (r2 / 100)) : 0;
+                        let p2 = premium !== 0 ? Math.trunc(premium * (r2 / 100)) : 0;
                         pay2El.value = formatNumberWithCommas(p2);
                         handleEditing();
                     });
 
-                    // 지급액2 변경 시 연동
+                    // 지급액2 변경 시 연동 (마이너스 값 허용)
                     pay2El.addEventListener('input', (e) => {
-                        let raw = e.target.value.replace(/,/g, '');
-                        let p2 = parseInt(raw) || 0;
-                        if (p2 < 0) p2 = 0;
+                        let val = e.target.value;
+                        if (val === '-') return;
+                        let raw = val.replace(/,/g, '');
+                        let p2 = parseInt(raw);
+                        if (isNaN(p2)) p2 = 0;
                         
                         e.target.value = formatNumberWithCommas(p2);
 
                         if (premium !== 0) {
                             let r2 = (p2 / premium) * 100;
-                            ratio2El.value = r2.toFixed(2);
+                            ratio2El.value = Number(r2.toFixed(2));
                         }
                         handleEditing();
                     });
@@ -782,7 +789,7 @@
                                 <div class="flex-1">
                                     <label class="block text-xs font-bold text-gray-500 mb-1">지급비율2</label>
                                     <div class="flex items-center gap-1.5">
-                                        <input type="number" id="modalRatio2" disabled min="0" max="100" class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="비율 입력">
+                                        <input type="number" step="any" id="modalRatio2" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-center text-sm font-bold focus:border-primary" placeholder="비율 입력">
                                         <span class="font-bold text-gray-500">%</span>
                                     </div>
                                 </div>
@@ -815,9 +822,11 @@
                 const closeBtn = modal.querySelector('#closeBatchModalBtn');
 
                 modalPay2.addEventListener('input', (e) => {
-                    let raw = e.target.value.replace(/,/g, '');
-                    let amt = parseInt(raw) || 0;
-                    if (amt < 0) amt = 0;
+                    let val = e.target.value;
+                    if (val === '-') return;
+                    let raw = val.replace(/,/g, '');
+                    let amt = parseInt(raw);
+                    if (isNaN(amt)) amt = 0;
                     e.target.value = formatNumberWithCommas(amt);
                 });
 
@@ -907,7 +916,7 @@
                         } else if (useRatio2) {
                             finalRatio2 = valRatio2;
                             if (premium !== 0) {
-                                finalPay2 = Math.round(premium * finalRatio2);
+                                finalPay2 = Math.trunc(premium * finalRatio2);
                             }
                         }
 
@@ -916,7 +925,7 @@
 
                         if (isAdjustment) {
                             finalRatio1 = rateFloat - finalRatio2;
-                            finalPay1 = premium !== 0 ? Math.round(premium * finalRatio1) : (totalReward - finalPay2);
+                            finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
                         }
 
                         editedItems[k] = {
