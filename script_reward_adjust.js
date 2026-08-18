@@ -277,12 +277,23 @@
                     function parseDefaultRate(val) {
                         if (val === undefined || val === null || val === '') return null;
                         let valStr = String(val).trim();
-                        let rateNum = parseFloat(valStr.replace(/%/g, ''));
-                        if (isNaN(rateNum)) return null;
-                        if (valStr.includes('%') || rateNum > 1) {
-                            return rateNum / 100;
+                        
+                        // 1. '%' 문자가 명시적으로 포함된 경우 (예: "150%", "200%")
+                        if (valStr.includes('%')) {
+                            let num = parseFloat(valStr.replace(/%/g, ''));
+                            return isNaN(num) ? null : num / 100;
                         }
-                        return rateNum;
+                        
+                        let num = parseFloat(valStr);
+                        if (isNaN(num)) return null;
+                        
+                        // 2. 숫자로 10 이상인 경우 (예: 150, 200 등 % 없는 정수 표기)
+                        if (num >= 10) {
+                            return num / 100;
+                        }
+                        
+                        // 3. 구글 스프레드시트 % 서식에 의해 1.5, 2.0, 0.5 등으로 반환된 경우
+                        return num;
                     }
 
                     const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(currentType);
