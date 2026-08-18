@@ -122,18 +122,24 @@
                     </div>
                 </div>
 
-                <!-- 2단계: 엑셀 파일 대량 업로드 영역 및 내보내기 버튼 -->
+                <!-- 2단계: 엑셀 파일 대량 업로드 영역 및 버튼 그룹 -->
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-3">
                         <div id="dropZone" class="flex-grow border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl p-3 text-center cursor-pointer transition flex items-center justify-center gap-2 w-full md:w-auto">
                             <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             <span class="text-xs text-gray-500 font-bold">여기에 엑셀 파일들을 드래그하거나 클릭하여 업로드하세요. (최대 100개)</span>
                             <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
                         </div>
-                        <button id="exportAdjustBtn" class="flex-shrink-0 w-full md:w-auto px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            조정내용 파일로 내보내기
-                        </button>
+                        <div class="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto flex-shrink-0">
+                            <button id="applyDefaultRatesBtn" class="w-full sm:w-auto px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                시상조정 디폴트값 적용하기
+                            </button>
+                            <button id="exportAdjustBtn" class="w-full sm:w-auto px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                조정내용 파일로 내보내기
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 업로드 파일 목록 및 전송 진행 바 -->
@@ -223,6 +229,7 @@
 
             const dropZone = container.querySelector('#dropZone');
             const excelFilesInput = container.querySelector('#excelFilesInput');
+            const applyDefaultRatesBtn = container.querySelector('#applyDefaultRatesBtn');
             const exportAdjustBtn = container.querySelector('#exportAdjustBtn');
             const uploadProgressSection = container.querySelector('#uploadProgressSection');
             const progressStatusText = container.querySelector('#progressStatusText');
@@ -233,6 +240,155 @@
             adjRewardType.addEventListener('change', () => {
                 adjCompany.innerHTML = '<option value="전체">전체</option>';
                 adjBranch.innerHTML = '<option value="전체">전체</option>';
+            });
+
+            // 시상조정 디폴트값 적용하기 버튼 이벤트
+            applyDefaultRatesBtn.addEventListener('click', async () => {
+                if (listData.length === 0) {
+                    alert('적용할 조회 데이터가 없습니다. 먼저 조회를 진행해 주세요.');
+                    return;
+                }
+
+                const currentType = adjRewardType.value;
+                if (!confirm(`'${currentType}' 시상에 대한 시상조정 디폴트값을 현재 조회된 목록(${listData.length}건)에 적용하시겠습니까?`)) {
+                    return;
+                }
+
+                showLoading(true);
+                try {
+                    const res = await callApi('getRewardAdjustDefaults', state.user.staffId);
+                    showLoading(false);
+
+                    if (res.error || !res.success) {
+                        alert('디폴트값을 가져오지 못했습니다: ' + (res.message || '네트워크 오류'));
+                        return;
+                    }
+
+                    const defaults = res.list || [];
+                    // 현재 시상종류에 해당하는 디폴트 설정 필터링
+                    const currentTypeDefaults = defaults.filter(d => String(d['시상종류'] || '').trim() === currentType);
+
+                    if (currentTypeDefaults.length === 0) {
+                        alert(`'시상조정디폴트값' 시트에 '${currentType}' 시상종류에 대한 설정이 존재하지 않습니다.`);
+                        return;
+                    }
+
+                    // 시상률 파싱 헬퍼 함수
+                    function parseDefaultRate(val) {
+                        if (val === undefined || val === null || val === '') return null;
+                        let valStr = String(val).trim();
+                        let rateNum = parseFloat(valStr.replace(/%/g, ''));
+                        if (isNaN(rateNum)) return null;
+                        if (valStr.includes('%') || rateNum > 1) {
+                            return rateNum / 100;
+                        }
+                        return rateNum;
+                    }
+
+                    const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(currentType);
+                    let appliedCount = 0;
+
+                    listData.forEach(row => {
+                        const rowCompany = String(row['보험사'] || '').trim();
+                        const rowBranch = String(row['소속2'] || '').trim();
+
+                        // 4단계 우선순위 매칭
+                        // 1. 특정 보험사 & 특정 소속
+                        let matched = currentTypeDefaults.find(d => {
+                            const c = String(d['보험사'] || '').trim();
+                            const b = String(d['소속'] || '').trim();
+                            return c === rowCompany && b === rowBranch;
+                        });
+
+                        // 2. 특정 보험사 & 전체 소속
+                        if (!matched) {
+                            matched = currentTypeDefaults.find(d => {
+                                const c = String(d['보험사'] || '').trim();
+                                const b = String(d['소속'] || '').trim();
+                                return c === rowCompany && (b === '전체' || b === '');
+                            });
+                        }
+
+                        // 3. 전체 보험사 & 특정 소속
+                        if (!matched) {
+                            matched = currentTypeDefaults.find(d => {
+                                const c = String(d['보험사'] || '').trim();
+                                const b = String(d['소속'] || '').trim();
+                                return (c === '전체' || c === '') && b === rowBranch;
+                            });
+                        }
+
+                        // 4. 전체 보험사 & 전체 소속
+                        if (!matched) {
+                            matched = currentTypeDefaults.find(d => {
+                                const c = String(d['보험사'] || '').trim();
+                                const b = String(d['소속'] || '').trim();
+                                return (c === '전체' || c === '') && (b === '전체' || b === '');
+                            });
+                        }
+
+                        if (matched) {
+                            const targetRatio2 = parseDefaultRate(matched['시상률']);
+                            if (targetRatio2 !== null) {
+                                const key = getRowKey(row);
+                                if (!editedItems[key]) editedItems[key] = {};
+
+                                const curContent = editedItems[key]['시상내용'] !== undefined ? editedItems[key]['시상내용'] : (row['시상내용'] || '');
+                                const curLeaderName = editedItems[key]['지급대상자1명'] !== undefined ? editedItems[key]['지급대상자1명'] : (row['지급대상자1명'] || '');
+                                const curLeaderId = editedItems[key]['지급대상자1사번'] !== undefined ? editedItems[key]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
+                                const curFpName = editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
+                                const curFpId = editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
+
+                                const premium = Number(row['보험료'] || 0);
+                                const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
+                                const rateFloat = Number(row['시상률'] || 0);
+
+                                const finalRatio2 = targetRatio2;
+                                const finalPay2 = premium !== 0 ? Math.trunc(premium * finalRatio2) : 0;
+
+                                let finalRatio1 = 0;
+                                let finalPay1 = 0;
+                                if (isAdjustment) {
+                                    finalRatio1 = rateFloat - finalRatio2;
+                                    finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                                }
+
+                                editedItems[key] = {
+                                    '마감월': row['마감월'],
+                                    '보험사': row['보험사'],
+                                    '증권번호': row['증권번호'],
+                                    '사번': row['사번'],
+                                    '납입회차': row['납입회차'] || '',
+                                    '시상률': rateFloat,
+                                    '시상내용': curContent,
+                                    '지급대상자1명': curLeaderName,
+                                    '지급대상자1사번': curLeaderId,
+                                    '지급액1': finalPay1,
+                                    '지급비율1': finalRatio1,
+                                    '지급대상자2명': curFpName,
+                                    '지급대상자2사번': curFpId,
+                                    '지급액2': finalPay2,
+                                    '지급비율2': finalRatio2
+                                };
+                                appliedCount++;
+                            }
+                        }
+                    });
+
+                    if (appliedCount > 0) {
+                        renderTable();
+                        unsavedBadge.classList.remove('hidden');
+                        saveAdjustBtn.disabled = false;
+                        alert(`${appliedCount}건의 데이터에 디폴트 시상률(지급비율2)이 자동 적용되었습니다.\n내용 확인 후 상단의 [변경사항 저장] 버튼을 눌러 저장해 주세요.`);
+                    } else {
+                        alert('현재 조회된 데이터와 일치하는 디폴트 설정 규칙을 찾지 못했습니다.');
+                    }
+
+                } catch (e) {
+                    showLoading(false);
+                    console.error(e);
+                    alert('디폴트값 적용 중 오류가 발생했습니다: ' + e.message);
+                }
             });
 
             // 조정내용 파일로 내보내기 버튼 이벤트
