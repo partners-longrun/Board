@@ -1296,15 +1296,26 @@
                 const itemsToSave = Object.values(editedItems);
                 if (itemsToSave.length === 0) return;
 
+                if (typeof pausePrefetch === 'function') pausePrefetch();
                 showLoading(true);
-                const res = await callApi('saveRewardAdjustData', state.user.staffId, adjRewardType.value, itemsToSave);
-                showLoading(false);
+                try {
+                    const res = await callApi('saveRewardAdjustData', state.user.staffId, adjRewardType.value, itemsToSave);
+                    showLoading(false);
 
-                if (res.error) {
-                    alert('저장 오류: ' + res.message);
-                } else {
-                    alert(res.message || '변경 내용이 성공적으로 저장되었습니다.');
-                    fetchAdjustData();
+                    if (res.error) {
+                        alert('저장 오류: ' + res.message);
+                    } else {
+                        alert(res.message || '변경 내용이 성공적으로 저장되었습니다.');
+                        // 구글 스프레드시트 쓰기 및 인덱싱 안정화 대기 (500ms)
+                        await new Promise(r => setTimeout(r, 500));
+                        await fetchAdjustData();
+                    }
+                } catch (err) {
+                    showLoading(false);
+                    alert('저장 처리 중 예외 발생: ' + err.toString());
+                } finally {
+                    showLoading(false);
+                    if (typeof resumePrefetch === 'function') resumePrefetch();
                 }
             });
 
@@ -1458,142 +1469,148 @@
 
             // 마감월별 Chunking 분할 덮어쓰기 로직 연계
             async function startDataUploadProcess(rewardType) {
-                // 1. 유니크한 마감월 추출 (문자열 6자리 수치로 극도로 강건하게 획득)
-                const monthsInRows = [...new Set(uploadedParsedRows.map(r => {
-                    let m = r['마감월'];
-                    if (m instanceof Date) {
-                        try {
-                            const y = m.getFullYear();
-                            const mm = String(m.getMonth() + 1).padStart(2, '0');
-                            return `${y}${mm}`;
-                        } catch(e) {}
-                    }
-                    let mStr = String(m || '').replace(/[^0-9]/g, '').trim();
-                    if (mStr.length === 6) return mStr;
-
-                    let dVal = r['계약일자'] || r['계약일'];
-                    if (dVal instanceof Date) {
-                        try {
-                            const y = dVal.getFullYear();
-                            const mm = String(dVal.getMonth() + 1).padStart(2, '0');
-                            return `${y}${mm}`;
-                        } catch(e) {}
-                    }
-                    let dStr = String(dVal || '').replace(/[^0-9]/g, '').trim();
-                    if (dStr.length >= 6) return dStr.substring(0, 6);
-
-                    return '';
-                }).filter(Boolean))];
-
-                if (monthsInRows.length === 0) {
-                    monthsInRows.push(adjMonth.value);
-                }
-
-                // 2. 백엔드와 통신하여 각 마감월 기존 데이터 존재 유무 조사
-                updateProgressBar(60, '대상 시트의 기존 데이터 조사 중...');
-                let existOverwriteConfirmNeeded = false;
-                const existingMonths = [];
-
-                for (const m of monthsInRows) {
-                    const checkRes = await callApi('checkExistingMonthData', state.user.staffId, rewardType, m);
-                    if (!checkRes.error && checkRes.exists) {
-                        existOverwriteConfirmNeeded = true;
-                        existingMonths.push(m);
-                    }
-                }
-
-                let overwrite = false;
-                if (existOverwriteConfirmNeeded) {
-                    const confirmMsg = `선택하신 [${rewardType}] 시트에 아래 마감월의 기존 데이터가 이미 존재합니다.\n\n대상 마감월: ${existingMonths.join(', ')}\n\n기존 데이터를 모두 지우고 업로드한 내용으로 완전히 덮어쓰시겠습니까?\n(취소를 선택할 경우 데이터가 덮어씌워지지 않고 중단됩니다.)`;
-                    if (!confirm(confirmMsg)) {
-                        uploadProgressSection.classList.add('hidden');
-                        return;
-                    }
-                    overwrite = true;
-                }
-
-                // 3. 마감월 단위 데이터 순차 업로드 전송 (Sequential Chunking)
-                let successCount = 0;
-                let failCount = 0;
-                let step = 0;
-
-                for (const m of monthsInRows) {
-                    step++;
-                    const progressVal = 60 + Math.round((step / monthsInRows.length) * 40);
-                    updateProgressBar(progressVal, `[${rewardType}] ${m} 마감월 데이터 저장 중... (${step}/${monthsInRows.length})`);
-
-                    const rowsForMonth = uploadedParsedRows.filter(r => {
-                        let rowM = r['마감월'];
-                        if (rowM instanceof Date) {
+                if (typeof pausePrefetch === 'function') pausePrefetch();
+                try {
+                    // 1. 유니크한 마감월 추출 (문자열 6자리 수치로 극도로 강건하게 획득)
+                    const monthsInRows = [...new Set(uploadedParsedRows.map(r => {
+                        let m = r['마감월'];
+                        if (m instanceof Date) {
                             try {
-                                const y = rowM.getFullYear();
-                                const mm = String(rowM.getMonth() + 1).padStart(2, '0');
-                                return `${y}${mm}` === m;
+                                const y = m.getFullYear();
+                                const mm = String(m.getMonth() + 1).padStart(2, '0');
+                                return `${y}${mm}`;
                             } catch(e) {}
                         }
-                        let mStr = String(rowM || '').replace(/[^0-9]/g, '').trim();
-                        if (mStr.length === 6) return mStr === m;
+                        let mStr = String(m || '').replace(/[^0-9]/g, '').trim();
+                        if (mStr.length === 6) return mStr;
 
-                        let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '').trim();
-                        if (d.length >= 6) return d.substring(0, 6) === m;
-                        return m === adjMonth.value; 
-                    });
-
-                    if (rowsForMonth.length === 0) continue;
-
-                    const saveRes = await callApi('uploadRewardExcelData', state.user.staffId, rewardType, m, rowsForMonth);
-                    if (!saveRes.error && saveRes.success) {
-                        successCount += rowsForMonth.length;
-                    } else {
-                        console.error(`${m} 마감월 전송 실패:`, saveRes.message);
-                        failCount += rowsForMonth.length;
-                    }
-                }
-
-                // 완료 안내 및 UI 갱신 (자동 선택 및 자동 조회 기능 강화)
-                updateProgressBar(100, '모든 데이터 저장 완료!');
-                setTimeout(() => {
-                    uploadProgressSection.classList.add('hidden');
-                    alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건`);
-                    
-                    // 업로드한 종류와 마감월로 필터 동적 자동 전환 및 즉시 조회 실행
-                    if (monthsInRows.length > 0) {
-                        const latestMonth = monthsInRows.sort().reverse()[0];
-                        
-                        // 해당 마감월이 셀렉트박스 옵션에 없는 경우 동적으로 옵션 노드 추가 (공란화 버그 원천 봉쇄)
-                        let exists = false;
-                        for (let i = 0; i < adjMonth.options.length; i++) {
-                            if (adjMonth.options[i].value === latestMonth) {
-                                exists = true;
-                                break;
-                            }
+                        let dVal = r['계약일자'] || r['계약일'];
+                        if (dVal instanceof Date) {
+                            try {
+                                const y = dVal.getFullYear();
+                                const mm = String(dVal.getMonth() + 1).padStart(2, '0');
+                                return `${y}${mm}`;
+                            } catch(e) {}
                         }
+                        let dStr = String(dVal || '').replace(/[^0-9]/g, '').trim();
+                        if (dStr.length >= 6) return dStr.substring(0, 6);
+
+                        return '';
+                    }).filter(Boolean))];
+
+                    if (monthsInRows.length === 0) {
+                        monthsInRows.push(adjMonth.value);
+                    }
+
+                    // 2. 백엔드와 통신하여 각 마감월 기존 데이터 존재 유무 조사
+                    updateProgressBar(60, '대상 시트의 기존 데이터 조사 중...');
+                    let existOverwriteConfirmNeeded = false;
+                    const existingMonths = [];
+
+                    for (const m of monthsInRows) {
+                        const checkRes = await callApi('checkExistingMonthData', state.user.staffId, rewardType, m);
+                        if (!checkRes.error && checkRes.exists) {
+                            existOverwriteConfirmNeeded = true;
+                            existingMonths.push(m);
+                        }
+                    }
+
+                    let overwrite = false;
+                    if (existOverwriteConfirmNeeded) {
+                        const confirmMsg = `선택하신 [${rewardType}] 시트에 아래 마감월의 기존 데이터가 이미 존재합니다.\n\n대상 마감월: ${existingMonths.join(', ')}\n\n기존 데이터를 모두 지우고 업로드한 내용으로 완전히 덮어쓰시겠습니까?\n(취소를 선택할 경우 데이터가 덮어씌워지지 않고 중단됩니다.)`;
+                        if (!confirm(confirmMsg)) {
+                            uploadProgressSection.classList.add('hidden');
+                            return;
+                        }
+                        overwrite = true;
+                    }
+
+                    // 3. 마감월 단위 데이터 순차 업로드 전송 (Sequential Chunking)
+                    let successCount = 0;
+                    let failCount = 0;
+                    let step = 0;
+
+                    for (const m of monthsInRows) {
+                        step++;
+                        const progressVal = 60 + Math.round((step / monthsInRows.length) * 40);
+                        updateProgressBar(progressVal, `[${rewardType}] ${m} 마감월 데이터 저장 중... (${step}/${monthsInRows.length})`);
+
+                        const rowsForMonth = uploadedParsedRows.filter(r => {
+                            let rowM = r['마감월'];
+                            if (rowM instanceof Date) {
+                                try {
+                                    const y = rowM.getFullYear();
+                                    const mm = String(rowM.getMonth() + 1).padStart(2, '0');
+                                    return `${y}${mm}` === m;
+                                } catch(e) {}
+                            }
+                            let mStr = String(rowM || '').replace(/[^0-9]/g, '').trim();
+                            if (mStr.length === 6) return mStr === m;
+
+                            let d = String(r['계약일자'] || r['계약일'] || '').replace(/[^0-9]/g, '').trim();
+                            if (d.length >= 6) return d.substring(0, 6) === m;
+                            return m === adjMonth.value; 
+                        });
+
+                        if (rowsForMonth.length === 0) continue;
+
+                        const saveRes = await callApi('uploadRewardExcelData', state.user.staffId, rewardType, m, rowsForMonth);
+                        if (!saveRes.error && saveRes.success) {
+                            successCount += rowsForMonth.length;
+                        } else {
+                            console.error(`${m} 마감월 전송 실패:`, saveRes.message);
+                            failCount += rowsForMonth.length;
+                        }
+                    }
+
+                    // 완료 안내 및 UI 갱신 (자동 선택 및 자동 조회 기능 강화)
+                    updateProgressBar(100, '모든 데이터 저장 완료!');
+                    setTimeout(async () => {
+                        uploadProgressSection.classList.add('hidden');
+                        alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건`);
                         
-                        if (!exists) {
-                            const opt = document.createElement('option');
-                            opt.value = latestMonth;
-                            opt.textContent = latestMonth;
+                        // 업로드한 종류와 마감월로 필터 동적 자동 전환 및 즉시 조회 실행
+                        if (monthsInRows.length > 0) {
+                            const latestMonth = monthsInRows.sort().reverse()[0];
                             
-                            // 내림차순 정렬 유지를 위해 알맞은 위치에 삽입
-                            let inserted = false;
+                            // 해당 마감월이 셀렉트박스 옵션에 없는 경우 동적으로 옵션 노드 추가 (공란화 버그 원천 봉쇄)
+                            let exists = false;
                             for (let i = 0; i < adjMonth.options.length; i++) {
-                                if (latestMonth > adjMonth.options[i].value) {
-                                    adjMonth.insertBefore(opt, adjMonth.options[i]);
-                                    inserted = true;
+                                if (adjMonth.options[i].value === latestMonth) {
+                                    exists = true;
                                     break;
                                 }
                             }
-                            if (!inserted) {
-                                adjMonth.appendChild(opt);
+                            
+                            if (!exists) {
+                                const opt = document.createElement('option');
+                                opt.value = latestMonth;
+                                opt.textContent = latestMonth;
+                                
+                                // 내림차순 정렬 유지를 위해 알맞은 위치에 삽입
+                                let inserted = false;
+                                for (let i = 0; i < adjMonth.options.length; i++) {
+                                    if (latestMonth > adjMonth.options[i].value) {
+                                        adjMonth.insertBefore(opt, adjMonth.options[i]);
+                                        inserted = true;
+                                        break;
+                                    }
+                                }
+                                if (!inserted) {
+                                    adjMonth.appendChild(opt);
+                                }
                             }
+                            
+                            adjRewardType.value = rewardType;
+                            adjMonth.value = latestMonth;
                         }
                         
-                        adjRewardType.value = rewardType;
-                        adjMonth.value = latestMonth;
-                    }
-                    
-                    fetchAdjustData();
-                }, 800);
+                        await new Promise(r => setTimeout(r, 500));
+                        fetchAdjustData();
+                    }, 800);
+                } finally {
+                    if (typeof resumePrefetch === 'function') resumePrefetch();
+                }
             }
 
             adjSearchBtn.addEventListener('click', fetchAdjustData);
