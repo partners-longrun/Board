@@ -868,12 +868,12 @@
                     const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
 
                     if (!listData || listData.length === 0) {
-                        sumPrevReward.textContent = '-';
-                        sumPrevPay1.textContent = '-';
-                        sumPrevPay2.textContent = '-';
-                        sumCurrReward.textContent = '-';
-                        sumCurrPay1.textContent = '-';
-                        sumCurrPay2.textContent = '-';
+                        sumPrevReward.innerHTML = '-';
+                        sumPrevPay1.innerHTML = '-';
+                        sumPrevPay2.innerHTML = '-';
+                        sumCurrReward.innerHTML = '-';
+                        sumCurrPay1.innerHTML = '-';
+                        sumCurrPay2.innerHTML = '-';
                         return;
                     }
 
@@ -910,13 +910,13 @@
                         currPay2 += p2;
                     });
 
-                    sumPrevReward.textContent = isAdjustment ? formatMoney(prevReward) : '-';
-                    sumPrevPay1.textContent = isAdjustment ? formatMoney(prevPay1) : '-';
-                    sumPrevPay2.textContent = formatMoney(prevPay2);
+                    sumPrevReward.innerHTML = isAdjustment ? formatMoney(prevReward) : '-';
+                    sumPrevPay1.innerHTML = isAdjustment ? formatMoney(prevPay1) : '-';
+                    sumPrevPay2.innerHTML = formatMoney(prevPay2);
 
-                    sumCurrReward.textContent = isAdjustment ? formatMoney(currReward) : '-';
-                    sumCurrPay1.textContent = isAdjustment ? formatMoney(currPay1) : '-';
-                    sumCurrPay2.textContent = formatMoney(currPay2);
+                    sumCurrReward.innerHTML = isAdjustment ? formatMoney(currReward) : '-';
+                    sumCurrPay1.innerHTML = isAdjustment ? formatMoney(currPay1) : '-';
+                    sumCurrPay2.innerHTML = formatMoney(currPay2);
                 }
 
                 // 3. 테이블 드로우 함수
