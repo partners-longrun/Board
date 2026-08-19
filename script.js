@@ -1,53 +1,26 @@
         // --- 0. API Configuration ---
-        let isPrefetchPaused = false;
-
-        function pausePrefetch() {
-            isPrefetchPaused = true;
-        }
-
-        function resumePrefetch() {
-            isPrefetchPaused = false;
-            if (typeof triggerNextPrefetch === 'function') {
-                triggerNextPrefetch();
-            }
-        }
+        // 백그라운드 프리페치 활성화 여부 (필요 시 true로 변경하여 재개 가능)
+        const ENABLE_BACKGROUND_PREFETCH = false;
 
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
                 return { error: true, message: 'API URL Not Configured' };
             }
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 'text/plain' avoids CORS preflight OPTIONS in some cases with GAS
+                    body: JSON.stringify({ action: action, args: args })
+                });
 
-            const MAX_RETRIES = 2; // 최대 2회 재시도 (총 3회 시도)
-            let attempt = 0;
+                if (!response.ok) throw new Error('Network response was not ok');
 
-            while (attempt <= MAX_RETRIES) {
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 'text/plain' avoids CORS preflight OPTIONS in some cases with GAS
-                        body: JSON.stringify({ action: action, args: args })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP status ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    return data;
-                } catch (e) {
-                    attempt++;
-                    console.warn(`[callApi] ${action} failed (attempt ${attempt}/${MAX_RETRIES + 1}):`, e);
-
-                    if (attempt <= MAX_RETRIES) {
-                        // 일시적 GAS 404/과부하/CORS 오류 극복을 위한 지수 백오프 (800ms, 1600ms)
-                        const delay = 800 * Math.pow(2, attempt - 1);
-                        await new Promise(res => setTimeout(res, delay));
-                    } else {
-                        console.error('API Error (Final):', e);
-                        return { error: true, message: e.toString() };
-                    }
-                }
+                const data = await response.json();
+                return data;
+            } catch (e) {
+                console.error('API Error:', e);
+                return { error: true, message: e.toString() };
             }
         }
 
@@ -7922,13 +7895,21 @@
         let isPrefetching = false;
 
         function callApiPrefetch(action, callback, ...args) {
+            // [임시 비활성화] 서버 부하 및 404 방지를 위해 백그라운드 프리페치를 차단합니다.
+            // 재개하려면 상단의 ENABLE_BACKGROUND_PREFETCH를 true로 설정하세요.
+            if (!ENABLE_BACKGROUND_PREFETCH) return;
             if (!state.user) return;
             prefetchQueue.push({ action, callback, args });
             triggerNextPrefetch();
         }
 
         function triggerNextPrefetch() {
-            if (isPrefetchPaused || isPrefetching || prefetchQueue.length === 0) return;
+            if (!ENABLE_BACKGROUND_PREFETCH) {
+                prefetchQueue = [];
+                isPrefetching = false;
+                return;
+            }
+            if (isPrefetching || prefetchQueue.length === 0) return;
             if (!state.user) {
                 prefetchQueue = [];
                 return;
@@ -7940,11 +7921,9 @@
             // Google Apps Script의 동시 실행 한계(Concurrency Limit)에 걸리지 않도록 
             // 백그라운드 프리페치 호출들을 0.6초(600ms) 간격으로 직렬화하여 순차 실행합니다.
             setTimeout(async () => {
-                if (!state.user || isPrefetchPaused) {
-                    if (isPrefetchPaused && item) {
-                        prefetchQueue.unshift(item); // 일시정지 중이면 다시 큐 앞단에 복구
-                    }
+                if (!ENABLE_BACKGROUND_PREFETCH || !state.user) {
                     isPrefetching = false;
+                    prefetchQueue = [];
                     return;
                 }
                 try {
@@ -7962,6 +7941,8 @@
         }
 
         function prefetchAllBackground() {
+            // [임시 비활성화] 대시보드 필수 데이터 외의 백그라운드 프리페치 호출을 중단합니다.
+            if (!ENABLE_BACKGROUND_PREFETCH) return;
             if (!state.user || !state.currentMonth) return;
 
 

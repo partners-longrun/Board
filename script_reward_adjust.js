@@ -1296,7 +1296,6 @@
                 const itemsToSave = Object.values(editedItems);
                 if (itemsToSave.length === 0) return;
 
-                if (typeof pausePrefetch === 'function') pausePrefetch();
                 showLoading(true);
                 try {
                     const res = await callApi('saveRewardAdjustData', state.user.staffId, adjRewardType.value, itemsToSave);
@@ -1305,17 +1304,25 @@
                     if (res.error) {
                         alert('저장 오류: ' + res.message);
                     } else {
-                        alert(res.message || '변경 내용이 성공적으로 저장되었습니다.');
-                        // 구글 스프레드시트 쓰기 및 인덱싱 안정화 대기 (500ms)
-                        await new Promise(r => setTimeout(r, 500));
-                        await fetchAdjustData();
+                        alert(res.message || '변경 내용이 성공적으로 저장되었습니다.\n\n(서버 부하 방지를 위해 목록이 초기화되었습니다. 계속해서 작업하시거나 필요 시 [조회] 버튼을 눌러주세요.)');
+                        
+                        // [서버 부하 방지] 저장 후 자동 재호출을 막고, 테이블 데이터만 깔끔하게 초기화 (필터 박스 조건은 유지)
+                        listData = [];
+                        editedItems = {};
+                        originalMap = {};
+                        selectedRows.clear();
+                        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                        
+                        saveAdjustBtn.disabled = true;
+                        batchEditBtn.disabled = true;
+                        batchEditAllBtn.disabled = true;
+                        unsavedBadge.classList.add('hidden');
+                        
+                        renderTable();
                     }
                 } catch (err) {
                     showLoading(false);
                     alert('저장 처리 중 예외 발생: ' + err.toString());
-                } finally {
-                    showLoading(false);
-                    if (typeof resumePrefetch === 'function') resumePrefetch();
                 }
             });
 
@@ -1563,17 +1570,17 @@
                         }
                     }
 
-                    // 완료 안내 및 UI 갱신 (자동 선택 및 자동 조회 기능 강화)
+                    // 완료 안내 및 UI 갱신 (자동 선택 및 필터 설정)
                     updateProgressBar(100, '모든 데이터 저장 완료!');
-                    setTimeout(async () => {
+                    setTimeout(() => {
                         uploadProgressSection.classList.add('hidden');
-                        alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건`);
+                        alert(`엑셀 대량 업로드 처리가 완료되었습니다.\n\n* 저장 성공: ${successCount}건\n* 저장 실패: ${failCount}건\n\n필터 조건이 업로드된 마감월로 설정되었습니다. 필요 시 [조회] 버튼을 눌러 확인하세요.`);
                         
-                        // 업로드한 종류와 마감월로 필터 동적 자동 전환 및 즉시 조회 실행
+                        // 업로드한 종류와 마감월로 필터 동적 자동 전환
                         if (monthsInRows.length > 0) {
                             const latestMonth = monthsInRows.sort().reverse()[0];
                             
-                            // 해당 마감월이 셀렉트박스 옵션에 없는 경우 동적으로 옵션 노드 추가 (공란화 버그 원천 봉쇄)
+                            // 해당 마감월이 셀렉트박스 옵션에 없는 경우 동적으로 옵션 노드 추가 (공란화 버그 방지)
                             let exists = false;
                             for (let i = 0; i < adjMonth.options.length; i++) {
                                 if (adjMonth.options[i].value === latestMonth) {
@@ -1605,11 +1612,21 @@
                             adjMonth.value = latestMonth;
                         }
                         
-                        await new Promise(r => setTimeout(r, 500));
-                        fetchAdjustData();
-                    }, 800);
-                } finally {
-                    if (typeof resumePrefetch === 'function') resumePrefetch();
+                        // 데이터 목록 초기화
+                        listData = [];
+                        editedItems = {};
+                        originalMap = {};
+                        selectedRows.clear();
+                        if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                        saveAdjustBtn.disabled = true;
+                        batchEditBtn.disabled = true;
+                        batchEditAllBtn.disabled = true;
+                        unsavedBadge.classList.add('hidden');
+                        renderTable();
+                    }, 500);
+                } catch (err) {
+                    uploadProgressSection.classList.add('hidden');
+                    alert('업로드 처리 중 오류 발생: ' + err.toString());
                 }
             }
 
