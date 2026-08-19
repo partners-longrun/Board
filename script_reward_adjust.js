@@ -186,7 +186,9 @@
                                     <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 text-center">구분</th>
                                     <th class="p-3">증권번호</th>
                                     <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3">계약자</th>
-                                    <th style="width: 85px; min-width: 85px; white-space: nowrap;" class="p-3 font-mono">계약일</th>
+                                    <th id="thContractDate" style="width: 95px; min-width: 95px; white-space: nowrap;" class="p-3 font-mono cursor-pointer select-none hover:bg-gray-200/70 transition" title="클릭하여 오름차순/내림차순/정렬취소 토글">
+                                        계약일 <span id="contractDateSortIcon" class="text-gray-400 font-bold ml-0.5">⇅</span>
+                                    </th>
                                     <th class="p-3 text-center">회차</th>
                                     <th class="p-3 text-right">보험료</th>
                                     <th class="p-3">상품명</th>
@@ -199,6 +201,30 @@
                                     <th class="p-3">지급대상자2</th>
                                     <th class="p-3 text-right">지급액2</th>
                                     <th class="p-3 text-center">지급비율2</th>
+                                </tr>
+                                <!-- 합계 행 1: 변경전 -->
+                                <tr id="trSummaryPrev" class="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-bold select-none text-[11px]">
+                                    <td colspan="12" class="p-2.5 text-center font-bold text-slate-600 bg-slate-200/50">합계 (변경전)</td>
+                                    <td class="p-2.5 text-right font-black text-slate-800" id="sumPrevReward">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-right font-black text-slate-800" id="sumPrevPay1">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-right font-black text-slate-800" id="sumPrevPay2">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                </tr>
+                                <!-- 합계 행 2: 변경후 -->
+                                <tr id="trSummaryCurr" class="bg-amber-50/80 border-b-2 border-slate-300 text-slate-800 font-bold select-none text-[11px]">
+                                    <td colspan="12" class="p-2.5 text-center font-black text-amber-900 bg-amber-100/60">합계 (변경후)</td>
+                                    <td class="p-2.5 text-right font-black text-amber-950" id="sumCurrReward">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-right font-black text-blue-900" id="sumCurrPay1">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
+                                    <td class="p-2.5 text-right font-black text-indigo-900" id="sumCurrPay2">-</td>
+                                    <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
                                 </tr>
                             </thead>
                             <tbody id="adjTableBody" class="divide-y divide-gray-50">
@@ -226,6 +252,15 @@
             const batchEditAllBtn = container.querySelector('#batchEditAllBtn');
             const saveAdjustBtn = container.querySelector('#saveAdjustBtn');
             const unsavedBadge = container.querySelector('#unsavedBadge');
+
+            const thContractDate = container.querySelector('#thContractDate');
+            const contractDateSortIcon = container.querySelector('#contractDateSortIcon');
+            const sumPrevReward = container.querySelector('#sumPrevReward');
+            const sumPrevPay1 = container.querySelector('#sumPrevPay1');
+            const sumPrevPay2 = container.querySelector('#sumPrevPay2');
+            const sumCurrReward = container.querySelector('#sumCurrReward');
+            const sumCurrPay1 = container.querySelector('#sumCurrPay1');
+            const sumCurrPay2 = container.querySelector('#sumCurrPay2');
 
             const dropZone = container.querySelector('#dropZone');
             const excelFilesInput = container.querySelector('#excelFilesInput');
@@ -700,98 +735,204 @@
                 }
             });
 
-            // 2. 조회 실행 함수
-            async function fetchAdjustData() {
-                showLoading(true);
-                selectedRows.clear();
-                selectAllCheckbox.checked = false;
-                editedItems = {};
-                unsavedBadge.classList.add('hidden');
-                saveAdjustBtn.disabled = true;
-                batchEditBtn.disabled = true;
-                batchEditAllBtn.disabled = true;
+                let contractDateSortState = 'none'; // 'none' | 'asc' | 'desc'
 
-                const filter = {
-                    rewardType: adjRewardType.value,
-                    month: adjMonth.value,
-                    company: adjCompany.value,
-                    branch: adjBranch.value,
-                    agent: adjAgent.value.trim() || '전체',
-                    payRefund: adjPayRefund.value
-                };
+                // 2. 조회 실행 함수
+                async function fetchAdjustData() {
+                    showLoading(true);
+                    selectedRows.clear();
+                    selectAllCheckbox.checked = false;
+                    editedItems = {};
+                    unsavedBadge.classList.add('hidden');
+                    saveAdjustBtn.disabled = true;
+                    batchEditBtn.disabled = true;
+                    batchEditAllBtn.disabled = true;
+                    contractDateSortState = 'none';
+                    if (contractDateSortIcon) {
+                        contractDateSortIcon.textContent = '⇅';
+                        contractDateSortIcon.className = 'text-gray-400 font-bold ml-0.5';
+                    }
 
-                const res = await callApi('getRewardAdjustData', state.user.staffId, filter);
-                showLoading(false);
+                    const filter = {
+                        rewardType: adjRewardType.value,
+                        month: adjMonth.value,
+                        company: adjCompany.value,
+                        branch: adjBranch.value,
+                        agent: adjAgent.value.trim() || '전체',
+                        payRefund: adjPayRefund.value
+                    };
 
-                if (res.error) {
-                    alert('조회 실패: ' + res.message);
-                    return;
+                    const res = await callApi('getRewardAdjustData', state.user.staffId, filter);
+                    showLoading(false);
+
+                    if (res.error) {
+                        alert('조회 실패: ' + res.message);
+                        return;
+                    }
+
+                    listData = res.list || [];
+                    userList = res.users || [];
+                    allUserList = res.allUsers || []; // 전체 사용자 목록 수급
+                    defaultsList = res.defaults || [];
+
+                    originalMap = {};
+                    listData.forEach((item, idx) => {
+                        item._origIdx = idx; // 원본 순서 보존용 인덱스
+                        const key = getRowKey(item);
+                        originalMap[key] = { ...item };
+                    });
+
+                    // 필터 바 드롭다운 동적 재구축 및 이전 선택값 자동 복원
+                    const prevComp = adjCompany.value;
+                    const prevBranch = adjBranch.value;
+
+                    adjCompany.innerHTML = '<option value="전체">전체</option>';
+                    adjBranch.innerHTML = '<option value="전체">전체</option>';
+
+                    const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
+                    companies.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c; opt.textContent = c;
+                        adjCompany.appendChild(opt);
+                    });
+
+                    const branches = [...new Set(listData.map(x => String(x['소속2'] || '').trim()).filter(Boolean))].sort();
+                    branches.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b; opt.textContent = b;
+                        adjBranch.appendChild(opt);
+                    });
+
+                    if (companies.includes(prevComp)) adjCompany.value = prevComp;
+                    if (branches.includes(prevBranch)) adjBranch.value = prevBranch;
+
+                    if (listData.length > 0) {
+                        batchEditAllBtn.disabled = false;
+                    }
+
+                    renderTable();
                 }
 
-                listData = res.list || [];
-                userList = res.users || [];
-                allUserList = res.allUsers || []; // 전체 사용자 목록 수급
-                defaultsList = res.defaults || [];
+                // 계약일 헤더 클릭 시 3단 정렬 토글 (오름차순 -> 내림차순 -> 정렬취소)
+                if (thContractDate) {
+                    thContractDate.addEventListener('click', () => {
+                        if (!listData || listData.length === 0) return;
 
-                originalMap = {};
-                listData.forEach(item => {
-                    const key = getRowKey(item);
-                    originalMap[key] = { ...item };
-                });
+                        if (contractDateSortState === 'none') {
+                            contractDateSortState = 'asc';
+                            contractDateSortIcon.textContent = '▲';
+                            contractDateSortIcon.className = 'text-primary font-black ml-0.5';
+                            listData.sort((a, b) => {
+                                const dA = String(a['계약일'] || '').trim();
+                                const dB = String(b['계약일'] || '').trim();
+                                if (!dA && !dB) return 0;
+                                if (!dA) return 1;
+                                if (!dB) return -1;
+                                return dA.localeCompare(dB);
+                            });
+                        } else if (contractDateSortState === 'asc') {
+                            contractDateSortState = 'desc';
+                            contractDateSortIcon.textContent = '▼';
+                            contractDateSortIcon.className = 'text-primary font-black ml-0.5';
+                            listData.sort((a, b) => {
+                                const dA = String(a['계약일'] || '').trim();
+                                const dB = String(b['계약일'] || '').trim();
+                                if (!dA && !dB) return 0;
+                                if (!dA) return 1;
+                                if (!dB) return -1;
+                                return dB.localeCompare(dA);
+                            });
+                        } else {
+                            contractDateSortState = 'none';
+                            contractDateSortIcon.textContent = '⇅';
+                            contractDateSortIcon.className = 'text-gray-400 font-bold ml-0.5';
+                            listData.sort((a, b) => (a._origIdx || 0) - (b._origIdx || 0));
+                        }
 
-                // 필터 바 드롭다운 동적 재구축 및 이전 선택값 자동 복원
-                const prevComp = adjCompany.value;
-                const prevBranch = adjBranch.value;
-
-                adjCompany.innerHTML = '<option value="전체">전체</option>';
-                adjBranch.innerHTML = '<option value="전체">전체</option>';
-
-                const companies = [...new Set(listData.map(x => String(x['보험사'] || '').trim()).filter(Boolean))].sort();
-                companies.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c; opt.textContent = c;
-                    adjCompany.appendChild(opt);
-                });
-
-                const branches = [...new Set(listData.map(x => String(x['소속2'] || '').trim()).filter(Boolean))].sort();
-                branches.forEach(b => {
-                    const opt = document.createElement('option');
-                    opt.value = b; opt.textContent = b;
-                    adjBranch.appendChild(opt);
-                });
-
-                if (companies.includes(prevComp)) adjCompany.value = prevComp;
-                if (branches.includes(prevBranch)) adjBranch.value = prevBranch;
-
-                if (listData.length > 0) {
-                    batchEditAllBtn.disabled = false;
+                        renderTable();
+                    });
                 }
 
-                renderTable();
-            }
-
-            function getRowKey(row) {
-                const m = String(row['마감월'] || '').trim();
-                const c = String(row['보험사'] || '').trim();
-                const p = String(row['증권번호'] || '').trim();
-                const a = String(row['사번'] || '').trim();
-                const r = String(row['납입회차'] || '').trim();
-                return `${m}_${c}_${p}_${a}_${r}`;
-            }
-
-            // 3. 테이블 드로우 함수
-            function renderTable() {
-                adjTableBody.innerHTML = '';
-                adjResultCount.textContent = listData.length;
-
-                if (listData.length === 0) {
-                    adjTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="20" class="p-8 text-center text-gray-400 font-medium">검색된 데이터가 없습니다.</td>
-                        </tr>
-                    `;
-                    return;
+                function getRowKey(row) {
+                    const m = String(row['마감월'] || '').trim();
+                    const c = String(row['보험사'] || '').trim();
+                    const p = String(row['증권번호'] || '').trim();
+                    const a = String(row['사번'] || '').trim();
+                    const r = String(row['납입회차'] || '').trim();
+                    return `${m}_${c}_${p}_${a}_${r}`;
                 }
+
+                // 합계 행 계산 및 출력 함수
+                function updateSummaryRows() {
+                    if (!sumPrevReward) return;
+                    const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
+
+                    if (!listData || listData.length === 0) {
+                        sumPrevReward.textContent = '-';
+                        sumPrevPay1.textContent = '-';
+                        sumPrevPay2.textContent = '-';
+                        sumCurrReward.textContent = '-';
+                        sumCurrPay1.textContent = '-';
+                        sumCurrPay2.textContent = '-';
+                        return;
+                    }
+
+                    let prevReward = 0;
+                    let prevPay1 = 0;
+                    let prevPay2 = 0;
+
+                    let currReward = 0;
+                    let currPay1 = 0;
+                    let currPay2 = 0;
+
+                    listData.forEach(row => {
+                        const key = getRowKey(row);
+                        const isEdited = !!editedItems[key];
+
+                        // 변경전 합계 (원본 데이터 기준)
+                        if (isAdjustment) {
+                            prevReward += Number(row['시상금'] || 0);
+                            prevPay1 += row['지급액1'] !== '' ? Number(row['지급액1'] || 0) : 0;
+                        }
+                        prevPay2 += Number(row['지급액2'] || 0);
+
+                        // 변경후 합계 (수정본 반영)
+                        if (isAdjustment) {
+                            currReward += Number(row['시상금'] || 0);
+                            const p1 = (isEdited && editedItems[key]['지급액1'] !== undefined)
+                                ? (editedItems[key]['지급액1'] !== '' ? Number(editedItems[key]['지급액1']) : 0)
+                                : (row['지급액1'] !== '' ? Number(row['지급액1']) : 0);
+                            currPay1 += p1;
+                        }
+                        const p2 = (isEdited && editedItems[key]['지급액2'] !== undefined)
+                            ? Number(editedItems[key]['지급액2'] || 0)
+                            : Number(row['지급액2'] || 0);
+                        currPay2 += p2;
+                    });
+
+                    sumPrevReward.textContent = isAdjustment ? formatMoney(prevReward) : '-';
+                    sumPrevPay1.textContent = isAdjustment ? formatMoney(prevPay1) : '-';
+                    sumPrevPay2.textContent = formatMoney(prevPay2);
+
+                    sumCurrReward.textContent = isAdjustment ? formatMoney(currReward) : '-';
+                    sumCurrPay1.textContent = isAdjustment ? formatMoney(currPay1) : '-';
+                    sumCurrPay2.textContent = formatMoney(currPay2);
+                }
+
+                // 3. 테이블 드로우 함수
+                function renderTable() {
+                    adjTableBody.innerHTML = '';
+                    adjResultCount.textContent = listData.length;
+                    updateSummaryRows();
+
+                    if (listData.length === 0) {
+                        adjTableBody.innerHTML = `
+                            <tr>
+                                <td colspan="20" class="p-8 text-center text-gray-400 font-medium">검색된 데이터가 없습니다.</td>
+                            </tr>
+                        `;
+                        return;
+                    }
 
                 const isAdjustment = ['2차년인센', '생보법인', '손보법인'].includes(adjRewardType.value);
 
@@ -962,6 +1103,7 @@
                         tr.classList.add('bg-blue-50/40');
                         unsavedBadge.classList.remove('hidden');
                         saveAdjustBtn.disabled = false;
+                        updateSummaryRows();
                     };
 
                     contentEl.addEventListener('input', () => handleEditing('content'));
@@ -1041,7 +1183,7 @@
                 const allUserOptions = allUserList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
                 modal.innerHTML = `
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col">
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-100 flex flex-col max-h-[92vh]">
                         <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
                             <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
                                 <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
@@ -1051,8 +1193,8 @@
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
-                        <div class="p-6 space-y-4 text-left text-sm max-h-[400px] overflow-y-auto">
-                            <p class="text-xs text-slate-400 font-bold mb-2">* 우측의 '수정적용' 체크를 활성화한 항목만 일괄 변경됩니다.</p>
+                        <div class="p-5 sm:p-6 space-y-3.5 text-left text-sm max-h-[calc(92vh-130px)] overflow-y-auto">
+                            <p class="text-xs text-slate-400 font-bold mb-1">* 우측의 '수정적용' 체크를 활성화한 항목만 일괄 변경됩니다.</p>
                             
                             <!-- 1. 시상내용 -->
                             <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">

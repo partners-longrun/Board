@@ -7730,29 +7730,29 @@
             // 로더 노출 및 UI 초기 렌더링
             render();
 
-            // 백엔드 동시성 제한(3개 이하)에 걸리지 않는 안전한 범위 내에서
-            // 홈 화면 필수 데이터 3종을 즉시 동시에 비동기로 요청하여 속도를 극대화합니다.
-            const homePromise = callApi('getHomeData', staffId);
-            const lapsePromise = callApi('getLapseManagementData', staffId, 'collector');
-            const performancePromise = callApi('getPerformanceTrendData', staffId);
-
+            // [순차적 안전 로딩] GAS 동시성 한계 및 서버 과부하를 방지하기 위해 3종 데이터를 순차적으로 호출합니다.
+            // 1. 홈 기본 데이터 (유지율 등)
             try {
-                const [homeRes, lapseRes, perfRes] = await Promise.all([
-                    homePromise,
-                    lapsePromise,
-                    performancePromise
-                ]);
-
-                // 1. 홈 데이터 로드 완료
+                const homeRes = await callApi('getHomeData', staffId);
                 if (homeRes && !homeRes.error && homeRes.success) {
                     state.data.homeData = homeRes;
                     sessionStorage.setItem(homeCacheKey, JSON.stringify(homeRes));
                 } else {
                     state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
                 }
-                state.homeLoaded = true;
+            } catch (e) {
+                console.warn('HomeData load error:', e);
+                state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+            }
+            state.homeLoaded = true;
+            if (state.currentView === 'home') render();
 
-                // 2. 실효연체 데이터 로드 완료
+            // 순차 호출 안정화 대기 (200ms)
+            await new Promise(r => setTimeout(r, 200));
+
+            // 2. 실효연체 데이터
+            try {
+                const lapseRes = await callApi('getLapseManagementData', staffId, 'collector');
                 if (lapseRes && !lapseRes.error && lapseRes.success) {
                     state.lapseData = {
                         lapsed: lapseRes.lapsed || [],
@@ -7765,34 +7765,31 @@
                         unsubmittedDate: lapseRes.unsubmittedDate || ''
                     };
                 }
-                state.lapseLoaded = true;
+            } catch (e) {
+                console.warn('LapseData load error:', e);
+            }
+            state.lapseLoaded = true;
+            if (state.currentView === 'home') {
+                updateHomeLapseCounts();
+            }
 
-                // 3. 실적추이 데이터 로드 완료
+            // 순차 호출 안정화 대기 (200ms)
+            await new Promise(r => setTimeout(r, 200));
+
+            // 3. 실적추이 데이터
+            try {
+                const perfRes = await callApi('getPerformanceTrendData', staffId);
                 if (perfRes && !perfRes.error && perfRes.success) {
                     state.performanceData = perfRes;
                 }
-                state.performanceLoaded = true;
-
-                // 4. 화면을 새로 렌더링하여 받아온 카드를 출력하고 차트를 그립니다.
-                if (state.currentView === 'home') {
-                    render();
-                    if (state.performanceData) renderPerformanceChart();
-                    updateHomeLapseCounts();
-                }
-
-                // [핵심] 홈 화면 카드의 데이터가 완벽하게 출력된 직후,
-                // 백그라운드 캐싱(프리페치 큐)을 조용히 시작시킵니다.
-                if (!state.prefetchTriggered) {
-                    state.prefetchTriggered = true;
-                    setTimeout(prefetchAllBackground, 800);
-                }
-
-            } catch (err) {
-                console.error('Direct home data load failed:', err);
-                state.homeLoaded = true;
-                state.lapseLoaded = true;
-                state.performanceLoaded = true;
-                if (state.currentView === 'home') render();
+            } catch (e) {
+                console.warn('PerformanceData load error:', e);
+            }
+            state.performanceLoaded = true;
+            if (state.currentView === 'home') {
+                render();
+                if (state.performanceData) renderPerformanceChart();
+                updateHomeLapseCounts();
             }
         }
 
