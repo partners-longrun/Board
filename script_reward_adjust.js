@@ -469,7 +469,7 @@
                     });
 
                     if (!hasData) {
-                        alert(`${targetMonth} 마감월에 해당하는 FP지급액(0이 아닌 금액) 데이터가 존재하지 않습니다.`);
+                        alert(`${targetMonth} 마감월에 해당하는 시상 조정 데이터가 존재하지 않습니다.`);
                         return;
                     }
 
