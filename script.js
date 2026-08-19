@@ -7722,35 +7722,61 @@
 
             const staffId = state.user.staffId;
             const homeCacheKey = `DATA_${staffId}_${state.currentMonth}_home`;
+            const lapseCacheKey = `DATA_${staffId}_${state.currentMonth}_lapse`;
+            const perfCacheKey = `DATA_${staffId}_${state.currentMonth}_perf`;
 
-            state.homeLoaded = false;
-            state.lapseLoaded = false;
-            state.performanceLoaded = false;
-            
-            // 로더 노출 및 UI 초기 렌더링
-            render();
+            // 1. [0초 즉시 로딩] 세션 캐시가 존재하면 API 응답을 기다리지 않고 즉시 화면을 먼저 띄웁니다.
+            try {
+                const cachedHome = sessionStorage.getItem(homeCacheKey);
+                if (cachedHome) state.data.homeData = JSON.parse(cachedHome);
 
-            // [순차적 안전 로딩] GAS 동시성 한계 및 서버 과부하를 방지하기 위해 3종 데이터를 순차적으로 호출합니다.
-            // 1. 홈 기본 데이터 (유지율 등)
+                const cachedLapse = sessionStorage.getItem(lapseCacheKey);
+                if (cachedLapse) state.lapseData = JSON.parse(cachedLapse);
+
+                const cachedPerf = sessionStorage.getItem(perfCacheKey);
+                if (cachedPerf) state.performanceData = JSON.parse(cachedPerf);
+
+                if (cachedHome || cachedLapse || cachedPerf) {
+                    state.homeLoaded = true;
+                    state.lapseLoaded = true;
+                    state.performanceLoaded = true;
+                    if (state.currentView === 'home') {
+                        render();
+                        if (state.performanceData) renderPerformanceChart();
+                        updateHomeLapseCounts();
+                    }
+                }
+            } catch (e) {
+                console.warn('Session cache restore error:', e);
+            }
+
+            // 로딩 상태 초기화 및 UI 렌더링
+            if (!state.data.homeData) state.homeLoaded = false;
+            if (!state.lapseData) state.lapseLoaded = false;
+            if (!state.performanceData) state.performanceLoaded = false;
+            if (state.currentView === 'home') render();
+
+            // 2. [순차적 안전 비동기 동기화] 백그라운드에서 최신 데이터를 안전하게 갱신합니다.
+            // 1단계: 홈 기본 데이터 (유지율 등)
             try {
                 const homeRes = await callApi('getHomeData', staffId);
                 if (homeRes && !homeRes.error && homeRes.success) {
                     state.data.homeData = homeRes;
                     sessionStorage.setItem(homeCacheKey, JSON.stringify(homeRes));
-                } else {
+                } else if (!state.data.homeData) {
                     state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
                 }
             } catch (e) {
                 console.warn('HomeData load error:', e);
-                state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+                if (!state.data.homeData) state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
             }
             state.homeLoaded = true;
             if (state.currentView === 'home') render();
 
-            // 순차 호출 안정화 대기 (200ms)
-            await new Promise(r => setTimeout(r, 200));
+            // 서버 안전 대기 (300ms)
+            await new Promise(r => setTimeout(r, 300));
 
-            // 2. 실효연체 데이터
+            // 2단계: 실효연체 데이터
             try {
                 const lapseRes = await callApi('getLapseManagementData', staffId, 'collector');
                 if (lapseRes && !lapseRes.error && lapseRes.success) {
@@ -7764,6 +7790,7 @@
                         unsubmitted: lapseRes.unsubmitted || [],
                         unsubmittedDate: lapseRes.unsubmittedDate || ''
                     };
+                    sessionStorage.setItem(lapseCacheKey, JSON.stringify(state.lapseData));
                 }
             } catch (e) {
                 console.warn('LapseData load error:', e);
@@ -7773,14 +7800,15 @@
                 updateHomeLapseCounts();
             }
 
-            // 순차 호출 안정화 대기 (200ms)
-            await new Promise(r => setTimeout(r, 200));
+            // 서버 안전 대기 (300ms)
+            await new Promise(r => setTimeout(r, 300));
 
-            // 3. 실적추이 데이터
+            // 3단계: 실적추이 데이터
             try {
                 const perfRes = await callApi('getPerformanceTrendData', staffId);
                 if (perfRes && !perfRes.error && perfRes.success) {
                     state.performanceData = perfRes;
+                    sessionStorage.setItem(perfCacheKey, JSON.stringify(perfRes));
                 }
             } catch (e) {
                 console.warn('PerformanceData load error:', e);
