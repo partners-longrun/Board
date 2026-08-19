@@ -390,13 +390,13 @@
                                 const rateFloat = Number(row['시상률'] || 0);
 
                                 const finalRatio2 = targetRatio2;
-                                const finalPay2 = premium !== 0 ? Math.trunc(premium * finalRatio2) : 0;
+                                const finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
 
                                 let finalRatio1 = 0;
                                 let finalPay1 = 0;
                                 if (isAdjustment) {
                                     finalRatio1 = rateFloat - finalRatio2;
-                                    finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                                    finalPay1 = totalReward - finalPay2;
                                 }
 
                                 editedItems[key] = {
@@ -1069,12 +1069,12 @@
                                 ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
                                 pay1Cell.innerHTML = formatMoney(finalPay1);
                             } else {
-                                // [공식: 지급비율2 입력 시 (기본)] 시상률 = 지급비율1 + 지급비율2
+                                // [공식: 지급비율2 입력 시 (기본)] 지급액2 자동계산(소수점 버림) 후 지급액1 = 시상금 - 지급액2
                                 finalRatio2 = valRatio2;
                                 finalRatio1 = rateFloat - finalRatio2;
 
-                                finalPay2 = premium !== 0 ? Math.trunc(premium * finalRatio2) : 0;
-                                finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                finalPay1 = totalReward - finalPay2;
 
                                 pay2El.value = formatNumberWithCommas(finalPay2);
                                 ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
@@ -1389,18 +1389,14 @@
                                     finalRatio1 = rateFloat - finalRatio2;
                                 }
                             } else if (useRatio2) {
-                                // [공식: 지급비율2 입력 시] 시상률 = 지급비율1 + 지급비율2
+                                // [공식: 지급비율2 입력 시] 지급액2 자동계산(소수점 버림) 후 지급액1 = 시상금 - 지급액2
                                 finalRatio2 = valRatio2;
                                 finalRatio1 = rateFloat - finalRatio2;
-                                if (premium !== 0) {
-                                    finalPay2 = Math.trunc(premium * finalRatio2);
-                                    finalPay1 = Math.trunc(premium * finalRatio1);
-                                } else {
-                                    finalPay1 = totalReward - finalPay2;
-                                }
+                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                finalPay1 = totalReward - finalPay2;
                             } else {
                                 finalRatio1 = rateFloat - finalRatio2;
-                                finalPay1 = premium !== 0 ? Math.trunc(premium * finalRatio1) : (totalReward - finalPay2);
+                                finalPay1 = totalReward - finalPay2;
                             }
                         }
 
