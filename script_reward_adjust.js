@@ -59,6 +59,39 @@
                 return isNegative ? '-' + formatted : formatted;
             }
 
+            // 음수 서식화 헬퍼 함수 (음수일 경우 text-rose-600 font-bold 스타일 적용)
+            function formatMoneyAdj(val, defaultClass = 'text-gray-800') {
+                if (val === '' || val === null || val === undefined) return '-';
+                const num = Number(val);
+                if (isNaN(num)) return '-';
+                const isNeg = num < 0;
+                const colorClass = isNeg ? 'text-rose-600 font-bold' : defaultClass;
+                return `<span class="tabular-nums ${colorClass}">${num.toLocaleString('ko-KR')}</span>`;
+            }
+
+            function formatRateAdj(val, defaultClass = 'text-indigo-600') {
+                if (val === '' || val === null || val === undefined) return '-';
+                const num = Number(val);
+                if (isNaN(num)) return '-';
+                const pct = Number((num * 100).toFixed(2));
+                const isNeg = pct < 0;
+                const colorClass = isNeg ? 'text-rose-600 font-bold' : defaultClass;
+                return `<span class="tabular-nums ${colorClass}">${pct}%</span>`;
+            }
+
+            function updateInputNegativeColor(inputEl, val) {
+                if (!inputEl) return;
+                const str = String(val !== undefined && val !== null ? val : '').trim();
+                const isNeg = str.startsWith('-') || Number(str.replace(/,/g, '')) < 0;
+                if (isNeg) {
+                    inputEl.classList.add('text-rose-600');
+                    inputEl.classList.remove('text-gray-800', 'text-slate-700', 'text-slate-800');
+                } else {
+                    inputEl.classList.remove('text-rose-600');
+                    inputEl.classList.add('text-gray-800');
+                }
+            }
+
             // 1. 헤더 영역 및 검색 필터 패널
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -73,51 +106,91 @@
                     </div>
 
                     <!-- 검색 필터바 -->
-                    <div class="grid grid-cols-2 md:grid-cols-7 gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50 items-end">
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">시상종류</label>
-                            <select id="adjRewardType" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                <option value="2차년인센">2차년인센</option>
-                                <option value="생보법인">생보법인</option>
-                                <option value="손보법인">손보법인</option>
-                                <option value="생보개인">생보개인</option>
-                                <option value="손보개인">손보개인</option>
-                            </select>
+                    <div class="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                        <!-- 1행: 라디오 필터 그룹 (시상종류 & 구분) -->
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-gray-200/60">
+                            <!-- 시상종류 라디오 그룹 -->
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
+                                    <span class="w-1.5 h-3 bg-primary rounded-sm inline-block"></span>
+                                    시상종류
+                                </label>
+                                <div id="adjRewardTypeGroup" class="inline-flex flex-wrap p-1 bg-gray-200/60 rounded-xl gap-1 border border-gray-200/80">
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjRewardTypeRadio" value="2차년인센" class="sr-only peer" checked>
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">2차년인센</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjRewardTypeRadio" value="생보법인" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보법인</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjRewardTypeRadio" value="손보법인" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보법인</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjRewardTypeRadio" value="생보개인" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보개인</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjRewardTypeRadio" value="손보개인" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보개인</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 구분(지급/환수) 라디오 그룹 -->
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
+                                    <span class="w-1.5 h-3 bg-secondary rounded-sm inline-block"></span>
+                                    구분
+                                </label>
+                                <div id="adjPayRefundGroup" class="inline-flex p-1 bg-gray-200/60 rounded-xl gap-1 border border-gray-200/80">
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjPayRefundRadio" value="전체" class="sr-only peer" checked>
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-secondary peer-checked:text-white peer-checked:shadow-sm">전체</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjPayRefundRadio" value="지급" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:shadow-sm">지급</span>
+                                    </label>
+                                    <label class="cursor-pointer select-none">
+                                        <input type="radio" name="adjPayRefundRadio" value="환수" class="sr-only peer">
+                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:shadow-sm">환수</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">마감월</label>
-                            <select id="adjMonth" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                ${adjMonths.map(m => `<option value="${m}" ${m === defaultSelectedMonth ? 'selected' : ''}>${m}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">보험사</label>
-                            <select id="adjCompany" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                <option value="전체">전체</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">소속</label>
-                            <select id="adjBranch" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                <option value="전체">전체</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">모집인 (이름/사번)</label>
-                            <input type="text" id="adjAgent" placeholder="전체" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition">
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">구분</label>
-                            <select id="adjPayRefund" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
-                                <option value="전체">전체</option>
-                                <option value="지급">지급</option>
-                                <option value="환수">환수</option>
-                            </select>
-                        </div>
-                        <div class="col-span-2 md:col-span-1 flex justify-end">
-                            <button id="adjSearchBtn" class="w-full px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm h-[38px]">
-                                조회하기
-                            </button>
+
+                        <!-- 2행: 상세 검색 조건 및 조회 버튼 -->
+                        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">마감월</label>
+                                <select id="adjMonth" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                    ${adjMonths.map(m => `<option value="${m}" ${m === defaultSelectedMonth ? 'selected' : ''}>${m}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">보험사</label>
+                                <select id="adjCompany" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                    <option value="전체">전체</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">소속</label>
+                                <select id="adjBranch" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition cursor-pointer">
+                                    <option value="전체">전체</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">모집인 (이름/사번)</label>
+                                <input type="text" id="adjAgent" placeholder="전체" class="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-2 text-sm font-medium focus:ring-1 focus:ring-primary focus:border-primary outline-none transition">
+                            </div>
+                            <div class="col-span-2 sm:col-span-2 md:col-span-1 flex justify-end">
+                                <button id="adjSearchBtn" class="w-full px-5 py-2.5 bg-secondary hover:bg-slate-800 text-white font-bold rounded-xl text-sm transition shadow-sm h-[38px]">
+                                    조회하기
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -237,13 +310,49 @@
                 </div>
             `;
 
-            // DOM 요소 선택
-            const adjRewardType = container.querySelector('#adjRewardType');
+            // DOM 요소 선택 및 라디오 그룹 바인딩
+            const adjRewardType = {
+                get value() {
+                    const checked = container.querySelector('input[name="adjRewardTypeRadio"]:checked');
+                    return checked ? checked.value : '2차년인센';
+                },
+                set value(val) {
+                    const radio = container.querySelector(`input[name="adjRewardTypeRadio"][value="${val}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                },
+                addEventListener(type, listener) {
+                    container.querySelectorAll('input[name="adjRewardTypeRadio"]').forEach(r => {
+                        r.addEventListener(type, listener);
+                    });
+                }
+            };
+
+            const adjPayRefund = {
+                get value() {
+                    const checked = container.querySelector('input[name="adjPayRefundRadio"]:checked');
+                    return checked ? checked.value : '전체';
+                },
+                set value(val) {
+                    const radio = container.querySelector(`input[name="adjPayRefundRadio"][value="${val}"]`);
+                    if (radio) {
+                        radio.checked = true;
+                        radio.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                },
+                addEventListener(type, listener) {
+                    container.querySelectorAll('input[name="adjPayRefundRadio"]').forEach(r => {
+                        r.addEventListener(type, listener);
+                    });
+                }
+            };
+
             const adjMonth = container.querySelector('#adjMonth');
             const adjCompany = container.querySelector('#adjCompany');
             const adjBranch = container.querySelector('#adjBranch');
             const adjAgent = container.querySelector('#adjAgent');
-            const adjPayRefund = container.querySelector('#adjPayRefund');
             const adjSearchBtn = container.querySelector('#adjSearchBtn');
             const adjTableBody = container.querySelector('#adjTableBody');
             const adjResultCount = container.querySelector('#adjResultCount');
@@ -385,12 +494,16 @@
                                 const curFpName = editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
                                 const curFpId = editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
 
+                                const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
                                 const premium = Number(row['보험료'] || 0);
                                 const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
                                 const rateFloat = Number(row['시상률'] || 0);
 
-                                const finalRatio2 = targetRatio2;
-                                const finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                let finalRatio2 = isRowRefund ? -Math.abs(targetRatio2) : targetRatio2;
+                                let finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRowRefund && finalPay2 > 0) {
+                                    finalPay2 = -finalPay2;
+                                }
 
                                 let finalRatio1 = 0;
                                 let finalPay1 = 0;
@@ -910,13 +1023,13 @@
                         currPay2 += p2;
                     });
 
-                    sumPrevReward.innerHTML = isAdjustment ? formatMoney(prevReward) : '-';
-                    sumPrevPay1.innerHTML = isAdjustment ? formatMoney(prevPay1) : '-';
-                    sumPrevPay2.innerHTML = formatMoney(prevPay2);
+                    sumPrevReward.innerHTML = isAdjustment ? formatMoneyAdj(prevReward, 'text-slate-800') : '-';
+                    sumPrevPay1.innerHTML = isAdjustment ? formatMoneyAdj(prevPay1, 'text-slate-800') : '-';
+                    sumPrevPay2.innerHTML = formatMoneyAdj(prevPay2, 'text-slate-800');
 
-                    sumCurrReward.innerHTML = isAdjustment ? formatMoney(currReward) : '-';
-                    sumCurrPay1.innerHTML = isAdjustment ? formatMoney(currPay1) : '-';
-                    sumCurrPay2.innerHTML = formatMoney(currPay2);
+                    sumCurrReward.innerHTML = isAdjustment ? formatMoneyAdj(currReward, 'text-amber-950') : '-';
+                    sumCurrPay1.innerHTML = isAdjustment ? formatMoneyAdj(currPay1, 'text-blue-900') : '-';
+                    sumCurrPay2.innerHTML = formatMoneyAdj(currPay2, 'text-indigo-900');
                 }
 
                 // 3. 테이블 드로우 함수
@@ -943,6 +1056,11 @@
                     tr.className = `hover:bg-slate-50/50 transition-colors ${isEdited ? 'bg-blue-50/40' : ''}`;
                     tr.dataset.key = key;
 
+                    const cleanPayRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '지급').replace(/\s+/g, '');
+                    const isPay = cleanPayRefund.includes('지급');
+                    const isRefund = cleanPayRefund.includes('환수');
+                    const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
+
                     // 상태 값 매핑 (수정본 or 원본)
                     const curContent = isEdited && editedItems[key]['시상내용'] !== undefined ? editedItems[key]['시상내용'] : (row['시상내용'] || '');
                     
@@ -953,18 +1071,16 @@
                     const curFpId = isEdited && editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
 
                     const curPay1 = isEdited && editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : '');
-                    const curPay2 = isEdited && editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
+                    let curPay2 = isEdited && editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
+                    if (isRefund && curPay2 > 0) curPay2 = -curPay2;
 
                     const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
-                    const curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
-
-                    const cleanPayRefund = String(row['지급/환수'] || '').replace(/\s+/g, '');
-                    const isPay = cleanPayRefund.includes('지급');
-                    const badgeClass = isPay ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-100';
+                    let curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
+                    if (isRefund && curRatio2 > 0) curRatio2 = -curRatio2;
 
                     // 시상률 백분율 포맷
-                    const rateFloat = Number(row['시상률'] || 0);
-                    const ratePercentText = Math.round(rateFloat * 100) + '%';
+                    let rateFloat = Number(row['시상률'] || 0);
+                    if (isRefund && rateFloat > 0) rateFloat = -rateFloat;
 
                     // 지급대상자1
                     const selectLeaderHtml = isAdjustment ? `
@@ -983,9 +1099,9 @@
                     `;
 
                     // 금액 및 비율 포맷팅
-                    const rewardAmtText = isAdjustment ? formatMoney(row['시상금']) : '-';
-                    const pay1Text = (isAdjustment && curPay1 !== '') ? formatMoney(curPay1) : '-';
-                    const ratio1Text = (isAdjustment && curRatio1 !== '') ? Math.round(curRatio1 * 100) + '%' : '-';
+                    const rewardAmtText = isAdjustment ? formatMoneyAdj(row['시상금'], 'text-gray-800') : '-';
+                    const pay1Text = (isAdjustment && curPay1 !== '') ? formatMoneyAdj(curPay1, 'text-slate-700') : '-';
+                    const ratio1Text = (isAdjustment && curRatio1 !== '') ? formatRateAdj(curRatio1, 'text-gray-600') : '-';
 
                     tr.innerHTML = `
                         <td class="p-3 text-center"><input type="checkbox" class="row-checkbox" ${selectedRows.has(key) ? 'checked' : ''}></td>
@@ -999,25 +1115,25 @@
                         <td style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 font-bold">${maskContractor(row['계약자'])}</td>
                         <td style="width: 85px; min-width: 85px; white-space: nowrap;" class="p-3 text-gray-400 font-mono">${row['계약일'] || ''}</td>
                         <td class="p-3 text-center">${row['납입회차'] || ''}</td>
-                        <td class="p-3 text-right font-bold text-slate-500">${formatMoney(row['보험료'])}</td>
+                        <td class="p-3 text-right font-bold">${formatMoneyAdj(row['보험료'], 'text-slate-500')}</td>
                         <td class="p-3 text-gray-600 max-w-[120px] truncate" title="${row['상품명'] || ''}">${row['상품명'] || ''}</td>
                         
                         <!-- 5개 수정 가능 열 및 연동 셀 -->
                         <td class="p-2"><input type="text" class="content-input w-28 border border-gray-200 rounded px-1.5 py-0.5" value="${curContent}"></td>
-                        <td class="p-3 text-right font-bold text-gray-800">${rewardAmtText}</td>
-                        <td class="p-3 text-center font-bold text-indigo-600">${ratePercentText}</td>
+                        <td class="p-3 text-right font-bold">${rewardAmtText}</td>
+                        <td class="p-3 text-center font-bold">${formatRateAdj(rateFloat, 'text-indigo-600')}</td>
                         
                         <td class="p-2">${selectLeaderHtml}</td>
-                        <td class="p-3 text-right font-bold text-slate-700 pay1-cell">${pay1Text}</td>
-                        <td class="p-3 text-center font-bold text-gray-600 ratio1-cell">${ratio1Text}</td>
+                        <td class="p-3 text-right font-bold pay1-cell">${pay1Text}</td>
+                        <td class="p-3 text-center font-bold ratio1-cell">${ratio1Text}</td>
                         
                         <td class="p-2">${selectFpHtml}</td>
                         <td class="p-2 text-right">
-                            <input type="text" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold" value="${formatNumberWithCommas(curPay2)}">
+                            <input type="text" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold ${curPay2 < 0 ? 'text-rose-600' : 'text-gray-800'}" value="${formatNumberWithCommas(curPay2)}">
                         </td>
                         <td class="p-2 text-center">
                             <div class="flex items-center gap-0.5 justify-center">
-                                <input type="number" step="any" class="ratio2-input w-14 border border-gray-200 rounded px-1 py-0.5 text-center font-bold" value="${Math.round(curRatio2 * 100)}">%
+                                <input type="number" step="any" class="ratio2-input w-14 border border-gray-200 rounded px-1 py-0.5 text-center font-bold ${curRatio2 < 0 ? 'text-rose-600' : 'text-gray-800'}" value="${Number((curRatio2 * 100).toFixed(2))}">%
                             </div>
                         </td>
                     `;
@@ -1044,8 +1160,11 @@
                         const valFpName = valFpId ? selectFpEl.options[selectFpEl.selectedIndex].text : '';
                         
                         const rawPay2Val = pay2El.value.replace(/,/g, '');
-                        const valPay2 = parseInt(rawPay2Val) || 0;
-                        const valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
+                        let valPay2 = parseInt(rawPay2Val) || 0;
+                        if (isRefund && valPay2 > 0) valPay2 = -valPay2;
+
+                        let valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
+                        if (isRefund && valRatio2 > 0) valRatio2 = -valRatio2;
 
                         let finalRatio2 = valRatio2;
                         let finalPay2 = valPay2;
@@ -1061,26 +1180,47 @@
                                 if (premium !== 0) {
                                     finalRatio2 = finalPay2 / premium;
                                     finalRatio1 = finalPay1 / premium;
-                                    ratio2El.value = Number((finalRatio2 * 100).toFixed(2));
+                                    let r2Percent = Number((finalRatio2 * 100).toFixed(2));
+                                    if (isRefund && r2Percent > 0) r2Percent = -r2Percent;
+                                    ratio2El.value = r2Percent;
                                 } else {
                                     finalRatio1 = rateFloat - finalRatio2;
                                 }
 
-                                ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
-                                pay1Cell.innerHTML = formatMoney(finalPay1);
+                                ratio1Cell.innerHTML = formatRateAdj(finalRatio1, 'text-gray-600');
+                                pay1Cell.innerHTML = formatMoneyAdj(finalPay1, 'text-slate-700');
                             } else {
                                 // [공식: 지급비율2 입력 시 (기본)] 지급액2 자동계산(소수점 버림) 후 지급액1 = 시상금 - 지급액2
                                 finalRatio2 = valRatio2;
                                 finalRatio1 = rateFloat - finalRatio2;
 
                                 finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRefund && finalPay2 > 0) finalPay2 = -finalPay2;
                                 finalPay1 = totalReward - finalPay2;
 
                                 pay2El.value = formatNumberWithCommas(finalPay2);
-                                ratio1Cell.textContent = Math.round(finalRatio1 * 100) + '%';
-                                pay1Cell.innerHTML = formatMoney(finalPay1);
+                                ratio1Cell.innerHTML = formatRateAdj(finalRatio1, 'text-gray-600');
+                                pay1Cell.innerHTML = formatMoneyAdj(finalPay1, 'text-slate-700');
+                            }
+                        } else {
+                            if (source === 'pay2') {
+                                finalPay2 = valPay2;
+                                if (premium !== 0) {
+                                    finalRatio2 = finalPay2 / premium;
+                                    let r2Percent = Number((finalRatio2 * 100).toFixed(2));
+                                    if (isRefund && r2Percent > 0) r2Percent = -r2Percent;
+                                    ratio2El.value = r2Percent;
+                                }
+                            } else {
+                                finalRatio2 = valRatio2;
+                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRefund && finalPay2 > 0) finalPay2 = -finalPay2;
+                                pay2El.value = formatNumberWithCommas(finalPay2);
                             }
                         }
+
+                        updateInputNegativeColor(pay2El, finalPay2);
+                        updateInputNegativeColor(ratio2El, ratio2El.value);
 
                         editedItems[key] = {
                             '마감월': row['마감월'],
@@ -1114,19 +1254,45 @@
                     ratio2El.addEventListener('input', () => {
                         let val = ratio2El.value;
                         if (val === '-' || val === '') return;
+                        let num = parseFloat(val);
+                        if (!isNaN(num) && isRefund && num > 0) {
+                            num = -num;
+                            ratio2El.value = num;
+                        }
+                        updateInputNegativeColor(ratio2El, ratio2El.value);
                         handleEditing('ratio2');
+                    });
+                    ratio2El.addEventListener('blur', () => {
+                        let val = ratio2El.value.trim();
+                        if (val === '' || val === '-') {
+                            ratio2El.value = '0';
+                            updateInputNegativeColor(ratio2El, 0);
+                            handleEditing('ratio2');
+                        }
                     });
 
                     // 지급액2 변경 시 연동 (공식: 시상금 = 지급액1 + 지급액2, 마이너스 값 허용)
                     pay2El.addEventListener('input', (e) => {
                         let val = e.target.value;
-                        if (val === '-') return;
+                        if (val === '-' || val === '') return;
                         let raw = val.replace(/,/g, '');
                         let p2 = parseInt(raw);
                         if (isNaN(p2)) p2 = 0;
-                        
+                        if (isRefund && p2 > 0) {
+                            p2 = -p2;
+                        }
                         e.target.value = formatNumberWithCommas(p2);
+                        updateInputNegativeColor(pay2El, p2);
                         handleEditing('pay2');
+                    });
+                    pay2El.addEventListener('blur', () => {
+                        let val = pay2El.value.trim();
+                        if (val === '' || val === '-') {
+                            let p2 = 0;
+                            pay2El.value = formatNumberWithCommas(p2);
+                            updateInputNegativeColor(pay2El, p2);
+                            handleEditing('pay2');
+                        }
                     });
 
                     const checkbox = tr.querySelector('.row-checkbox');
@@ -1289,11 +1455,30 @@
 
                 modalPay2.addEventListener('input', (e) => {
                     let val = e.target.value;
-                    if (val === '-') return;
+                    if (val === '-' || val === '') return;
                     let raw = val.replace(/,/g, '');
                     let amt = parseInt(raw);
                     if (isNaN(amt)) amt = 0;
                     e.target.value = formatNumberWithCommas(amt);
+                    updateInputNegativeColor(modalPay2, amt);
+                });
+                modalPay2.addEventListener('blur', () => {
+                    let raw = modalPay2.value.replace(/,/g, '').trim();
+                    if (raw === '' || raw === '-') {
+                        modalPay2.value = '0';
+                        updateInputNegativeColor(modalPay2, 0);
+                    }
+                });
+
+                modalRatio2.addEventListener('input', (e) => {
+                    updateInputNegativeColor(modalRatio2, modalRatio2.value);
+                });
+                modalRatio2.addEventListener('blur', () => {
+                    let val = modalRatio2.value.trim();
+                    if (val === '' || val === '-') {
+                        modalRatio2.value = '0';
+                        updateInputNegativeColor(modalRatio2, 0);
+                    }
                 });
 
                 const setToggle = (chk, input) => {
@@ -1352,24 +1537,34 @@
 
                         if (!editedItems[k]) editedItems[k] = {};
 
+                        const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
                         const curContent = editedItems[k]['시상내용'] !== undefined ? editedItems[k]['시상내용'] : (row['시상내용'] || '');
                         const curLeaderName = editedItems[k]['지급대상자1명'] !== undefined ? editedItems[k]['지급대상자1명'] : (row['지급대상자1명'] || '');
                         const curLeaderId = editedItems[k]['지급대상자1사번'] !== undefined ? editedItems[k]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
                         const curFpName = editedItems[k]['지급대상자2명'] !== undefined ? editedItems[k]['지급대상자2명'] : (row['지급대상자2명'] || '');
                         const curFpId = editedItems[k]['지급대상자2사번'] !== undefined ? editedItems[k]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
                         
-                        const curPay2 = editedItems[k]['지급액2'] !== undefined ? editedItems[k]['지급액2'] : Number(row['지급액2'] || 0);
-                        const curRatio2 = editedItems[k]['지급비율2'] !== undefined ? editedItems[k]['지급비율2'] : Number(row['지급비율2'] || 0);
+                        let curPay2 = editedItems[k]['지급액2'] !== undefined ? editedItems[k]['지급액2'] : Number(row['지급액2'] || 0);
+                        if (isRowRefund && curPay2 > 0) curPay2 = -curPay2;
+
+                        let curRatio2 = editedItems[k]['지급비율2'] !== undefined ? editedItems[k]['지급비율2'] : Number(row['지급비율2'] || 0);
+                        if (isRowRefund && curRatio2 > 0) curRatio2 = -curRatio2;
 
                         const premium = Number(row['보험료'] || 0);
                         const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
-                        const rateFloat = Number(row['시상률'] || 0);
+                        let rateFloat = Number(row['시상률'] || 0);
+                        if (isRowRefund && rateFloat > 0) rateFloat = -rateFloat;
 
                         let finalContent = useContent ? valContent : curContent;
                         let finalLeaderId = useLeader ? valLeaderId : curLeaderId;
                         let finalLeaderName = useLeader ? valLeaderName : curLeaderName;
                         let finalFpId = useFp ? valFpId : curFpId;
                         let finalFpName = useFp ? valFpName : curFpName;
+
+                        let targetPay2 = valPay2;
+                        if (isRowRefund && targetPay2 > 0) targetPay2 = -targetPay2;
+                        let targetRatio2 = valRatio2;
+                        if (isRowRefund && targetRatio2 > 0) targetRatio2 = -targetRatio2;
 
                         let finalRatio2 = curRatio2;
                         let finalPay2 = curPay2;
@@ -1380,7 +1575,7 @@
                         if (isAdjustment) {
                             if (usePay2) {
                                 // [공식: 지급액2 입력 시] 시상금 = 지급액1 + 지급액2
-                                finalPay2 = valPay2;
+                                finalPay2 = targetPay2;
                                 finalPay1 = totalReward - finalPay2;
                                 if (premium !== 0) {
                                     finalRatio2 = finalPay2 / premium;
@@ -1390,13 +1585,25 @@
                                 }
                             } else if (useRatio2) {
                                 // [공식: 지급비율2 입력 시] 지급액2 자동계산(소수점 버림) 후 지급액1 = 시상금 - 지급액2
-                                finalRatio2 = valRatio2;
+                                finalRatio2 = targetRatio2;
                                 finalRatio1 = rateFloat - finalRatio2;
                                 finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRowRefund && finalPay2 > 0) finalPay2 = -finalPay2;
                                 finalPay1 = totalReward - finalPay2;
                             } else {
                                 finalRatio1 = rateFloat - finalRatio2;
                                 finalPay1 = totalReward - finalPay2;
+                            }
+                        } else {
+                            if (usePay2) {
+                                finalPay2 = targetPay2;
+                                if (premium !== 0) {
+                                    finalRatio2 = finalPay2 / premium;
+                                }
+                            } else if (useRatio2) {
+                                finalRatio2 = targetRatio2;
+                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRowRefund && finalPay2 > 0) finalPay2 = -finalPay2;
                             }
                         }
 
