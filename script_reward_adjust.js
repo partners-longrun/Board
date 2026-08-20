@@ -94,8 +94,9 @@
 
             // 1. 헤더 영역 및 검색 필터 패널
             container.innerHTML = `
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+                    <!-- 최상단 헤더: 제목(좌측) + 파일 업로드 영역 & 내보내기 버튼(우측) -->
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
                             <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
                                 <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
@@ -103,62 +104,94 @@
                             </h2>
                             <p class="text-xs text-gray-500 mt-1">시상 지급 대상을 검색/변경하고 비율 및 지급액을 조정합니다. (지사대표 전용)</p>
                         </div>
+                        <div class="flex flex-col sm:flex-row items-center gap-2.5 flex-shrink-0">
+                            <div id="dropZone" class="border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl px-3.5 py-2 text-center cursor-pointer transition flex items-center justify-center gap-2 h-[42px] w-full sm:w-auto">
+                                <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <span class="text-xs text-gray-600 font-bold whitespace-nowrap">엑셀 업로드 (.xlsx)</span>
+                                <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
+                            </div>
+                            <button id="exportAdjustBtn" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-1.5 h-[42px] whitespace-nowrap">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                조정내용 파일로 내보내기
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 업로드 파일 목록 및 전송 진행 바 -->
+                    <div id="uploadProgressSection" class="hidden space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
+                        <div class="flex items-center justify-between text-xs font-bold text-gray-600">
+                            <span id="progressStatusText">대기 중...</span>
+                            <span id="progressPercentText">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                            <div id="progressBar" class="bg-primary h-full transition-all duration-200" style="width: 0%;"></div>
+                        </div>
                     </div>
 
                     <!-- 검색 필터바 -->
                     <div class="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200/50">
-                        <!-- 1행: 라디오 필터 그룹 (시상종류 & 구분) -->
-                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-gray-200/60">
-                            <!-- 시상종류 라디오 그룹 -->
-                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
-                                    <span class="w-1.5 h-3 bg-primary rounded-sm inline-block"></span>
-                                    시상종류
-                                </label>
-                                <div id="adjRewardTypeGroup" class="inline-flex flex-wrap p-1 bg-gray-200/60 rounded-xl gap-1 border border-gray-200/80">
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjRewardTypeRadio" value="2차년인센" class="sr-only peer" checked>
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">2차년인센</span>
+                        <!-- 1행: 시상종류 세그먼트 + 구분 세그먼트(가까이 배치) & 시상조정 디폴트값 적용하기 버튼(우측 정렬) -->
+                        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3 pb-3 border-b border-gray-200/60">
+                            <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+                                <!-- 시상종류 라디오 그룹 -->
+                                <div class="flex items-center gap-1.5">
+                                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                        <span class="w-1.5 h-3 bg-primary rounded-sm inline-block"></span>
+                                        시상종류
                                     </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjRewardTypeRadio" value="생보법인" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보법인</span>
+                                    <div id="adjRewardTypeGroup" class="inline-flex flex-wrap p-1 bg-gray-200/60 rounded-xl gap-0.5 border border-gray-200/80">
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjRewardTypeRadio" value="2차년인센" class="sr-only peer" checked>
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">2차년인센</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjRewardTypeRadio" value="생보법인" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보법인</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjRewardTypeRadio" value="손보법인" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보법인</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjRewardTypeRadio" value="생보개인" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보개인</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjRewardTypeRadio" value="손보개인" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보개인</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- 구분(지급/환수) 라디오 그룹 (시상종류 바로 오른편에 근접 배치) -->
+                                <div class="flex items-center gap-1.5">
+                                    <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                        <span class="w-1.5 h-3 bg-secondary rounded-sm inline-block"></span>
+                                        구분
                                     </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjRewardTypeRadio" value="손보법인" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보법인</span>
-                                    </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjRewardTypeRadio" value="생보개인" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">생보개인</span>
-                                    </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjRewardTypeRadio" value="손보개인" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">손보개인</span>
-                                    </label>
+                                    <div id="adjPayRefundGroup" class="inline-flex p-1 bg-gray-200/60 rounded-xl gap-0.5 border border-gray-200/80">
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjPayRefundRadio" value="전체" class="sr-only peer" checked>
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-secondary peer-checked:text-white peer-checked:shadow-sm">전체</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjPayRefundRadio" value="지급" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:shadow-sm">지급</span>
+                                        </label>
+                                        <label class="cursor-pointer select-none">
+                                            <input type="radio" name="adjPayRefundRadio" value="환수" class="sr-only peer">
+                                            <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:shadow-sm">환수</span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- 구분(지급/환수) 라디오 그룹 -->
-                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
-                                    <span class="w-1.5 h-3 bg-secondary rounded-sm inline-block"></span>
-                                    구분
-                                </label>
-                                <div id="adjPayRefundGroup" class="inline-flex p-1 bg-gray-200/60 rounded-xl gap-1 border border-gray-200/80">
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjPayRefundRadio" value="전체" class="sr-only peer" checked>
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-secondary peer-checked:text-white peer-checked:shadow-sm">전체</span>
-                                    </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjPayRefundRadio" value="지급" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:shadow-sm">지급</span>
-                                    </label>
-                                    <label class="cursor-pointer select-none">
-                                        <input type="radio" name="adjPayRefundRadio" value="환수" class="sr-only peer">
-                                        <span class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:shadow-sm">환수</span>
-                                    </label>
-                                </div>
+                            <!-- 우측 정렬: 시상조정 디폴트값 적용하기 버튼 -->
+                            <div class="flex justify-end flex-shrink-0">
+                                <button id="applyDefaultRatesBtn" class="w-full sm:w-auto px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-1.5 h-[38px] whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                    시상조정 디폴트값 적용하기
+                                </button>
                             </div>
                         </div>
 
@@ -191,38 +224,6 @@
                                     조회하기
                                 </button>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2단계: 엑셀 파일 대량 업로드 영역 및 버튼 그룹 -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-3">
-                        <div id="dropZone" class="flex-grow border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl p-3 text-center cursor-pointer transition flex items-center justify-center gap-2 w-full md:w-auto">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            <span class="text-xs text-gray-500 font-bold">여기에 엑셀 파일들을 드래그하거나 클릭하여 업로드하세요. (최대 100개)</span>
-                            <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
-                        </div>
-                        <div class="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto flex-shrink-0">
-                            <button id="applyDefaultRatesBtn" class="w-full sm:w-auto px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                시상조정 디폴트값 적용하기
-                            </button>
-                            <button id="exportAdjustBtn" class="w-full sm:w-auto px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center gap-2 h-[46px]">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                조정내용 파일로 내보내기
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 업로드 파일 목록 및 전송 진행 바 -->
-                    <div id="uploadProgressSection" class="hidden space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200/50 mt-3">
-                        <div class="flex items-center justify-between text-xs font-bold text-gray-600">
-                            <span id="progressStatusText">대기 중...</span>
-                            <span id="progressPercentText">0%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
-                            <div id="progressBar" class="bg-primary h-full transition-all duration-200" style="width: 0%;"></div>
                         </div>
                     </div>
                 </div>
@@ -275,9 +276,9 @@
                                     <th class="p-3 text-right">지급액2</th>
                                     <th class="p-3 text-center">지급비율2</th>
                                 </tr>
-                                <!-- 합계 행 1: 변경전 -->
+                                <!-- 합계 행 1: 변경전 (배경색 일체화) -->
                                 <tr id="trSummaryPrev" class="bg-slate-100/90 border-b border-slate-200 text-slate-700 font-bold select-none text-[11px]">
-                                    <td colspan="12" class="p-2.5 text-center font-bold text-slate-600 bg-slate-200/50">합계 (변경전)</td>
+                                    <td colspan="12" class="p-2.5 text-center font-bold text-slate-600">합계 (변경전)</td>
                                     <td class="p-2.5 text-right font-black text-slate-800" id="sumPrevReward">-</td>
                                     <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
                                     <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
@@ -287,9 +288,9 @@
                                     <td class="p-2.5 text-right font-black text-slate-800" id="sumPrevPay2">-</td>
                                     <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
                                 </tr>
-                                <!-- 합계 행 2: 변경후 -->
+                                <!-- 합계 행 2: 변경후 (배경색 일체화) -->
                                 <tr id="trSummaryCurr" class="bg-amber-50/80 border-b-2 border-slate-300 text-slate-800 font-bold select-none text-[11px]">
-                                    <td colspan="12" class="p-2.5 text-center font-black text-amber-900 bg-amber-100/60">합계 (변경후)</td>
+                                    <td colspan="12" class="p-2.5 text-center font-black text-amber-900">합계 (변경후)</td>
                                     <td class="p-2.5 text-right font-black text-amber-950" id="sumCurrReward">-</td>
                                     <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
                                     <td class="p-2.5 text-center text-slate-400 font-normal">-</td>
