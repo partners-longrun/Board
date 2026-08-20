@@ -29,9 +29,3 @@ self.addEventListener('activate', (event) => {
   );
   self.clients.claim();
 });
-
-// PWA 설치 요건 충족용 fetch 리스너.
-// 외부 API 및 POST 요청 간섭을 막기 위해 브라우저가 네트워크 요청을 직접 처리하도록 양보(Pass-through)합니다.
-self.addEventListener('fetch', (event) => {
-  // Do nothing
-});
