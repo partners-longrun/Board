@@ -1,6 +1,6 @@
         // --- 0. API Configuration ---
-        // 백그라운드 프리페치 활성화 여부 (필요 시 true로 변경하여 재개 가능)
-        const ENABLE_BACKGROUND_PREFETCH = false;
+        // 백그라운드 프리페치 활성화 (홈 화면 로드 후 유휴 시간에 다른 메뉴 사전 캐싱)
+        const ENABLE_BACKGROUND_PREFETCH = true;
 
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
@@ -6343,7 +6343,26 @@
                     const now = new Date(); state.months = [String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0')];
                     state.currentMonth = state.months[0];
                 }
-                if (r.dashboardData) state.data.rewardData = r.dashboardData;
+                
+                // [OPTIMIZATION] 로그인 응답의 initialHomeData 즉시 바인딩 (0초 홈 렌더링)
+                if (r.initialHomeData && r.initialHomeData.success) {
+                    const ihd = r.initialHomeData;
+                    if (ihd.homeData) {
+                        state.data.homeData = ihd.homeData;
+                        state.homeLoaded = true;
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_home`, JSON.stringify(ihd.homeData));
+                    }
+                    if (ihd.lapseData) {
+                        state.lapseData = ihd.lapseData;
+                        state.lapseLoaded = true;
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_lapse`, JSON.stringify(ihd.lapseData));
+                    }
+                    if (ihd.performanceData) {
+                        state.performanceData = ihd.performanceData;
+                        state.performanceLoaded = true;
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_perf`, JSON.stringify(ihd.performanceData));
+                    }
+                }
 
                 if (state.user.isFirstLogin) {
                     openChangePasswordModal(false);
@@ -7725,7 +7744,7 @@
             const lapseCacheKey = `DATA_${staffId}_${state.currentMonth}_lapse`;
             const perfCacheKey = `DATA_${staffId}_${state.currentMonth}_perf`;
 
-            // 1. [0초 즉시 로딩] 세션 캐시가 존재하면 API 응답을 기다리지 않고 즉시 화면을 먼저 띄웁니다.
+            // 1. [0초 즉시 로딩] 세션 캐시가 존재하면 즉시 화면을 렌더링
             try {
                 const cachedHome = sessionStorage.getItem(homeCacheKey);
                 if (cachedHome) state.data.homeData = JSON.parse(cachedHome);
@@ -7750,74 +7769,45 @@
                 console.warn('Session cache restore error:', e);
             }
 
-            // 로딩 상태 초기화 및 UI 렌더링
-            if (!state.data.homeData) state.homeLoaded = false;
-            if (!state.lapseData) state.lapseLoaded = false;
-            if (!state.performanceData) state.performanceLoaded = false;
-            if (state.currentView === 'home') render();
+            // 만약 캐시가 하나도 없었던 경우만 로딩 인디케이터 표시
+            if (!state.data.homeData || !state.lapseData || !state.performanceData) {
+                if (state.currentView === 'home') render();
+            }
 
-            // 2. [순차적 안전 비동기 동기화] 백그라운드에서 최신 데이터를 안전하게 갱신합니다.
-            // 1단계: 홈 기본 데이터 (유지율 등)
+            // 2. [통합 단일 비동기 동기화] getInitialHomeData 번들 API 단 1회 호출로 초고속 갱신
             try {
-                const homeRes = await callApi('getHomeData', staffId);
-                if (homeRes && !homeRes.error && homeRes.success) {
-                    state.data.homeData = homeRes;
-                    sessionStorage.setItem(homeCacheKey, JSON.stringify(homeRes));
-                } else if (!state.data.homeData) {
-                    state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
+                const res = await callApi('getInitialHomeData', staffId);
+                if (res && !res.error && res.success) {
+                    if (res.homeData) {
+                        state.data.homeData = res.homeData;
+                        sessionStorage.setItem(homeCacheKey, JSON.stringify(res.homeData));
+                    }
+                    if (res.lapseData) {
+                        state.lapseData = res.lapseData;
+                        sessionStorage.setItem(lapseCacheKey, JSON.stringify(res.lapseData));
+                    }
+                    if (res.performanceData) {
+                        state.performanceData = res.performanceData;
+                        sessionStorage.setItem(perfCacheKey, JSON.stringify(res.performanceData));
+                    }
                 }
             } catch (e) {
-                console.warn('HomeData load error:', e);
+                console.warn('InitialHomeData bundle fetch error:', e);
                 if (!state.data.homeData) state.data.homeData = { retentionRate: '데이터 없음', baseMonth: '-' };
-            }
-            state.homeLoaded = true;
-            if (state.currentView === 'home') render();
-
-            // 서버 안전 대기 (300ms)
-            await new Promise(r => setTimeout(r, 300));
-
-            // 2단계: 실효연체 데이터
-            try {
-                const lapseRes = await callApi('getLapseManagementData', staffId, 'collector');
-                if (lapseRes && !lapseRes.error && lapseRes.success) {
-                    state.lapseData = {
-                        lapsed: lapseRes.lapsed || [],
-                        lapsedDate: lapseRes.lapsedDate || '',
-                        arrears: lapseRes.arrears || [],
-                        arrearsDate: lapseRes.arrearsDate || '',
-                        unpaid: lapseRes.unpaid || [],
-                        unpaidDate: lapseRes.unpaidDate || '',
-                        unsubmitted: lapseRes.unsubmitted || [],
-                        unsubmittedDate: lapseRes.unsubmittedDate || ''
-                    };
-                    sessionStorage.setItem(lapseCacheKey, JSON.stringify(state.lapseData));
+            } finally {
+                state.homeLoaded = true;
+                state.lapseLoaded = true;
+                state.performanceLoaded = true;
+                if (state.currentView === 'home') {
+                    render();
+                    if (state.performanceData) renderPerformanceChart();
+                    updateHomeLapseCounts();
+                    // 홈 렌더링 완료 후 유휴 시간에 스마트 프리페칭 트리거
+                    if (!state.prefetchTriggered) {
+                        state.prefetchTriggered = true;
+                        setTimeout(prefetchAllBackground, 500);
+                    }
                 }
-            } catch (e) {
-                console.warn('LapseData load error:', e);
-            }
-            state.lapseLoaded = true;
-            if (state.currentView === 'home') {
-                updateHomeLapseCounts();
-            }
-
-            // 서버 안전 대기 (300ms)
-            await new Promise(r => setTimeout(r, 300));
-
-            // 3단계: 실적추이 데이터
-            try {
-                const perfRes = await callApi('getPerformanceTrendData', staffId);
-                if (perfRes && !perfRes.error && perfRes.success) {
-                    state.performanceData = perfRes;
-                    sessionStorage.setItem(perfCacheKey, JSON.stringify(perfRes));
-                }
-            } catch (e) {
-                console.warn('PerformanceData load error:', e);
-            }
-            state.performanceLoaded = true;
-            if (state.currentView === 'home') {
-                render();
-                if (state.performanceData) renderPerformanceChart();
-                updateHomeLapseCounts();
             }
         }
 
