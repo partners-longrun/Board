@@ -448,143 +448,158 @@
                         const rowCompany = String(row['보험사'] || '').trim();
                         const rowBranch = String(row['소속2'] || '').trim();
 
-                        // 4단계 우선순위 매칭
-                        // 1. 특정 보험사 & 특정 소속
-                        let matched = currentTypeDefaults.find(d => {
-                            const c = String(d['보험사'] || '').trim();
-                            const b = String(d['소속'] || '').trim();
-                            return c === rowCompany && b === rowBranch;
-                        });
-
-                        // 2. 특정 보험사 & 전체 소속
-                        if (!matched) {
-                            matched = currentTypeDefaults.find(d => {
-                                const c = String(d['보험사'] || '').trim();
-                                const b = String(d['소속'] || '').trim();
-                                return c === rowCompany && (b === '전체' || b === '');
-                            });
-                        }
-
-                        // 3. 전체 보험사 & 특정 소속
-                        if (!matched) {
-                            matched = currentTypeDefaults.find(d => {
-                                const c = String(d['보험사'] || '').trim();
-                                const b = String(d['소속'] || '').trim();
-                                return (c === '전체' || c === '') && b === rowBranch;
-                            });
-                        }
-
-                        // 4. 전체 보험사 & 전체 소속
-                        if (!matched) {
-                            matched = currentTypeDefaults.find(d => {
-                                const c = String(d['보험사'] || '').trim();
-                                const b = String(d['소속'] || '').trim();
-                                return (c === '전체' || c === '') && (b === '전체' || b === '');
-                            });
-                        }
-
-                        if (matched) {
-                            const defaultLeaderVal = String(matched['지급대상자1'] !== undefined ? matched['지급대상자1'] : (matched['지급대상자1명'] || '')).trim();
-                            const defaultFpVal = String(matched['지급대상자2'] !== undefined ? matched['지급대상자2'] : (matched['지급대상자2명'] || '')).trim();
-                            const targetRatio2 = parseDefaultRate(matched['시상률']);
-
-                            const hasLeader = defaultLeaderVal !== '';
-                            const hasFp = defaultFpVal !== '';
-                            const hasRatio = targetRatio2 !== null;
-
-                            // 3개 항목 중 하나라도 설정되어 있으면 적용
-                            if (hasLeader || hasFp || hasRatio) {
-                                const key = getRowKey(row);
-                                if (!editedItems[key]) editedItems[key] = {};
-
-                                const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
-                                const premium = Number(row['보험료'] || 0);
-                                const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
-                                let rateFloat = Number(row['시상률'] || 0);
-                                if (isRowRefund && rateFloat > 0) rateFloat = -rateFloat;
-
-                                const curContent = editedItems[key]['시상내용'] !== undefined ? editedItems[key]['시상내용'] : (row['시상내용'] || '');
-                                const curLeaderName = editedItems[key]['지급대상자1명'] !== undefined ? editedItems[key]['지급대상자1명'] : (row['지급대상자1명'] || '');
-                                const curLeaderId = editedItems[key]['지급대상자1사번'] !== undefined ? editedItems[key]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
-                                const curFpName = editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
-                                const curFpId = editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
-
-                                let curPay1 = editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : '');
-                                let curPay2 = editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
-                                if (isRowRefund && curPay2 > 0) curPay2 = -curPay2;
-
-                                let curRatio1 = editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
-                                let curRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
-                                if (isRowRefund && curRatio2 > 0) curRatio2 = -curRatio2;
-
-                                // 1. 지급대상자1 적용 (값이 있으면 변경, 없으면 기존 값 유지)
-                                let finalLeaderName = curLeaderName;
-                                let finalLeaderId = curLeaderId;
-                                if (hasLeader) {
-                                    const foundUser = (allUserList && allUserList.find(u => String(u.name).trim() === defaultLeaderVal || String(u.id).trim() === defaultLeaderVal))
-                                        || (userList && userList.find(u => String(u.name).trim() === defaultLeaderVal || String(u.id).trim() === defaultLeaderVal));
-                                    if (foundUser) {
-                                        finalLeaderName = foundUser.name;
-                                        finalLeaderId = foundUser.id;
-                                    } else {
-                                        finalLeaderName = defaultLeaderVal;
-                                        finalLeaderId = '';
-                                    }
+                        // 각 항목별로 (1) 특정-특정 -> (2) 특정-전체 -> (3) 전체-특정 -> (4) 전체-전체 순으로 유효한(비어있지 않은) 디폴트 설정값 탐색
+                        function getEffectiveDefaultVal(keys) {
+                            if (!Array.isArray(keys)) keys = [keys];
+                            const isNonEmpty = (d) => {
+                                for (const k of keys) {
+                                    const v = d[k];
+                                    if (v !== undefined && v !== null && String(v).trim() !== '') return true;
                                 }
-
-                                // 2. 지급대상자2 적용 (값이 있으면 변경, 없으면 기존 값 유지)
-                                let finalFpName = curFpName;
-                                let finalFpId = curFpId;
-                                if (hasFp) {
-                                    const foundUser = (allUserList && allUserList.find(u => String(u.name).trim() === defaultFpVal || String(u.id).trim() === defaultFpVal))
-                                        || (userList && userList.find(u => String(u.name).trim() === defaultFpVal || String(u.id).trim() === defaultFpVal));
-                                    if (foundUser) {
-                                        finalFpName = foundUser.name;
-                                        finalFpId = foundUser.id;
-                                    } else {
-                                        finalFpName = defaultFpVal;
-                                        finalFpId = '';
-                                    }
+                                return false;
+                            };
+                            const getVal = (d) => {
+                                for (const k of keys) {
+                                    const v = d[k];
+                                    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
                                 }
+                                return '';
+                            };
 
-                                // 3. 시상률(지급비율2) 적용 (값이 있으면 재계산, 없으면 기존 값 유지)
-                                let finalRatio2 = curRatio2;
-                                let finalPay2 = curPay2;
-                                let finalRatio1 = curRatio1;
-                                let finalPay1 = curPay1;
-
-                                if (hasRatio) {
-                                    finalRatio2 = isRowRefund ? -Math.abs(targetRatio2) : targetRatio2;
-                                    finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
-                                    if (isRowRefund && finalPay2 > 0) {
-                                        finalPay2 = -finalPay2;
-                                    }
-
-                                    if (isAdjustment) {
-                                        finalRatio1 = rateFloat - finalRatio2;
-                                        finalPay1 = totalReward - finalPay2;
-                                    }
-                                }
-
-                                editedItems[key] = {
-                                    '마감월': row['마감월'],
-                                    '보험사': row['보험사'],
-                                    '증권번호': row['증권번호'],
-                                    '사번': row['사번'],
-                                    '납입회차': row['납입회차'] || '',
-                                    '시상률': rateFloat,
-                                    '시상내용': curContent,
-                                    '지급대상자1명': finalLeaderName,
-                                    '지급대상자1사번': finalLeaderId,
-                                    '지급액1': finalPay1,
-                                    '지급비율1': finalRatio1,
-                                    '지급대상자2명': finalFpName,
-                                    '지급대상자2사번': finalFpId,
-                                    '지급액2': finalPay2,
-                                    '지급비율2': finalRatio2
-                                };
-                                appliedCount++;
+                            // 1. 특정 보험사 & 특정 소속
+                            let d = currentTypeDefaults.find(item => {
+                                const c = String(item['보험사'] || '').trim();
+                                const b = String(item['소속'] || '').trim();
+                                return c === rowCompany && b === rowBranch && c !== '전체' && c !== '' && b !== '전체' && b !== '' && isNonEmpty(item);
+                            });
+                            // 2. 특정 보험사 & 전체 소속
+                            if (!d) {
+                                d = currentTypeDefaults.find(item => {
+                                    const c = String(item['보험사'] || '').trim();
+                                    const b = String(item['소속'] || '').trim();
+                                    return c === rowCompany && c !== '전체' && c !== '' && (b === '전체' || b === '') && isNonEmpty(item);
+                                });
                             }
+                            // 3. 전체 보험사 & 특정 소속
+                            if (!d) {
+                                d = currentTypeDefaults.find(item => {
+                                    const c = String(item['보험사'] || '').trim();
+                                    const b = String(item['소속'] || '').trim();
+                                    return (c === '전체' || c === '') && b === rowBranch && b !== '전체' && b !== '' && isNonEmpty(item);
+                                });
+                            }
+                            // 4. 전체 보험사 & 전체 소속
+                            if (!d) {
+                                d = currentTypeDefaults.find(item => {
+                                    const c = String(item['보험사'] || '').trim();
+                                    const b = String(item['소속'] || '').trim();
+                                    return (c === '전체' || c === '') && (b === '전체' || b === '') && isNonEmpty(item);
+                                });
+                            }
+                            return d ? getVal(d) : '';
+                        }
+
+                        const defaultLeaderVal = getEffectiveDefaultVal(['지급대상자1', '지급대상자1명']);
+                        const defaultFpVal = getEffectiveDefaultVal(['지급대상자2', '지급대상자2명']);
+                        const defaultRateStr = getEffectiveDefaultVal(['시상률']);
+                        const targetRatio2 = defaultRateStr !== '' ? parseDefaultRate(defaultRateStr) : null;
+
+                        const hasLeader = defaultLeaderVal !== '';
+                        const hasFp = defaultFpVal !== '';
+                        const hasRatio = targetRatio2 !== null;
+
+                        // 3개 항목 중 하나라도 설정되어 있으면 적용
+                        if (hasLeader || hasFp || hasRatio) {
+                            const key = getRowKey(row);
+                            if (!editedItems[key]) editedItems[key] = {};
+
+                            const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
+                            const premium = Number(row['보험료'] || 0);
+                            const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
+                            let rateFloat = Number(row['시상률'] || 0);
+                            if (isRowRefund && rateFloat > 0) rateFloat = -rateFloat;
+
+                            const curContent = editedItems[key]['시상내용'] !== undefined ? editedItems[key]['시상내용'] : (row['시상내용'] || '');
+                            const curLeaderName = editedItems[key]['지급대상자1명'] !== undefined ? editedItems[key]['지급대상자1명'] : (row['지급대상자1명'] || '');
+                            const curLeaderId = editedItems[key]['지급대상자1사번'] !== undefined ? editedItems[key]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
+                            const curFpName = editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
+                            const curFpId = editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
+
+                            let curPay1 = editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : '');
+                            let curPay2 = editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
+                            if (isRowRefund && curPay2 > 0) curPay2 = -curPay2;
+
+                            let curRatio1 = editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
+                            let curRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
+                            if (isRowRefund && curRatio2 > 0) curRatio2 = -curRatio2;
+
+                            // 1. 지급대상자1 적용 (값이 있으면 변경, 없으면 기존 값 유지)
+                            let finalLeaderName = curLeaderName;
+                            let finalLeaderId = curLeaderId;
+                            if (hasLeader) {
+                                const foundUser = (allUserList && allUserList.find(u => String(u.name).trim() === defaultLeaderVal || String(u.id).trim() === defaultLeaderVal))
+                                    || (userList && userList.find(u => String(u.name).trim() === defaultLeaderVal || String(u.id).trim() === defaultLeaderVal));
+                                if (foundUser) {
+                                    finalLeaderName = foundUser.name;
+                                    finalLeaderId = foundUser.id;
+                                } else {
+                                    finalLeaderName = defaultLeaderVal;
+                                    finalLeaderId = '';
+                                }
+                            }
+
+                            // 2. 지급대상자2 적용 (값이 있으면 변경, 없으면 기존 값 유지)
+                            let finalFpName = curFpName;
+                            let finalFpId = curFpId;
+                            if (hasFp) {
+                                const foundUser = (allUserList && allUserList.find(u => String(u.name).trim() === defaultFpVal || String(u.id).trim() === defaultFpVal))
+                                    || (userList && userList.find(u => String(u.name).trim() === defaultFpVal || String(u.id).trim() === defaultFpVal));
+                                if (foundUser) {
+                                    finalFpName = foundUser.name;
+                                    finalFpId = foundUser.id;
+                                } else {
+                                    finalFpName = defaultFpVal;
+                                    finalFpId = '';
+                                }
+                            }
+
+                            // 3. 시상률(지급비율2) 적용 (값이 있으면 재계산, 없으면 기존 값 유지)
+                            let finalRatio2 = curRatio2;
+                            let finalPay2 = curPay2;
+                            let finalRatio1 = curRatio1;
+                            let finalPay1 = curPay1;
+
+                            if (hasRatio) {
+                                finalRatio2 = isRowRefund ? -Math.abs(targetRatio2) : targetRatio2;
+                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
+                                if (isRowRefund && finalPay2 > 0) {
+                                    finalPay2 = -finalPay2;
+                                }
+
+                                if (isAdjustment) {
+                                    finalRatio1 = rateFloat - finalRatio2;
+                                    finalPay1 = totalReward - finalPay2;
+                                }
+                            }
+
+                            editedItems[key] = {
+                                '마감월': row['마감월'],
+                                '보험사': row['보험사'],
+                                '증권번호': row['증권번호'],
+                                '사번': row['사번'],
+                                '납입회차': row['납입회차'] || '',
+                                '시상률': rateFloat,
+                                '시상내용': curContent,
+                                '지급대상자1명': finalLeaderName,
+                                '지급대상자1사번': finalLeaderId,
+                                '지급액1': finalPay1,
+                                '지급비율1': finalRatio1,
+                                '지급대상자2명': finalFpName,
+                                '지급대상자2사번': finalFpId,
+                                '지급액2': finalPay2,
+                                '지급비율2': finalRatio2
+                            };
+                            appliedCount++;
                         }
                     });
 
