@@ -6683,7 +6683,8 @@
                 const topP = document.getElementById('top-partners-container');
                 if (topP) { topP.style.transition = 'opacity 0.2s'; topP.style.opacity = '0.1'; }
             }
-            const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth);
+            state.perfAnalysisOrgFilter = state.perfAnalysisOrgFilter || '전체';
+            const res = await callApi('getPerformanceAnalysisData', state.user.staffId, state.perfAnalysisYear, state.perfAnalysisMonth, state.perfAnalysisOrgFilter);
             state.isLoading = false;
 
             if (res && res.success) {
@@ -6709,6 +6710,7 @@
         function createPerformanceAnalysisView() {
             if (state.isLoading && !state.perfAnalysisLoaded) return getSkeletonUI();
             const div = document.createElement('div');
+            state.perfAnalysisOrgFilter = state.perfAnalysisOrgFilter || '전체';
 
             // 연도/월 값 검증 및 2026년 1월 하한 보정
             if (state.perfAnalysisYear < '2026') {
@@ -6751,12 +6753,22 @@
                 `<option value="${m}" ${m === state.perfAnalysisMonth ? 'selected' : ''}>${m === 'All' ? '전체 월' : parseInt(m) + '월'}</option>`
             ).join('');
 
+            // 소속1 목록 생성 (백엔드 orgList 기준, 가나다순)
+            const rawOrgList = (state.perfAnalysisData && state.perfAnalysisData.orgList) || [];
+            const orgOptions = ['전체', ...rawOrgList].map(o =>
+                `<option value="${o}" ${o === state.perfAnalysisOrgFilter ? 'selected' : ''}>${o}</option>`
+            ).join('');
+
             const refDate = (state.perfAnalysisData && state.perfAnalysisData.referenceDate)
                 ? ` (${state.perfAnalysisData.referenceDate} 마감 기준)`
                 : '';
 
+            const isBranchRepOrOps = isForecastAllowed(); // 권한1이 '지사대표' 또는 '운영진'인지 확인
+
             const userOrg1 = state.user?.organization || '';
-            const title = userOrg1 ? `${userOrg1} 실적분석` : '파트너스본부 실적분석';
+            const title = (isBranchRepOrOps && state.perfAnalysisOrgFilter && state.perfAnalysisOrgFilter !== '전체')
+                ? `${state.perfAnalysisOrgFilter} 실적분석`
+                : (userOrg1 ? `${userOrg1} 실적분석` : '파트너스본부 실적분석');
 
             div.innerHTML = `
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -6764,21 +6776,36 @@
                         <h2 class="text-2xl font-bold text-gray-800 tracking-tight">${title} <span id="perf-analysis-ref-date" class="text-sm font-normal text-gray-400 ml-2">${refDate}</span></h2>
                         <p class="text-gray-500 text-sm mt-1">데이터 기반 생/손보 포트폴리오 및 파트너 성과 관리</p>
                     </div>
-                    <div class="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 w-full md:w-auto">
-                        <div class="relative flex-grow md:flex-grow-0">
-                            <select id="perf-year-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-10 pr-4 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition">
-                                ${yearOptions}
+                    <div class="flex flex-wrap md:flex-nowrap gap-2 items-center w-full md:w-auto">
+                        ${isBranchRepOrOps ? `
+                        <!-- 소속 필터 드롭박스 (연도 월 선택 박스 왼쪽) -->
+                        <div class="relative bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 flex-grow md:flex-grow-0">
+                            <select id="perf-org-select" class="appearance-none w-full md:w-36 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-4 pr-10 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-sm">
+                                ${orgOptions}
                             </select>
-                            <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                         </div>
-                        <div class="relative flex-grow md:flex-grow-0">
-                            <select id="perf-month-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-4 pr-10 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-center">
-                                ${monthOptions}
-                            </select>
-                            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        ` : ''}
+
+                        <!-- 연도 월 선택 박스 -->
+                        <div class="flex gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 flex-grow md:flex-grow-0">
+                            <div class="relative flex-grow md:flex-grow-0">
+                                <select id="perf-year-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-10 pr-4 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition">
+                                    ${yearOptions}
+                                </select>
+                                <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </div>
+                            </div>
+                            <div class="relative flex-grow md:flex-grow-0">
+                                <select id="perf-month-select" class="appearance-none w-full md:w-32 bg-gray-50 border-none text-gray-700 font-bold py-2.5 pl-4 pr-10 rounded-xl cursor-pointer focus:ring-2 focus:ring-primary/20 transition text-center">
+                                    ${monthOptions}
+                                </select>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -6864,6 +6891,13 @@
             `;
 
             setTimeout(() => {
+                const orgSelect = div.querySelector('#perf-org-select');
+                if (orgSelect) {
+                    orgSelect.onchange = (e) => {
+                        state.perfAnalysisOrgFilter = e.target.value;
+                        fetchPerformanceAnalysisData();
+                    };
+                }
                 div.querySelector('#perf-year-select').onchange = (e) => {
                     state.perfAnalysisYear = e.target.value;
                     fetchPerformanceAnalysisData();
