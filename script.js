@@ -4090,6 +4090,8 @@
             const div = document.createElement('div');
             state.lapseAdminTab = state.lapseAdminTab || 'active';
             state.lapseBaseType = state.lapseBaseType || 'recruiter';
+            state.lapseSortOrder = state.lapseSortOrder || 'highestLapsed';
+            state.lapseOrgFilter = state.lapseOrgFilter || '전체';
 
             div.innerHTML = `
                 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -4127,11 +4129,39 @@
                     </nav>
                 </div>
 
-                <div class="mb-6 relative max-w-md">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                <div class="mb-6 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                    <div class="relative w-full md:max-w-xs flex-grow">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                        </div>
+                        <input type="text" id="lapseAdminSearch" placeholder="${state.lapseBaseType === 'recruiter' ? '모집인' : '수금인'} 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
                     </div>
-                    <input type="text" id="lapseAdminSearch" placeholder="${state.lapseBaseType === 'recruiter' ? '모집인' : '수금인'} 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- 소속 필터 드롭박스 -->
+                        <div class="relative min-w-[130px] flex-1 sm:flex-none">
+                            <select id="lapseAdminOrgFilter" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                                <option value="전체">전체</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
+                        <!-- 정렬 드롭박스 -->
+                        <div class="relative min-w-[140px] flex-1 sm:flex-none">
+                            <select id="lapseAdminSort" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                                <option value="id" ${state.lapseSortOrder === 'id' ? 'selected' : ''}>사번순</option>
+                                <option value="highestLapsed" ${state.lapseSortOrder === 'highestLapsed' ? 'selected' : ''}>실효 최고순</option>
+                                <option value="highestArrears" ${state.lapseSortOrder === 'highestArrears' ? 'selected' : ''}>연체 최고순</option>
+                                <option value="highestUnpaid" ${state.lapseSortOrder === 'highestUnpaid' ? 'selected' : ''}>미납 최고순</option>
+                                <option value="highestUnsubmitted" ${state.lapseSortOrder === 'highestUnsubmitted' ? 'selected' : ''}>미제출 최고순</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="lapseAdminList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -4141,21 +4171,38 @@
                 </div>
             `;
 
-            const renderCards = (list, filterText = '') => {
+            const renderCards = (list, filterText = '', sortOrder = state.lapseSortOrder, orgFilter = state.lapseOrgFilter) => {
                 const container = div.querySelector('#lapseAdminList');
                 if (!list) return;
 
-                const activeList = list.filter(x => !x.isResigned);
-                const resignedList = list.filter(x => x.isResigned);
+                let baseList = list.slice();
+                if (orgFilter && orgFilter !== '전체') {
+                    baseList = baseList.filter(x => (x.org1 || '').trim() === orgFilter);
+                }
+
+                const activeList = baseList.filter(x => !x.isResigned);
+                const resignedList = baseList.filter(x => x.isResigned);
 
                 const countActive = div.querySelector('#lapseActiveCount');
                 if (countActive) countActive.innerText = '(' + activeList.length + ')';
                 const countResigned = div.querySelector('#lapseResignedCount');
                 if (countResigned) countResigned.innerText = '(' + resignedList.length + ')';
 
-                const currentList = state.lapseAdminTab === 'active' ? activeList : resignedList;
+                let currentList = state.lapseAdminTab === 'active' ? activeList.slice() : resignedList.slice();
 
-                const fText = filterText.toLowerCase();
+                if (sortOrder === 'highestLapsed') {
+                    currentList.sort((a, b) => ((b.lapsed || 0) - (a.lapsed || 0)) || String(a.id).localeCompare(String(b.id)));
+                } else if (sortOrder === 'highestArrears') {
+                    currentList.sort((a, b) => ((b.arrears || 0) - (a.arrears || 0)) || String(a.id).localeCompare(String(b.id)));
+                } else if (sortOrder === 'highestUnpaid') {
+                    currentList.sort((a, b) => ((b.unpaid || 0) - (a.unpaid || 0)) || String(a.id).localeCompare(String(b.id)));
+                } else if (sortOrder === 'highestUnsubmitted') {
+                    currentList.sort((a, b) => ((b.unsubmitted || 0) - (a.unsubmitted || 0)) || String(a.id).localeCompare(String(b.id)));
+                } else { // 'id' (사번순)
+                    currentList.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                }
+
+                const fText = (filterText || '').toLowerCase();
                 const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
 
                 if (filtered.length === 0) {
@@ -4170,6 +4217,7 @@
                                  <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
                                      <div class="w-1.5 h-1.5 rounded-full bg-primary/70"></div>
                                      ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
+                                     ${item.org1 ? `<span class="text-[11px] font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">${item.org1}</span>` : ''}
                                  </h3>
                              </div>
                              <div class="text-right flex flex-col items-end justify-center">
@@ -4204,6 +4252,19 @@
                 `).join('');
             };
 
+            const populateOrgFilter = (list) => {
+                const orgSelect = div.querySelector('#lapseAdminOrgFilter');
+                if (!orgSelect || !list) return;
+                const orgSet = new Set();
+                list.forEach(item => {
+                    const o = (item.org1 || '').trim();
+                    if (o && o !== '-' && o !== 'undefined') orgSet.add(o);
+                });
+                const sortedOrgs = Array.from(orgSet).sort((a, b) => a.localeCompare(b, 'ko'));
+                
+                orgSelect.innerHTML = `<option value="전체">전체</option>` + sortedOrgs.map(o => `<option value="${o}" ${state.lapseOrgFilter === o ? 'selected' : ''}>${o}</option>`).join('');
+            };
+
             setTimeout(async () => {
                 if (!state.data.lapseAdminSummary || state.data.lapseAdminSummaryType !== state.lapseBaseType) {
                     const res = await callApi('getAdminLapseArrearsSummary', state.user.staffId, state.lapseBaseType);
@@ -4212,11 +4273,30 @@
                         return;
                     }
                     state.data.lapseAdminSummary = res.list || [];
-                    state.data.lapseAdminSummary.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                     state.data.lapseAdminSummaryType = state.lapseBaseType;
                 }
 
-                renderCards(state.data.lapseAdminSummary);
+                populateOrgFilter(state.data.lapseAdminSummary);
+
+                const searchInput = div.querySelector('#lapseAdminSearch');
+                const sortSelect = div.querySelector('#lapseAdminSort');
+                const orgSelect = div.querySelector('#lapseAdminOrgFilter');
+
+                const updateView = () => {
+                    renderCards(state.data.lapseAdminSummary, searchInput.value.trim(), state.lapseSortOrder, state.lapseOrgFilter);
+                };
+
+                searchInput.addEventListener('input', updateView);
+                sortSelect.addEventListener('change', (e) => {
+                    state.lapseSortOrder = e.target.value;
+                    updateView();
+                });
+                orgSelect.addEventListener('change', (e) => {
+                    state.lapseOrgFilter = e.target.value;
+                    updateView();
+                });
+
+                updateView();
 
                 // [NEW] 실효연체관리 개인별 상세 데이터 백그라운드 사전 캐싱(Prefetch)
                 if (state.data.lapseAdminSummary && state.data.lapseAdminSummary.length > 0) {
@@ -4247,11 +4327,6 @@
                     
                     setTimeout(prefetchNext, 500); // 0.5초 후 예열 프로세스 개시
                 }
-
-                const searchInput = div.querySelector('#lapseAdminSearch');
-                searchInput.addEventListener('input', (e) => {
-                    renderCards(state.data.lapseAdminSummary, e.target.value.trim());
-                });
             }, 10);
 
             return div;
@@ -4271,7 +4346,9 @@
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
             state.retentionAdminTab = state.retentionAdminTab || 'active';
-            state.retentionSortOrder = state.retentionSortOrder || 'id'; // 'id', 'highest', 'lowest'
+            state.retentionSortOrder = state.retentionSortOrder || 'lowest13';
+            state.retentionOrgFilter = state.retentionOrgFilter || '전체';
+            if (state.retentionHideNoRate === undefined) state.retentionHideNoRate = true;
 
             div.innerHTML = `
                 <div class="mb-4">
@@ -4286,25 +4363,44 @@
                     </nav>
                 </div>
 
-                <div class="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center">
-                    <div class="relative w-full md:max-w-md flex-grow">
+                <div class="mb-6 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+                    <div class="relative w-full lg:max-w-xs flex-grow">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                         </div>
-                        <input type="text" id="retentionAdminSearch" placeholder="모집인 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                        <input type="text" id="retentionAdminSearch" placeholder="모집인 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
                     </div>
                     
-                    <div class="relative w-full md:w-auto mt-2 md:mt-0">
-                        <select id="retentionAdminSort" class="w-full appearance-none pl-4 pr-10 py-3 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
-                            <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
-                            <option value="highest13" ${state.retentionSortOrder === 'highest13' ? 'selected' : ''}>13회유지율 최고순</option>
-                            <option value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'selected' : ''}>13회유지율 최저순</option>
-                            <option value="highest25" ${state.retentionSortOrder === 'highest25' ? 'selected' : ''}>25회유지율 최고순</option>
-                            <option value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'selected' : ''}>25회유지율 최저순</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                            <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <!-- 소속 필터 드롭박스 -->
+                        <div class="relative min-w-[130px] flex-1 sm:flex-none">
+                            <select id="retentionAdminOrgFilter" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                                <option value="전체">전체</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
                         </div>
+
+                        <!-- 정렬 드롭박스 -->
+                        <div class="relative min-w-[160px] flex-1 sm:flex-none">
+                            <select id="retentionAdminSort" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
+                                <option value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'selected' : ''}>13회유지율 최저순</option>
+                                <option value="highest13" ${state.retentionSortOrder === 'highest13' ? 'selected' : ''}>13회유지율 최고순</option>
+                                <option value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'selected' : ''}>25회유지율 최저순</option>
+                                <option value="highest25" ${state.retentionSortOrder === 'highest25' ? 'selected' : ''}>25회유지율 최고순</option>
+                                <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+
+                        <!-- 유지율 값 없는 사람 제외 체크박스 (정렬 드롭박스 오른쪽) -->
+                        <label class="flex items-center gap-2 px-3 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm cursor-pointer hover:bg-gray-50 transition select-none flex-1 sm:flex-none">
+                            <input type="checkbox" id="retentionHideNoRate" ${state.retentionHideNoRate ? 'checked' : ''} class="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary/30 transition cursor-pointer">
+                            <span class="text-xs font-semibold text-gray-700 whitespace-nowrap">유지율 없는 카드 제외</span>
+                        </label>
                     </div>
                 </div>
 
@@ -4315,12 +4411,27 @@
                 </div>
             `;
 
-            const renderCards = (list, filterText = '', sortOrder = 'id') => {
+            const renderCards = (list, filterText = '', sortOrder = state.retentionSortOrder, orgFilter = state.retentionOrgFilter, hideNoRate = state.retentionHideNoRate) => {
                 const container = div.querySelector('#retentionAdminList');
                 if (!list) return;
 
-                const activeList = list.filter(x => !x.isResigned);
-                const resignedList = list.filter(x => x.isResigned);
+                let baseList = list.slice();
+
+                if (orgFilter && orgFilter !== '전체') {
+                    baseList = baseList.filter(x => (x.org1 || '').trim() === orgFilter);
+                }
+
+                if (hideNoRate) {
+                    baseList = baseList.filter(x => {
+                        if (x.hasRate !== undefined) return x.hasRate;
+                        const has13 = x.retention13 && x.retention13 !== '-' && x.retention13 !== '데이터 없음';
+                        const has25 = x.retention25 && x.retention25 !== '-' && x.retention25 !== '데이터 없음';
+                        return has13 || has25;
+                    });
+                }
+
+                const activeList = baseList.filter(x => !x.isResigned);
+                const resignedList = baseList.filter(x => x.isResigned);
 
                 const countActive = div.querySelector('#retentionActiveCount');
                 if (countActive) countActive.innerText = '(' + activeList.length + ')';
@@ -4329,19 +4440,39 @@
 
                 let currentList = state.retentionAdminTab === 'active' ? activeList.slice() : resignedList.slice();
 
-                if (sortOrder === 'highest13') {
-                    currentList.sort((a, b) => b.retention13Raw - a.retention13Raw);
-                } else if (sortOrder === 'lowest13') {
-                    currentList.sort((a, b) => a.retention13Raw - b.retention13Raw);
-                } else if (sortOrder === 'highest25') {
-                    currentList.sort((a, b) => b.retention25Raw - a.retention25Raw);
+                if (sortOrder === 'lowest13') {
+                    currentList.sort((a, b) => {
+                        const valA = (a.retention13Raw !== null && a.retention13Raw !== undefined) ? a.retention13Raw : 999999;
+                        const valB = (b.retention13Raw !== null && b.retention13Raw !== undefined) ? b.retention13Raw : 999999;
+                        if (valA !== valB) return valA - valB;
+                        return String(a.id).localeCompare(String(b.id));
+                    });
+                } else if (sortOrder === 'highest13') {
+                    currentList.sort((a, b) => {
+                        const valA = (a.retention13Raw !== null && a.retention13Raw !== undefined) ? a.retention13Raw : -1;
+                        const valB = (b.retention13Raw !== null && b.retention13Raw !== undefined) ? b.retention13Raw : -1;
+                        if (valA !== valB) return valB - valA;
+                        return String(a.id).localeCompare(String(b.id));
+                    });
                 } else if (sortOrder === 'lowest25') {
-                    currentList.sort((a, b) => a.retention25Raw - b.retention25Raw);
-                } else {
+                    currentList.sort((a, b) => {
+                        const valA = (a.retention25Raw !== null && a.retention25Raw !== undefined) ? a.retention25Raw : 999999;
+                        const valB = (b.retention25Raw !== null && b.retention25Raw !== undefined) ? b.retention25Raw : 999999;
+                        if (valA !== valB) return valA - valB;
+                        return String(a.id).localeCompare(String(b.id));
+                    });
+                } else if (sortOrder === 'highest25') {
+                    currentList.sort((a, b) => {
+                        const valA = (a.retention25Raw !== null && a.retention25Raw !== undefined) ? a.retention25Raw : -1;
+                        const valB = (b.retention25Raw !== null && b.retention25Raw !== undefined) ? b.retention25Raw : -1;
+                        if (valA !== valB) return valB - valA;
+                        return String(a.id).localeCompare(String(b.id));
+                    });
+                } else { // 'id' (사번순)
                     currentList.sort((a, b) => String(a.id).localeCompare(String(b.id)));
                 }
 
-                const fText = filterText.toLowerCase();
+                const fText = (filterText || '').toLowerCase();
                 const filtered = currentList.filter(x => x.name.toLowerCase().includes(fText) || String(x.id).includes(fText));
 
                 if (filtered.length === 0) {
@@ -4360,21 +4491,35 @@
                                  <h3 class="font-bold text-lg text-gray-900 flex items-center gap-2">
                                      <div class="w-1.5 h-1.5 rounded-full bg-indigo-500/70"></div>
                                      ${item.name} <span class="text-xs text-gray-400 font-normal">(${item.id})</span>
+                                     ${item.org1 ? `<span class="text-[11px] font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">${item.org1}</span>` : ''}
                                  </h3>
                              </div>
                          </div>
                          <div class="grid grid-cols-2 gap-3 text-center">
                             <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
                                 <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">13회차</p>
-                                <p class="text-xl font-extrabold ${item.retention13Raw < 90 ? 'text-red-500' : 'text-gray-800'}">${item.retention13}</p>
+                                <p class="text-xl font-extrabold ${item.retention13Raw !== null && item.retention13Raw < 90 ? 'text-red-500' : 'text-gray-800'}">${item.retention13}</p>
                             </div>
                             <div class="bg-gray-50/50 p-3 rounded-xl border border-gray-100/80">
                                 <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">25회차</p>
-                                <p class="text-xl font-extrabold ${item.retention25Raw < 80 ? 'text-red-500' : 'text-gray-800'}">${item.retention25}</p>
+                                <p class="text-xl font-extrabold ${item.retention25Raw !== null && item.retention25Raw < 80 ? 'text-red-500' : 'text-gray-800'}">${item.retention25}</p>
                             </div>
                          </div>
                     </div>
                 `).join('');
+            };
+
+            const populateOrgFilter = (list) => {
+                const orgSelect = div.querySelector('#retentionAdminOrgFilter');
+                if (!orgSelect || !list) return;
+                const orgSet = new Set();
+                list.forEach(item => {
+                    const o = (item.org1 || '').trim();
+                    if (o && o !== '-' && o !== 'undefined') orgSet.add(o);
+                });
+                const sortedOrgs = Array.from(orgSet).sort((a, b) => a.localeCompare(b, 'ko'));
+                
+                orgSelect.innerHTML = `<option value="전체">전체</option>` + sortedOrgs.map(o => `<option value="${o}" ${state.retentionOrgFilter === o ? 'selected' : ''}>${o}</option>`).join('');
             };
 
             setTimeout(async () => {
@@ -4387,11 +4532,15 @@
                     state.data.retentionAdminSummary = res.list || [];
                 }
 
+                populateOrgFilter(state.data.retentionAdminSummary);
+
                 const searchInput = div.querySelector('#retentionAdminSearch');
                 const sortSelect = div.querySelector('#retentionAdminSort');
+                const orgSelect = div.querySelector('#retentionAdminOrgFilter');
+                const hideNoRateCheck = div.querySelector('#retentionHideNoRate');
 
                 const updateView = () => {
-                    renderCards(state.data.retentionAdminSummary, searchInput.value.trim(), sortSelect.value);
+                    renderCards(state.data.retentionAdminSummary, searchInput.value.trim(), state.retentionSortOrder, state.retentionOrgFilter, state.retentionHideNoRate);
                 };
 
                 searchInput.addEventListener('input', updateView);
@@ -4399,6 +4548,16 @@
                     state.retentionSortOrder = e.target.value;
                     updateView();
                 });
+                orgSelect.addEventListener('change', (e) => {
+                    state.retentionOrgFilter = e.target.value;
+                    updateView();
+                });
+                if (hideNoRateCheck) {
+                    hideNoRateCheck.addEventListener('change', (e) => {
+                        state.retentionHideNoRate = e.target.checked;
+                        updateView();
+                    });
+                }
 
                 updateView();
             }, 10);
