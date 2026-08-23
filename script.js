@@ -104,6 +104,29 @@
         </div>`;
 
         function showLoading(show) { document.getElementById('loading').classList.toggle('hidden', !show); }
+        function showLoginSplash(show, statusText) {
+            const splash = document.getElementById('login-splash');
+            if (!splash) return;
+            if (statusText) {
+                const textEl = document.getElementById('splash-status-text');
+                if (textEl) {
+                    textEl.innerHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> ${statusText}`;
+                }
+            }
+            if (show) {
+                splash.classList.remove('hidden');
+                // Force reflow for CSS opacity transition
+                void splash.offsetWidth;
+                splash.classList.remove('opacity-0');
+                splash.classList.add('opacity-100');
+            } else {
+                splash.classList.remove('opacity-100');
+                splash.classList.add('opacity-0');
+                setTimeout(() => {
+                    splash.classList.add('hidden');
+                }, 300);
+            }
+        }
         function formatMoney(n) { return `<span class="tabular-nums">${Number(n || 0).toLocaleString()}</span>`; }
         function formatRate(r) {
             if (r === '' || r === null || r === undefined) return '';
@@ -6475,15 +6498,16 @@
 
         // --- 8. Logic Interactions ---
         async function doLogin(id, pw) {
-            // [OPTIMIZATION] Inline spinner on login button to prevent screen freezing
             const btn = document.querySelector('#loginForm button[type="submit"]');
             let originalText = "로그인";
             if (btn) {
                 originalText = btn.innerHTML;
-                btn.innerHTML = `<div class="loader ease-linear rounded-full border-2 border-t-2 border-white/30 border-t-white h-5 w-5 inline-block align-middle mr-2"></div> 인증 중...`;
                 btn.disabled = true;
                 btn.classList.add('opacity-80', 'cursor-not-allowed');
             }
+
+            // [UX IMPROVEMENT] 전체 화면 "Long-Run Together!" 스플래시 로딩 즉시 표시
+            showLoginSplash(true, '인증 및 데이터를 준비하고 있습니다...');
 
             const r = await callApi('loginUser', id, pw);
 
@@ -6524,13 +6548,19 @@
                 }
 
                 if (state.user.isFirstLogin) {
+                    showLoginSplash(false);
                     openChangePasswordModal(false);
                 } else {
                     saveSession();
                     state.prefetchTriggered = false; // Reset trigger flag
                     navigate('home');
+                    // 홈 화면이 렌더링된 후 부드럽게 스플래시 페이드 아웃
+                    setTimeout(() => {
+                        showLoginSplash(false);
+                    }, 200);
                 }
             } else {
+                showLoginSplash(false);
                 alert(r.message || '로그인 실패');
             }
         }

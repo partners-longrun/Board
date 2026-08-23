@@ -238,6 +238,43 @@
         </div>
     </div>
 
+    <!-- Login Welcome Splash Screen -->
+    <div id="login-splash"
+        class="fixed inset-0 z-[200] hidden opacity-0 transition-opacity duration-300 ease-out bg-gradient-to-br from-[#0B0F19] via-[#1B1F3B] to-[#0A0D1E] flex flex-col items-center justify-center p-6 text-center select-none overflow-hidden">
+        <!-- Ambient background glows -->
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none animate-pulse" style="animation-delay: 1s;"></div>
+        
+        <div class="relative z-10 flex flex-col items-center max-w-sm w-full animate-fadeIn">
+            <!-- Header Brand -->
+            <div class="flex items-center gap-2 mb-8 opacity-80">
+                <span class="inline-block w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                <span class="text-xs font-semibold tracking-widest text-slate-300 uppercase">PARTNERS BOARD</span>
+            </div>
+
+            <!-- Main Slogan -->
+            <div class="space-y-3 mb-10">
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-orange-400 via-amber-200 to-orange-500 bg-clip-text text-transparent drop-shadow-sm">
+                    Long-Run Together!
+                </h2>
+                <p class="text-sm text-slate-300 font-light tracking-wide">
+                    함께 멀리 가는 파트너스본부
+                </p>
+            </div>
+
+            <!-- Loading Indicator & Progress Bar -->
+            <div class="w-full max-w-[220px] flex flex-col items-center gap-4">
+                <div class="w-full h-1 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-white/5 shadow-inner">
+                    <div class="splash-progress-bar h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"></div>
+                </div>
+                <p id="splash-status-text" class="text-xs font-medium text-slate-400 tracking-wider flex items-center gap-1.5">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                    데이터를 준비하고 있습니다...
+                </p>
+            </div>
+        </div>
+    </div>
+
     <div id="app" class="min-h-screen flex flex-col transition-colors duration-500">
         <div id="content" class="flex-grow flex flex-col w-full h-full"></div>
     </div>

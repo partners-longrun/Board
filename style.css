@@ -168,3 +168,23 @@
             border-color: #F37321 !important;
             box-shadow: 0 0 0 2px rgba(243, 115, 33, 0.15) !important;
         }
+
+        /* Splash Screen Progress Animation */
+        .splash-progress-bar {
+            width: 30%;
+            animation: splashProgress 1.6s ease-in-out infinite;
+        }
+
+        @keyframes splashProgress {
+            0% {
+                transform: translateX(-100%);
+                width: 20%;
+            }
+            50% {
+                width: 60%;
+            }
+            100% {
+                transform: translateX(350%);
+                width: 20%;
+            }
+        }
