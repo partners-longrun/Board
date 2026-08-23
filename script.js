@@ -110,7 +110,7 @@
             if (statusText) {
                 const textEl = document.getElementById('splash-status-text');
                 if (textEl) {
-                    textEl.innerHTML = `<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span> ${statusText}`;
+                    textEl.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0"></span> ${statusText}`;
                 }
             }
             if (show) {
