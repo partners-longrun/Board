@@ -2442,6 +2442,12 @@
                 </div>`;
             };
 
+            // 기타 수수료 및 세후지급공제 데이터
+            const otherCommPay = c.otherCommPay || 0;
+            const otherCommRefund = c.otherCommRefund || 0;
+            const afterTaxPay = c.afterTaxPay || 0;
+            const afterTaxRefund = c.afterTaxRefund || 0;
+
             // 기존 시상금 상세 카드
             const rewardDetailCard = (title, key) => {
                 const obj = d[key] || { pay: 0, refund: 0 };
@@ -2461,6 +2467,29 @@
                         <div class="cursor-pointer hover:bg-red-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100 group" onclick="openDetail('${key}','refund')">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
                             <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${formatMoney(obj.refund)}</p>
+                        </div>
+                    </div>
+                </div>`;
+            };
+
+            // 기타 수수료/공제 상세 카드
+            const branchEtcDetailCard = (title, pay, refund, loaded, cardType) => {
+                const subTotal = pay + refund;
+                return `<div class="bg-slate-50/60 rounded-2xl shadow-sm border border-slate-200/80 p-5">
+                    <div class="flex justify-between mb-4 border-b border-slate-200/60 pb-3 items-center">
+                        <h3 class="font-bold text-base text-gray-700 flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-slate-400"></div>${title}
+                        </h3>
+                        <span class="text-base font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(subTotal) : spinner}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 text-center">
+                        <div class="cursor-pointer hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-blue-100 group" onclick="openBranchEtcDetail('${cardType}','pay')">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">지급</p>
+                            <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${loaded ? formatMoney(pay) : spinner}</p>
+                        </div>
+                        <div class="cursor-pointer hover:bg-red-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100 group" onclick="openBranchEtcDetail('${cardType}','refund')">
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
+                            <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${loaded ? formatMoney(refund) : spinner}</p>
                         </div>
                     </div>
                 </div>`;
@@ -2523,15 +2552,22 @@
             </div>
 
             <!-- 행3: 기존 시상금 3개 카드 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 ${rewardDetailCard('손보 법인', '손보 법인시상금')}
                 ${rewardDetailCard('생보 법인', '생보 법인시상금')}
                 ${rewardDetailCard('2차년 인센티브', '2차년 인센티브')}
             </div>
 
+            <!-- 행4: 기타 수수료 및 세후지급공제 카드 (맨 아래) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                ${branchEtcDetailCard('기타 수수료 (세전)', otherCommPay, otherCommRefund, commLoaded, 'otherComm')}
+                ${branchEtcDetailCard('기타 지급 및 공제 (세후)', afterTaxPay, afterTaxRefund, commLoaded, 'afterTax')}
+                <div class="hidden md:block"></div>
+            </div>
+
             <div class="text-center">
                 <div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">
-                    💡 Tip: 시상금 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.
+                    💡 Tip: 시상금 및 기타 수수료/공제 항목의 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.
                 </div>
             </div>`;
 
@@ -5428,6 +5464,102 @@
                 modal.remove();
             });
         }
+
+        // 지사대표 대시보드 - 기타 수수료 / 세후지급공제 상세 모달
+        window.openBranchEtcDetail = function (cardType, filterType) {
+            const cardTitle = cardType === 'otherComm' ? '기타 수수료 (세전)' : '기타 지급 및 공제 (세후)';
+            const typeLabel = filterType === 'pay' ? '지급' : '환수';
+            const rawList = (cardType === 'otherComm'
+                ? state.data.branchCommData?.otherCommList
+                : state.data.branchCommData?.afterTaxList) || [];
+
+            const list = rawList.filter(item => item.type === filterType);
+            const totalAmt = list.reduce((sum, x) => sum + (x.amount || 0), 0);
+            const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
+            const desktopRows = list.length ? list.map(x => `
+                <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                    <td class="p-3 text-center text-xs text-gray-500 font-mono">${x.month}</td>
+                    <td class="p-3 text-center text-sm font-semibold text-gray-700 bg-gray-50/50">${x.statementType || '-'}</td>
+                    <td class="p-3 text-left text-sm text-gray-800">${x.itemDesc || '-'}</td>
+                    <td class="p-3 text-right text-sm font-bold ${x.amount < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(x.amount)}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="p-8 text-center text-gray-400">데이터가 없습니다.</td></tr>`;
+
+            const mobileCards = list.length ? list.map(x => `
+                <div class="bg-white rounded-xl border border-gray-100 p-3.5 shadow-sm mb-2.5 last:mb-0">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded font-medium">${x.statementType || '일반'}</span>
+                        <span class="text-xs text-gray-400 font-mono">${x.month}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-gray-800 mb-1.5">${x.itemDesc || '-'}</p>
+                    <div class="text-right">
+                        <span class="text-base font-bold ${x.amount < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(x.amount)}</span>
+                    </div>
+                </div>
+            `).join('') : `<div class="p-6 text-center text-gray-400">데이터가 없습니다.</div>`;
+
+            modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden ring-1 ring-black/5 animate-scale-up">
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 sticky top-0 z-10">
+                    <div>
+                        <h3 class="font-bold text-lg md:text-xl text-gray-800 flex items-center gap-2">
+                            <span class="w-1.5 h-5 bg-primary rounded-full block"></span>
+                            ${cardTitle} - <span class="${filterType === 'pay' ? 'text-blue-600' : 'text-red-500'}">${typeLabel}</span> 상세내역
+                        </h3>
+                        <p class="text-xs text-gray-500 mt-0.5">${state.currentMonth} 마감월 (총 <span class="text-primary font-bold">${list.length}</span>건)</p>
+                    </div>
+                    <button class="close p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition focus:outline-none">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="overflow-y-auto flex-grow p-4 md:p-6">
+                    <!-- 데스크탑 테이블 -->
+                    <div class="hidden md:block border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 text-gray-600 border-b border-gray-100 text-xs font-semibold">
+                                <tr>
+                                    <th class="p-3 text-center">마감월</th>
+                                    <th class="p-3 text-center">명세서구분</th>
+                                    <th class="p-3 text-left">항목설명</th>
+                                    <th class="p-3 text-right">지급금액</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${desktopRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 모바일 카드 -->
+                    <div class="md:hidden flex flex-col">
+                        ${mobileCards}
+                    </div>
+                </div>
+
+                <div class="p-4 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center px-6">
+                    <span class="text-sm font-bold text-gray-600">합계</span>
+                    <span class="text-lg font-extrabold ${totalColor} tabular-nums">${formatMoney(totalAmt)}</span>
+                </div>
+            </div>`;
+
+            document.body.appendChild(modal);
+            modal.querySelectorAll('.close').forEach(b => b.onclick = () => {
+                document.body.classList.remove('modal-open');
+                modal.remove();
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.classList.remove('modal-open');
+                    modal.remove();
+                }
+            });
+        };
 
         // 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
         window.fetchAndShowAdminDetail = async function (id, name, category, type) {
