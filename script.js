@@ -3617,9 +3617,17 @@
                     <p class="mb-4">증원수당과 관련하여 궁금하신 부분이 있으시면 언제든 박용수 본부장에게 연락주시기 바랍니다.</p>
                     
                     <p class="font-bold mb-2 text-gray-800">※ 증원수당 계산식</p>
-                    <ul class="list-disc list-inside space-y-1 ml-1 text-gray-600">
+                    <ul class="list-disc list-inside space-y-1 ml-1 text-gray-600 mb-4">
                         <li><span class="font-semibold text-gray-700">손해보험</span> : 신계약보험료 X 30%</li>
                         <li><span class="font-semibold text-gray-700">생명보험</span> : 지급수수료 X 2.25% (유지수수료 포함)</li>
+                    </ul>
+
+                    <p class="font-bold mb-2 text-gray-800">※ 증원수당 환수기준 (철회, 취소, 해지, 실효, 타대리점이관)</p>
+                    <ul class="list-disc list-inside space-y-1 ml-1 text-gray-600">
+                        <li>18회차 미유지시 100% 환수</li>
+                        <li>19회차~24회차 미유지시 85, 75, 60, 45, 30, 15% 환수</li>
+                        <li>부활시, 재지급 하지 않음</li>
+                        <li>불완전판매 계약으로 판명 시 해당 계약 제외</li>
                     </ul>
                  </div>`;
             };
@@ -3819,6 +3827,7 @@
                             cols += td(u.lCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','l','refund')`, true);
                             cols += td(u.mgrCommPay || 0, 'text-blue-600', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','pay')`, true);
                             cols += td(u.mgrCommRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowCommissionAdminDetail('${u.id}','${u.name}','mgr','refund')`, true);
+                            cols += `<td class="px-2 py-2 text-right font-bold text-sm tabular-nums bg-amber-50/70 ${commTotal < 0 ? 'text-red-500' : 'text-amber-900'} border-r border-gray-200 min-w-[90px]">${formatAdminMoney(commTotal)}</td>`;
                         }
                         cols += td(u.nlPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'pay')`);
                         cols += td(u.nlRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '손보 시상금', 'refund')`);
@@ -3832,6 +3841,7 @@
                             cols += td(u.lCorpPay || 0, 'text-blue-600', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'pay')`);
                             cols += td(u.lCorpRef || 0, 'text-red-500 border-r border-gray-200', `fetchAndShowAdminDetail('${u.id}', '${u.name}', '생보법인 시상금(개인)', 'refund')`);
                         }
+                        cols += `<td class="px-2 py-2 text-right font-bold text-sm tabular-nums bg-amber-50/70 ${rewardTotal < 0 ? 'text-red-500' : 'text-amber-900'} border-r border-gray-200 min-w-[90px]">${formatAdminMoney(rewardTotal)}</td>`;
                     } else {
                         total = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0);
                         cols = td(u.nlPay || 0, 'text-blue-600') + td(u.nlRef || 0, 'text-red-500 border-r border-gray-200') + td(u.lPay || 0, 'text-blue-600') + td(u.lRef || 0, 'text-red-500 border-r border-gray-200');
@@ -3851,6 +3861,7 @@
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">손보수수료</th>`;
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200">생보수수료</th>`;
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-slate-600 bg-slate-100 border-b border-slate-200 border-r border-gray-200">관리수수료</th>`;
+                        headerCols += `<th rowspan="2" class="px-2 py-2 text-center text-xs font-bold text-amber-900 bg-amber-100/70 border-b border-amber-200 border-r border-gray-200 align-middle min-w-[90px]">수수료계</th>`;
                     }
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보시상</th>`;
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보시상</th>`;
@@ -3859,6 +3870,7 @@
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">손보법인</th>`;
                         headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-50 border-b border-gray-200">생보법인</th>`;
                     }
+                    headerCols += `<th rowspan="2" class="px-2 py-2 text-center text-xs font-bold text-amber-900 bg-amber-100/70 border-b border-amber-200 border-r border-gray-200 align-middle min-w-[90px]">시상금계</th>`;
                 } else {
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">손보증원</th>`;
                     headerCols += `<th colspan="2" class="px-2 py-2 text-center text-xs font-bold text-gray-600 bg-gray-100 border-b border-gray-200">생보증원</th>`;
@@ -3883,6 +3895,9 @@
                 }
 
                 const mobileCards = rows.map(({ u, total }) => {
+                    const rewardTotal = (u.nlPay || 0) + (u.nlRef || 0) + (u.lPay || 0) + (u.lRef || 0) + (u.hqPay || 0) + (u.hqRef || 0) + (u.nlCorpPay || 0) + (u.nlCorpRef || 0) + (u.lCorpPay || 0) + (u.lCorpRef || 0);
+                    const commTotal = isBranch ? ((u.nlCommPay || 0) + (u.nlCommRef || 0) + (u.lCommPay || 0) + (u.lCommRef || 0) + (u.mgrCommPay || 0) + (u.mgrCommRef || 0)) : 0;
+
                     const commRows = isBranch && state.adminTab === 'reward' ? `
                         <div class="grid grid-cols-3 gap-1 mt-2 pt-2 border-t border-blue-50">
                             <div class="text-center p-1.5 bg-blue-50/60 rounded-lg">
@@ -3897,6 +3912,10 @@
                                 <p class="text-[9px] text-purple-700 font-bold mb-0.5">관리수수료</p>
                                 <p class="text-xs font-bold ${(u.mgrCommPay || 0) + (u.mgrCommRef || 0) < 0 ? 'text-red-500' : 'text-purple-700'}">${formatAdminMoney((u.mgrCommPay || 0) + (u.mgrCommRef || 0))}</p>
                             </div>
+                        </div>
+                        <div class="mt-1 p-1.5 bg-amber-50/80 rounded-lg flex justify-between items-center text-xs px-2.5">
+                            <span class="text-[11px] font-bold text-amber-900">수수료계</span>
+                            <span class="font-bold ${commTotal < 0 ? 'text-red-500' : 'text-amber-900'}">${formatAdminMoney(commTotal)}</span>
                         </div>` : '';
 
                     const dotColor = total === 0 ? 'bg-gray-400' : 'bg-primary/70';
@@ -3940,7 +3959,11 @@
                                 <p class="text-[9px] text-gray-500 font-bold mb-0.5">생보법인</p>
                                 <p class="text-xs font-bold ${(u.lCorpPay || 0) + (u.lCorpRef || 0) < 0 ? 'text-red-500' : 'text-gray-700'}">${formatAdminMoney((u.lCorpPay || 0) + (u.lCorpRef || 0))}</p>
                             </div>
-                        </div>` : ''}` : `
+                        </div>` : ''}
+                        <div class="mt-1 p-1.5 bg-amber-50/80 rounded-lg flex justify-between items-center text-xs px-2.5">
+                            <span class="text-[11px] font-bold text-amber-900">시상금계</span>
+                            <span class="font-bold ${rewardTotal < 0 ? 'text-red-500' : 'text-amber-900'}">${formatAdminMoney(rewardTotal)}</span>
+                        </div>` : `
                         <div class="grid grid-cols-2 gap-1 mt-2 pt-2 border-t border-gray-50">
                             <div class="text-center p-1.5 bg-gray-50 rounded-lg">
                                 <p class="text-[9px] text-gray-500 font-bold mb-0.5">손보증원</p>
@@ -3971,7 +3994,7 @@
                 <!-- 데스크탑 테이블 -->
                 <div class="hidden md:block bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
                     <div class="overflow-x-auto">
-                    <table class="w-full divide-y divide-gray-200 whitespace-nowrap text-sm" style="min-width: ${isBranch ? '1600px' : '1000px'};">
+                    <table class="w-full divide-y divide-gray-200 whitespace-nowrap text-sm" style="min-width: ${isBranch ? '1750px' : '1000px'};">
                         <thead class="bg-gray-50">
                          <tr>
                            <th rowspan="2" class="min-w-[110px] w-[110px] max-w-[110px] px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider align-middle border-b border-gray-200 sticky left-0 z-20 bg-gray-50 shadow-[inset_-1px_0_0_0_#e5e7eb]">이름</th>
