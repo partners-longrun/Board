@@ -5504,7 +5504,7 @@
             `).join('') : `<div class="p-6 text-center text-gray-400">데이터가 없습니다.</div>`;
 
             modal.innerHTML = `
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden ring-1 ring-black/5 animate-scale-up">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[85vh] overflow-hidden ring-1 ring-black/5 animate-scale-up">
                 <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 sticky top-0 z-10">
                     <div>
                         <h3 class="font-bold text-lg md:text-xl text-gray-800 flex items-center gap-2">
