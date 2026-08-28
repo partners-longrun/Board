@@ -2380,9 +2380,9 @@
 
             // === 대시보드 화면 (default) ===
 
-            // 시상금 데이터
+            // 시상금 데이터 (손보 법인, 생보 법인, 2차년 인센티브, 해촉자 정산)
             const d = state.data.rewardData?.summary || {};
-            const rewardKeys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브'];
+            const rewardKeys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브', '해촉자 정산'];
             let rewardPay = 0, rewardRefund = 0;
             rewardKeys.forEach(k => { const o = d[k] || { pay: 0, refund: 0 }; rewardPay += o.pay; rewardRefund += o.refund; });
             const rewardNet = rewardPay + rewardRefund;
@@ -2394,11 +2394,23 @@
             const nonLifeRefund = c.nonLifeRefund || 0;
             const lifePay = c.lifePay || 0;
             const lifeRefund = c.lifeRefund || 0;
-            const commNet = nonLifePay + nonLifeRefund + lifePay + lifeRefund;
-            const commTotalPay = nonLifePay + lifePay;
-            const commTotalRefund = nonLifeRefund + lifeRefund;
 
-            // 전체 합산
+            // 기타 수수료 및 세후지급공제 데이터
+            const otherCommPay = c.otherCommPay || 0;
+            const otherCommRefund = c.otherCommRefund || 0;
+            const afterTaxPay = c.afterTaxPay || 0;
+            const afterTaxRefund = c.afterTaxRefund || 0;
+
+            // 기타 입금 / 상위 차감 (수수료 항목에 합산)
+            const etcPay = otherCommPay + afterTaxPay;
+            const etcRefund = otherCommRefund + afterTaxRefund;
+
+            // 수수료 총합 (손보 + 생보 + 기타 입금 / 상위 차감)
+            const commTotalPay = nonLifePay + lifePay + etcPay;
+            const commTotalRefund = nonLifeRefund + lifeRefund + etcRefund;
+            const commNet = commTotalPay + commTotalRefund;
+
+            // 전체 합산 (수수료 + 시상금)
             const grandNet = commNet + rewardNet;
 
             // 스피너 HTML
@@ -2427,51 +2439,48 @@
                 </div>`;
 
             // 수수료 상세 카드 (지급/환수)
-            const commDetailCard = (title, pay, refund, loaded) => {
+            const commDetailCard = (title, pay, refund, loaded, subNotice = '', payLabel = '지급', refundLabel = '환수') => {
                 const net = pay + refund;
                 return `<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex flex-col h-full">
-                    <div class="flex justify-between mb-4 border-b border-gray-50 pb-3 items-center">
-                        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">
-                            <div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div>${title}
-                        </h3>
+                    <div class="flex justify-between mb-3 border-b border-gray-50 pb-3 items-center">
+                        <div>
+                            <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div>${title}
+                            </h3>
+                            ${subNotice ? `<p class="text-[10px] text-gray-400 mt-0.5">${subNotice}</p>` : ''}
+                        </div>
                         <span class="text-base font-bold ${net < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(net) : spinner}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center mt-auto">
                         <div class="p-2.5 bg-blue-50/50 rounded-xl border border-blue-100/50">
-                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">지급</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">${payLabel}</p>
                             <p class="text-base font-bold text-blue-600">${loaded ? formatMoney(pay) : spinner}</p>
                         </div>
                         <div class="p-2.5 bg-red-50/50 rounded-xl border border-red-100/50">
-                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">${refundLabel}</p>
                             <p class="text-base font-bold text-red-500">${loaded ? formatMoney(refund) : spinner}</p>
                         </div>
                     </div>
                 </div>`;
             };
 
-            // 기타 수수료 및 세후지급공제 데이터
-            const otherCommPay = c.otherCommPay || 0;
-            const otherCommRefund = c.otherCommRefund || 0;
-            const afterTaxPay = c.afterTaxPay || 0;
-            const afterTaxRefund = c.afterTaxRefund || 0;
-
-            // 기존 시상금 상세 카드
+            // 밝고 화사한 시상금 상세 카드 (손보법인, 생보법인, 2차년인센티브, 해촉자정산)
             const rewardDetailCard = (title, key) => {
                 const obj = d[key] || { pay: 0, refund: 0 };
                 const subTotal = obj.pay + obj.refund;
-                return `<div class="bg-slate-50/60 rounded-2xl shadow-sm border border-slate-200/80 p-5">
-                    <div class="flex justify-between mb-4 border-b border-slate-200/60 pb-3 items-center">
-                        <h3 class="font-bold text-base text-gray-700 flex items-center gap-2">
-                            <div class="w-1.5 h-1.5 rounded-full bg-slate-400"></div>${title}
+                return `<div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/60 rounded-2xl shadow-sm border border-amber-200/70 p-5 flex flex-col h-full hover:shadow-md transition">
+                    <div class="flex justify-between mb-4 border-b border-amber-200/50 pb-3 items-center">
+                        <h3 class="font-bold text-base text-amber-950 flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full bg-amber-500 shadow-sm"></div>${title}
                         </h3>
-                        <span class="text-base font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${formatMoney(subTotal)}</span>
+                        <span class="text-base font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 text-center">
-                        <div class="cursor-pointer hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-blue-100 group" onclick="openDetail('${key}','pay')">
+                    <div class="grid grid-cols-2 gap-3 text-center mt-auto">
+                        <div class="cursor-pointer bg-white/90 hover:bg-blue-50/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-blue-200 shadow-xs group" onclick="openDetail('${key}','pay')">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">지급</p>
                             <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${formatMoney(obj.pay)}</p>
                         </div>
-                        <div class="cursor-pointer hover:bg-red-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100 group" onclick="openDetail('${key}','refund')">
+                        <div class="cursor-pointer bg-white/90 hover:bg-red-50/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-red-200 shadow-xs group" onclick="openDetail('${key}','refund')">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
                             <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${formatMoney(obj.refund)}</p>
                         </div>
@@ -2479,22 +2488,22 @@
                 </div>`;
             };
 
-            // 기타 수수료/공제 상세 카드
+            // 기타 수수료/공제 상세 카드 (참고용)
             const branchEtcDetailCard = (title, pay, refund, loaded, cardType) => {
                 const subTotal = pay + refund;
-                return `<div class="bg-slate-50/60 rounded-2xl shadow-sm border border-slate-200/80 p-5">
-                    <div class="flex justify-between mb-4 border-b border-slate-200/60 pb-3 items-center">
+                return `<div class="bg-gray-50/80 rounded-2xl shadow-sm border border-gray-200/70 p-5 flex flex-col h-full">
+                    <div class="flex justify-between mb-4 border-b border-gray-200/50 pb-3 items-center">
                         <h3 class="font-bold text-base text-gray-700 flex items-center gap-2">
-                            <div class="w-1.5 h-1.5 rounded-full bg-slate-400"></div>${title}
+                            <div class="w-1.5 h-1.5 rounded-full bg-gray-400"></div>${title}
                         </h3>
                         <span class="text-base font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(subTotal) : spinner}</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-3 text-center">
-                        <div class="cursor-pointer hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-blue-100 group" onclick="openBranchEtcDetail('${cardType}','pay')">
+                    <div class="grid grid-cols-2 gap-3 text-center mt-auto">
+                        <div class="cursor-pointer bg-white hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-gray-100 hover:border-blue-100 shadow-xs group" onclick="openBranchEtcDetail('${cardType}','pay')">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">지급</p>
                             <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${loaded ? formatMoney(pay) : spinner}</p>
                         </div>
-                        <div class="cursor-pointer hover:bg-red-50/50 p-2.5 rounded-xl transition border border-transparent hover:border-red-100 group" onclick="openBranchEtcDetail('${cardType}','refund')">
+                        <div class="cursor-pointer bg-white hover:bg-red-50/50 p-2.5 rounded-xl transition border border-gray-100 hover:border-red-100 shadow-xs group" onclick="openBranchEtcDetail('${cardType}','refund')">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
                             <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${loaded ? formatMoney(refund) : spinner}</p>
                         </div>
@@ -2551,25 +2560,25 @@
                 </div>
             </div>
 
-            <!-- 행2: 수수료 상세 카드 (4,5,6번) -->
+            <!-- 행2: 수수료 상세 카드 3개 (손보 수수료, 생보 수수료, 기타 입금 / 상위 차감) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>${commDetailCard('손보 수수료', nonLifePay, nonLifeRefund, commLoaded)}</div>
                 <div>${commDetailCard('생보 수수료', lifePay, lifeRefund, commLoaded)}</div>
-                <div class="hidden md:block"></div>
+                <div>${commDetailCard('기타 입금 / 상위 차감', etcPay, etcRefund, commLoaded, "※ '기타 수수료 (세전)'와 '기타 지급 및 공제 (세후)'의 합산", '기타 입금', '상위 차감')}</div>
             </div>
 
-            <!-- 행3: 기존 시상금 3개 카드 -->
+            <!-- 행3: 시상금 카드 3개 (손보 법인, 생보 법인, 2차년 인센티브) -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 ${rewardDetailCard('손보 법인', '손보 법인시상금')}
                 ${rewardDetailCard('생보 법인', '생보 법인시상금')}
                 ${rewardDetailCard('2차년 인센티브', '2차년 인센티브')}
             </div>
 
-            <!-- 행4: 기타 수수료 및 세후지급공제 카드 (맨 아래) -->
+            <!-- 행4: 해촉자 정산(시상금) 및 참고용 기타 수수료/공제 카드 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                ${branchEtcDetailCard('기타 수수료 (세전)', otherCommPay, otherCommRefund, commLoaded, 'otherComm')}
-                ${branchEtcDetailCard('기타 지급 및 공제 (세후)', afterTaxPay, afterTaxRefund, commLoaded, 'afterTax')}
-                <div class="hidden md:block"></div>
+                ${rewardDetailCard('해촉자 정산', '해촉자 정산')}
+                ${branchEtcDetailCard('※ 기타 수수료 (세전)', otherCommPay, otherCommRefund, commLoaded, 'otherComm')}
+                ${branchEtcDetailCard('※ 기타 지급 및 공제 (세후)', afterTaxPay, afterTaxRefund, commLoaded, 'afterTax')}
             </div>
 
             <div class="text-center">
