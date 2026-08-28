@@ -151,8 +151,15 @@
 
         function formatBaseDate(dateStr) {
             if (!dateStr) return '';
-            const cleanStr = String(dateStr).trim().replace(/\./g, '-');
-            const parts = cleanStr.split('-');
+            const cleanStr = String(dateStr).trim();
+            if (cleanStr.includes('T') || cleanStr.includes('Z')) {
+                const d = new Date(cleanStr);
+                if (!isNaN(d.getTime())) {
+                    return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+                }
+            }
+            const normalized = cleanStr.replace(/\./g, '-');
+            const parts = normalized.split('-');
             if (parts.length >= 3) {
                 const month = parseInt(parts[1], 10);
                 const day = parseInt(parts[2], 10);
@@ -4178,7 +4185,7 @@
             div.innerHTML = `
                 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + state.lapseData.lapsedDate + ' 기준)</span>' : ''}</h2>
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">실효연체관리${state.lapseData.lapsedDate ? ' <span class="text-sm font-normal text-gray-400">(' + formatLapseDate(state.lapseData.lapsedDate) + ' 기준)</span>' : ''}</h2>
                         <p class="text-gray-500 text-sm mt-1">선택 기준별 당월 실효 및 연체계약 현황을 조회합니다.</p>
                     </div>
                     <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 self-start sm:self-center w-full sm:w-auto">
@@ -4719,14 +4726,25 @@
         function formatLapseDate(val) {
             if (!val || val === '-' || val === 'undefined') return '-';
             if (typeof val === 'string') {
-                if (val.includes('T')) return val.split('T')[0];
+                if (val.includes('T') || val.includes('Z')) {
+                    const d = new Date(val);
+                    if (!isNaN(d.getTime())) {
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${day}`;
+                    }
+                }
                 if (val.length >= 10 && /^\d{4}[-./]\d{2}[-./]\d{2}/.test(val)) {
                     return val.substring(0, 10).replace(/[./]/g, '-');
                 }
                 return val;
             }
             if (val instanceof Date) {
-                return val.toISOString().substring(0, 10);
+                const y = val.getFullYear();
+                const m = String(val.getMonth() + 1).padStart(2, '0');
+                const day = String(val.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
             }
             return String(val);
         }
