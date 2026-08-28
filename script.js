@@ -4230,18 +4230,29 @@
                             </div>
                         </div>
 
-                        <!-- 정렬 드롭박스 -->
-                        <div class="relative min-w-[140px] flex-1 sm:flex-none">
-                            <select id="lapseAdminSort" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
-                                <option value="id" ${state.lapseSortOrder === 'id' ? 'selected' : ''}>사번순</option>
-                                <option value="highestLapsed" ${state.lapseSortOrder === 'highestLapsed' ? 'selected' : ''}>실효 최고순</option>
-                                <option value="highestArrears" ${state.lapseSortOrder === 'highestArrears' ? 'selected' : ''}>연체 최고순</option>
-                                <option value="highestUnpaid" ${state.lapseSortOrder === 'highestUnpaid' ? 'selected' : ''}>미납 최고순</option>
-                                <option value="highestUnsubmitted" ${state.lapseSortOrder === 'highestUnsubmitted' ? 'selected' : ''}>미제출 최고순</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </div>
+                        <!-- 정렬 라디오 버튼 그룹 -->
+                        <div class="flex items-center gap-2 sm:gap-2.5 bg-gray-50/90 border border-gray-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-gray-700 shadow-sm flex-wrap">
+                            <span class="text-gray-400 font-bold select-none text-xs">정렬 :</span>
+                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
+                                <input type="radio" name="lapseSortRadio" value="id" ${state.lapseSortOrder === 'id' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
+                                <span>사번</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
+                                <input type="radio" name="lapseSortRadio" value="highestLapsed" ${state.lapseSortOrder === 'highestLapsed' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
+                                <span>실효</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
+                                <input type="radio" name="lapseSortRadio" value="highestArrears" ${state.lapseSortOrder === 'highestArrears' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
+                                <span>연체</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
+                                <input type="radio" name="lapseSortRadio" value="highestUnpaid" ${state.lapseSortOrder === 'highestUnpaid' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
+                                <span>미납</span>
+                            </label>
+                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
+                                <input type="radio" name="lapseSortRadio" value="highestUnsubmitted" ${state.lapseSortOrder === 'highestUnsubmitted' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
+                                <span>미제출</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -4361,17 +4372,21 @@
                 populateOrgFilter(state.data.lapseAdminSummary);
 
                 const searchInput = div.querySelector('#lapseAdminSearch');
-                const sortSelect = div.querySelector('#lapseAdminSort');
                 const orgSelect = div.querySelector('#lapseAdminOrgFilter');
+                const sortRadios = div.querySelectorAll('input[name="lapseSortRadio"]');
 
                 const updateView = () => {
                     renderCards(state.data.lapseAdminSummary, searchInput.value.trim(), state.lapseSortOrder, state.lapseOrgFilter);
                 };
 
                 searchInput.addEventListener('input', updateView);
-                sortSelect.addEventListener('change', (e) => {
-                    state.lapseSortOrder = e.target.value;
-                    updateView();
+                sortRadios.forEach(r => {
+                    r.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            state.lapseSortOrder = e.target.value;
+                            updateView();
+                        }
+                    });
                 });
                 orgSelect.addEventListener('change', (e) => {
                     state.lapseOrgFilter = e.target.value;
@@ -4701,6 +4716,21 @@
             openLapseAdminDetailModal(dataToRender, staffName, type);
         };
 
+        function formatLapseDate(val) {
+            if (!val || val === '-' || val === 'undefined') return '-';
+            if (typeof val === 'string') {
+                if (val.includes('T')) return val.split('T')[0];
+                if (val.length >= 10 && /^\d{4}[-./]\d{2}[-./]\d{2}/.test(val)) {
+                    return val.substring(0, 10).replace(/[./]/g, '-');
+                }
+                return val;
+            }
+            if (val instanceof Date) {
+                return val.toISOString().substring(0, 10);
+            }
+            return String(val);
+        }
+
         window.openLapseAdminDetailModal = function (data, staffName, type) {
             document.body.classList.add('modal-open');
             const modal = document.createElement('div');
@@ -4753,9 +4783,9 @@
                        <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
                        <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                        <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['보험료'])}</td>
-                       <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+                       <td class="p-3 text-xs text-gray-500">${formatLapseDate(x['계약일'])}</td>
                        <td class="p-3 text-center font-medium text-gray-700">${maskContractor(x['계약자'])}</td>
-                       <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
+                       <td class="p-3 text-xs text-gray-500 text-center min-w-[85px] font-mono">${formatLapseDate(x['데이터기준일'])}</td>
                      </tr>`;
                 } else {
                     return `
@@ -4769,11 +4799,11 @@
                        <td class="p-3 text-xs text-gray-500 font-mono">${maskPolicyNo(x['증권번호'])}</td>
                        <td class="p-3 font-medium text-gray-800"><div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div></td>
                        <td class="p-3 text-right font-medium text-blue-600 tabular-nums">${formatMoney(x['계속보험료'])}</td>
-                       <td class="p-3 text-xs text-gray-500 min-w-[85px]">${x['계약일']}</td>
+                       <td class="p-3 text-xs text-gray-500 min-w-[85px]">${formatLapseDate(x['계약일'])}</td>
                        <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
                        <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
                        <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-                       <td class="p-3 text-xs text-gray-400 text-center min-w-[85px]">${x['데이터기준일']}</td>
+                       <td class="p-3 text-xs text-gray-500 text-center min-w-[85px] font-mono">${formatLapseDate(x['데이터기준일'])}</td>
                      </tr>`;
                 }
             }).join('') : `<tr><td colspan="${isUnsubmitted ? 9 : 12}" class="p-12 text-center text-gray-500">해당하는 계약 내역이 없습니다.</td></tr>`;
@@ -5222,11 +5252,11 @@
                             x['증권번호'] || '-',
                             x['상품명'] || '-',
                             Number(x['계속보험료'] || 0),
-                            x['계약일'] || '-',
+                            formatLapseDate(x['계약일']),
                             x['납입회차'] || '-',
                             x['최종납입월'] || '-',
                             x['계약자'] || '-',
-                            x['데이터기준일'] || '-'
+                            formatLapseDate(x['데이터기준일'])
                         ]);
                         
                         dataRow.eachCell((cell, colNumber) => {
@@ -5274,13 +5304,10 @@
                     worksheet.columns.forEach((column) => {
                         let maxLen = 10;
                         column.eachCell({ includeEmpty: false }, (cell) => {
-                            const rowNum = cell.row.number;
-                            // 구분선 행(병합된 행)의 첫 번째 셀 이외의 셀은 빈 값으로 처리되므로 건너뜀
-                            if (cell.col > 1 && worksheet.getCell(rowNum, 2).value === '' && worksheet.getCell(rowNum, 1).value !== '' && String(worksheet.getCell(rowNum, 1).value).includes('(')) {
-                                return;
-                            }
-                            // 구분선 텍스트 길이는 열 너비 계산에서 제외
-                            if (cell.col === 1 && String(cell.value || '').includes('(') && String(cell.value || '').length > 15) {
+                            const row = worksheet.getRow(cell.row);
+                            const firstVal = String(row.getCell(1).value || '');
+                            // 구분선 행(병합된 행)은 열 너비 계산에서 제외
+                            if (firstVal.includes('(') && firstVal.includes(')')) {
                                 return;
                             }
                             
@@ -5291,7 +5318,7 @@
                             }
                             if (len > maxLen) maxLen = len;
                         });
-                        column.width = maxLen + 2;
+                        column.width = Math.min(Math.max(maxLen + 3, 10), 45);
                     });
                     
                     const baseTypeName = state.lapseBaseType === 'collector' ? '수금인' : '모집인';
@@ -6048,11 +6075,11 @@
         <div class="truncate-product" title="${x['상품명']}">${x['상품명']}</div>
     </td>
     <td class="p-3 text-right font-medium text-blue-600">${formatMoney(x['계속보험료'])}</td>
-    <td class="p-3 text-xs text-gray-500">${x['계약일']}</td>
+    <td class="p-3 text-xs text-gray-500">${formatLapseDate(x['계약일'])}</td>
     <td class="p-3 text-center text-xs text-gray-600">${x['납입회차']}</td>
     <td class="p-3 text-center text-xs bg-gray-50 text-gray-500 font-mono">${x['최종납입월']}</td>
     <td class="p-3 text-center font-medium text-gray-700">${x['계약자']}</td>
-    <td class="p-3 text-center text-xs text-gray-500 font-mono">${x['데이터기준일'] || '-'}</td>
+    <td class="p-3 text-center text-xs text-gray-500 font-mono">${formatLapseDate(x['데이터기준일'])}</td>
 </tr>`).join('') : `<tr>
                     <td colspan="12" class="p-8 text-center text-gray-500">실효 계약 내역이 없습니다. (조회 기준일에 따라 다를 수 있습니다)</td>
 </tr>`;
@@ -6075,7 +6102,7 @@
     <div class="grid grid-cols-2 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2.5 mb-2">
         <div>
             <p class="text-gray-400 mb-0.5">계약일</p>
-            <p class="font-semibold text-gray-700">${x['계약일']}</p>
+            <p class="font-semibold text-gray-700">${formatLapseDate(x['계약일'])}</p>
         </div>
         <div>
             <p class="text-gray-400 mb-0.5">최종납입월/회차</p>
@@ -6087,7 +6114,7 @@
         <span>보험사: <span class="text-gray-600">${x['보험사']}</span></span>
     </div>
     <div class="text-[11px] text-gray-400 mt-1 text-right">
-        기준일: <span class="text-gray-600 font-mono">${x['데이터기준일'] || '-'}</span>
+        기준일: <span class="text-gray-600 font-mono">${formatLapseDate(x['데이터기준일'])}</span>
     </div>
 </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">실효 계약 내역이 없습니다.</div>';
 
