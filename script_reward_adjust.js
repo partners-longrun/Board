@@ -434,26 +434,66 @@
                         return;
                     }
 
-                    // 시상률 파싱 헬퍼 함수
+                    // 헬퍼 1: 계약월 파싱 (YYYYMM 숫자)
+                    function parseContractMonth(val) {
+                        if (!val) return 0;
+                        if (val instanceof Date) {
+                            const y = val.getFullYear();
+                            const m = String(val.getMonth() + 1).padStart(2, '0');
+                            return parseInt(`${y}${m}`, 10);
+                        }
+                        const cleanStr = String(val).replace(/[^0-9]/g, '');
+                        if (cleanStr.length >= 6) {
+                            return parseInt(cleanStr.substring(0, 6), 10);
+                        }
+                        return 0;
+                    }
+
+                    // 헬퍼 2: 마감월 등 년월 파싱 (YYYYMM 숫자)
+                    function parseMonthNumber(val) {
+                        if (!val) return 0;
+                        const cleanStr = String(val).replace(/[^0-9]/g, '');
+                        if (cleanStr.length >= 6) {
+                            return parseInt(cleanStr.substring(0, 6), 10);
+                        }
+                        return 0;
+                    }
+
+                    // 헬퍼 3: 회차 또는 경과월(차월) 산출
+                    function getRowRoundOrElapsed(row) {
+                        const roundVal = String(row['납입회차'] || row['회차'] || '').trim();
+                        if (roundVal !== '') {
+                            const parsedR = parseInt(roundVal.replace(/[^0-9]/g, ''), 10);
+                            if (!isNaN(parsedR) && parsedR > 0) {
+                                return parsedR;
+                            }
+                        }
+                        // 납입회차가 없으면 마감월과 계약월 간 경과차월 계산 (계약당월 = 1차월, 24년 5월 계약 -> 25년 7월 마감 = 15차월)
+                        const cMonth = parseContractMonth(row['계약일'] || row['계약일자'] || row['계약월']);
+                        const mMonth = parseMonthNumber(row['마감월']);
+                        if (cMonth > 0 && mMonth > 0) {
+                            const cYear = Math.floor(cMonth / 100);
+                            const cM = cMonth % 100;
+                            const mYear = Math.floor(mMonth / 100);
+                            const mM = mMonth % 100;
+                            const elapsed = (mYear - cYear) * 12 + (mM - cM) + 1;
+                            return elapsed > 0 ? elapsed : 0;
+                        }
+                        return 0;
+                    }
+
+                    // 헬퍼 4: 시상률 파싱
                     function parseDefaultRate(val) {
                         if (val === undefined || val === null || val === '') return null;
                         let valStr = String(val).trim();
                         
-                        // 1. '%' 문자가 명시적으로 포함된 경우 (예: "150%", "200%")
                         if (valStr.includes('%')) {
                             let num = parseFloat(valStr.replace(/%/g, ''));
                             return isNaN(num) ? null : num / 100;
                         }
-                        
                         let num = parseFloat(valStr);
                         if (isNaN(num)) return null;
-                        
-                        // 2. 숫자로 10 이상인 경우 (예: 150, 200 등 % 없는 정수 표기)
-                        if (num >= 10) {
-                            return num / 100;
-                        }
-                        
-                        // 3. 구글 스프레드시트 % 서식에 의해 1.5, 2.0, 0.5 등으로 반환된 경우
+                        if (num >= 10) return num / 100;
                         return num;
                     }
 
@@ -463,73 +503,219 @@
                     listData.forEach(row => {
                         const rowCompany = String(row['보험사'] || '').trim();
                         const rowBranch = String(row['소속2'] || '').trim();
+                        const rowAgentName = String(row['모집인'] || '').trim();
+                        const rowAgentId = String(row['사번'] || '').trim();
+                        const rowContractMonth = parseContractMonth(row['계약일'] || row['계약일자'] || row['계약월']);
+                        const rowRoundOrElapsed = getRowRoundOrElapsed(row);
+                        const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
+                        const rowPayRefundType = isRowRefund ? '환수' : '지급';
 
-                        // 각 항목별로 (1) 특정-특정 -> (2) 특정-전체 -> (3) 전체-특정 -> (4) 전체-전체 순으로 유효한(비어있지 않은) 디폴트 설정값 탐색
-                        function getEffectiveDefaultVal(keys) {
-                            if (!Array.isArray(keys)) keys = [keys];
-                            const isNonEmpty = (d) => {
-                                for (const k of keys) {
-                                    const v = d[k];
-                                    if (v !== undefined && v !== null && String(v).trim() !== '') return true;
-                                }
-                                return false;
-                            };
-                            const getVal = (d) => {
-                                for (const k of keys) {
-                                    const v = d[k];
-                                    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
-                                }
-                                return '';
-                            };
+                        // [방식 B] 지급 / 환수 분기 매칭 및 곱연산
+                        let defaultLeaderVal = '';
+                        let defaultFpVal = '';
+                        let targetRatio2 = null;
 
-                            // 1. 특정 보험사 & 특정 소속
-                            let d = currentTypeDefaults.find(item => {
-                                const c = String(item['보험사'] || '').trim();
-                                const b = String(item['소속'] || '').trim();
-                                return c === rowCompany && b === rowBranch && c !== '전체' && c !== '' && b !== '전체' && b !== '' && isNonEmpty(item);
+                        if (isRowRefund) {
+                            // --- [환수 건 처리] ---
+                            // 1단계: 원 계약 당시의 지급 시상률(Base Pay Rate) 매칭 (계약월, 보험사, 소속, 모집인 기준)
+                            const payCandidates = [];
+                            currentTypeDefaults.forEach(d => {
+                                const dPR = String(d['지급/환수'] || d['구분'] || d['지급구분'] || '').trim();
+                                if (dPR !== '' && dPR !== '전체' && dPR !== '지급') return;
+
+                                const startM = parseMonthNumber(d['계약시작월'] || d['적용시작월']);
+                                const endM = parseMonthNumber(d['계약종료월'] || d['적용종료월']);
+                                if (rowContractMonth > 0) {
+                                    if (startM > 0 && rowContractMonth < startM) return;
+                                    if (endM > 0 && rowContractMonth > endM) return;
+                                }
+
+                                const dComp = String(d['보험사'] || '').trim();
+                                if (dComp !== '' && dComp !== '전체' && dComp !== rowCompany) return;
+
+                                const dBranch = String(d['소속'] || '').trim();
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch !== rowBranch) return;
+
+                                const dAgent = String(d['모집인'] || d['사번'] || '').trim();
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent !== rowAgentName && dAgent !== rowAgentId)) return;
+
+                                let score = 0;
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent === rowAgentName || dAgent === rowAgentId)) score += 1000;
+                                if (dComp !== '' && dComp !== '전체' && dComp === rowCompany) score += 100;
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch === rowBranch) score += 10;
+                                if (dPR === '지급') score += 5;
+                                if (startM > 0 || (endM > 0 && endM < 999999)) score += 2;
+
+                                payCandidates.push({ rule: d, score: score });
                             });
-                            // 2. 특정 보험사 & 전체 소속
-                            if (!d) {
-                                d = currentTypeDefaults.find(item => {
-                                    const c = String(item['보험사'] || '').trim();
-                                    const b = String(item['소속'] || '').trim();
-                                    return c === rowCompany && c !== '전체' && c !== '' && (b === '전체' || b === '') && isNonEmpty(item);
-                                });
-                            }
-                            // 3. 전체 보험사 & 특정 소속
-                            if (!d) {
-                                d = currentTypeDefaults.find(item => {
-                                    const c = String(item['보험사'] || '').trim();
-                                    const b = String(item['소속'] || '').trim();
-                                    return (c === '전체' || c === '') && b === rowBranch && b !== '전체' && b !== '' && isNonEmpty(item);
-                                });
-                            }
-                            // 4. 전체 보험사 & 전체 소속
-                            if (!d) {
-                                d = currentTypeDefaults.find(item => {
-                                    const c = String(item['보험사'] || '').trim();
-                                    const b = String(item['소속'] || '').trim();
-                                    return (c === '전체' || c === '') && (b === '전체' || b === '') && isNonEmpty(item);
-                                });
-                            }
-                            return d ? getVal(d) : '';
-                        }
 
-                        const defaultLeaderVal = getEffectiveDefaultVal(['지급대상자1', '지급대상자1명']);
-                        const defaultFpVal = getEffectiveDefaultVal(['지급대상자2', '지급대상자2명']);
-                        const defaultRateStr = getEffectiveDefaultVal(['시상률']);
-                        const targetRatio2 = defaultRateStr !== '' ? parseDefaultRate(defaultRateStr) : null;
+                            function getPayField(keys) {
+                                if (!Array.isArray(keys)) keys = [keys];
+                                let bestVal = '';
+                                let maxScore = -1;
+                                payCandidates.forEach(cand => {
+                                    for (const k of keys) {
+                                        const v = cand.rule[k];
+                                        if (v !== undefined && v !== null && String(v).trim() !== '') {
+                                            if (cand.score > maxScore) {
+                                                maxScore = cand.score;
+                                                bestVal = String(v).trim();
+                                            }
+                                            break;
+                                        }
+                                    }
+                                });
+                                return bestVal;
+                            }
+
+                            const basePayRateStr = getPayField(['시상률', '지급률']);
+                            const basePayRate = basePayRateStr !== '' ? parseDefaultRate(basePayRateStr) : null;
+
+                            // 2단계: 유지기간/회차별 환수율(Refund Factor) 매칭 (회차, 보험사, 소속, 모집인 기준)
+                            const refundCandidates = [];
+                            currentTypeDefaults.forEach(d => {
+                                const dPR = String(d['지급/환수'] || d['구분'] || d['지급구분'] || '').trim();
+                                if (dPR !== '' && dPR !== '전체' && dPR !== '환수') return;
+
+                                const rawStartR = String(d['시작회차'] || d['시작회차(개월)'] || '').replace(/[^0-9]/g, '');
+                                const rawEndR = String(d['종료회차'] || d['종료회차(개월)'] || '').replace(/[^0-9]/g, '');
+                                const startR = rawStartR !== '' ? parseInt(rawStartR, 10) : 0;
+                                const endR = rawEndR !== '' ? parseInt(rawEndR, 10) : 999999;
+                                if (rowRoundOrElapsed > 0) {
+                                    if (startR > 0 && rowRoundOrElapsed < startR) return;
+                                    if (endR > 0 && rowRoundOrElapsed > endR) return;
+                                }
+
+                                const dComp = String(d['보험사'] || '').trim();
+                                if (dComp !== '' && dComp !== '전체' && dComp !== rowCompany) return;
+
+                                const dBranch = String(d['소속'] || '').trim();
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch !== rowBranch) return;
+
+                                const dAgent = String(d['모집인'] || d['사번'] || '').trim();
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent !== rowAgentName && dAgent !== rowAgentId)) return;
+
+                                let score = 0;
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent === rowAgentName || dAgent === rowAgentId)) score += 1000;
+                                if (dComp !== '' && dComp !== '전체' && dComp === rowCompany) score += 100;
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch === rowBranch) score += 10;
+                                if (dPR === '환수') score += 5;
+                                if (startR > 0 || (endR > 0 && endR < 999999)) score += 2;
+
+                                refundCandidates.push({ rule: d, score: score });
+                            });
+
+                            function getRefundField(keys) {
+                                if (!Array.isArray(keys)) keys = [keys];
+                                let bestVal = '';
+                                let maxScore = -1;
+                                refundCandidates.forEach(cand => {
+                                    for (const k of keys) {
+                                        const v = cand.rule[k];
+                                        if (v !== undefined && v !== null && String(v).trim() !== '') {
+                                            if (cand.score > maxScore) {
+                                                maxScore = cand.score;
+                                                bestVal = String(v).trim();
+                                            }
+                                            break;
+                                        }
+                                    }
+                                });
+                                return bestVal;
+                            }
+
+                            const refundFactorStr = getRefundField(['시상률', '환수율', '지급률']);
+                            const refundFactor = refundFactorStr !== '' ? parseDefaultRate(refundFactorStr) : null;
+
+                            // 지급대상자: 환수 설정 우선, 없으면 지급 설정 폴백
+                            defaultLeaderVal = getRefundField(['지급대상자1', '지급대상자1명']) || getPayField(['지급대상자1', '지급대상자1명']);
+                            defaultFpVal = getRefundField(['지급대상자2', '지급대상자2명']) || getPayField(['지급대상자2', '지급대상자2명']);
+
+                            // 3단계: 최종 환수 시상률 곱연산 (원 지급률 × 환수율)
+                            if (basePayRate !== null && refundFactor !== null) {
+                                targetRatio2 = Math.abs(basePayRate * refundFactor);
+                            } else if (refundFactor !== null) {
+                                targetRatio2 = Math.abs(refundFactor);
+                            } else if (basePayRate !== null) {
+                                targetRatio2 = Math.abs(basePayRate);
+                            }
+                        } else {
+                            // --- [지급 건 처리] ---
+                            const matchedCandidates = [];
+                            currentTypeDefaults.forEach(d => {
+                                const dPayRefund = String(d['지급/환수'] || d['구분'] || d['지급구분'] || '').trim();
+                                if (dPayRefund !== '' && dPayRefund !== '전체' && dPayRefund !== '지급') return;
+
+                                const startM = parseMonthNumber(d['계약시작월'] || d['적용시작월']);
+                                const endM = parseMonthNumber(d['계약종료월'] || d['적용종료월']);
+                                if (rowContractMonth > 0) {
+                                    if (startM > 0 && rowContractMonth < startM) return;
+                                    if (endM > 0 && rowContractMonth > endM) return;
+                                }
+
+                                const rawStartR = String(d['시작회차'] || d['시작회차(개월)'] || '').replace(/[^0-9]/g, '');
+                                const rawEndR = String(d['종료회차'] || d['종료회차(개월)'] || '').replace(/[^0-9]/g, '');
+                                const startR = rawStartR !== '' ? parseInt(rawStartR, 10) : 0;
+                                const endR = rawEndR !== '' ? parseInt(rawEndR, 10) : 999999;
+                                if (rowRoundOrElapsed > 0) {
+                                    if (startR > 0 && rowRoundOrElapsed < startR) return;
+                                    if (endR > 0 && rowRoundOrElapsed > endR) return;
+                                }
+
+                                const dComp = String(d['보험사'] || '').trim();
+                                if (dComp !== '' && dComp !== '전체' && dComp !== rowCompany) return;
+
+                                const dBranch = String(d['소속'] || '').trim();
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch !== rowBranch) return;
+
+                                const dAgent = String(d['모집인'] || d['사번'] || '').trim();
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent !== rowAgentName && dAgent !== rowAgentId)) return;
+
+                                let score = 0;
+                                if (dAgent !== '' && dAgent !== '전체' && (dAgent === rowAgentName || dAgent === rowAgentId)) score += 1000;
+                                if (dComp !== '' && dComp !== '전체' && dComp === rowCompany) score += 100;
+                                if (dBranch !== '' && dBranch !== '전체' && dBranch === rowBranch) score += 10;
+                                if (dPayRefund === '지급') score += 5;
+                                if (startM > 0 || (endM > 0 && endM < 999999)) score += 2;
+                                if (startR > 0 || (endR > 0 && endR < 999999)) score += 2;
+
+                                matchedCandidates.push({ rule: d, score: score });
+                            });
+
+                            function getFieldFromBestMatch(keys) {
+                                if (!Array.isArray(keys)) keys = [keys];
+                                let bestVal = '';
+                                let maxScore = -1;
+                                matchedCandidates.forEach(cand => {
+                                    for (const k of keys) {
+                                        const v = cand.rule[k];
+                                        if (v !== undefined && v !== null && String(v).trim() !== '') {
+                                            if (cand.score > maxScore) {
+                                                maxScore = cand.score;
+                                                bestVal = String(v).trim();
+                                            }
+                                            break;
+                                        }
+                                    }
+                                });
+                                return bestVal;
+                            }
+
+                            defaultLeaderVal = getFieldFromBestMatch(['지급대상자1', '지급대상자1명']);
+                            defaultFpVal = getFieldFromBestMatch(['지급대상자2', '지급대상자2명']);
+                            const defaultRateStr = getFieldFromBestMatch(['시상률', '지급률']);
+                            targetRatio2 = defaultRateStr !== '' ? parseDefaultRate(defaultRateStr) : null;
+                        }
 
                         const hasLeader = defaultLeaderVal !== '';
                         const hasFp = defaultFpVal !== '';
                         const hasRatio = targetRatio2 !== null;
 
-                        // 3개 항목 중 하나라도 설정되어 있으면 적용
+                        // 설정된 항목이 하나라도 있으면 행 업데이트
                         if (hasLeader || hasFp || hasRatio) {
                             const key = getRowKey(row);
                             if (!editedItems[key]) editedItems[key] = {};
 
-                            const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
                             const premium = Number(row['보험료'] || 0);
                             const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
                             let rateFloat = Number(row['시상률'] || 0);
@@ -549,7 +735,7 @@
                             let curRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
                             if (isRowRefund && curRatio2 > 0) curRatio2 = -curRatio2;
 
-                            // 1. 지급대상자1 적용 (값이 있으면 변경, 없으면 기존 값 유지)
+                            // 1. 지급대상자1 적용 (설정값이 있으면 반영, 없으면 기존 값 유지)
                             let finalLeaderName = curLeaderName;
                             let finalLeaderId = curLeaderId;
                             if (hasLeader) {
@@ -564,7 +750,7 @@
                                 }
                             }
 
-                            // 2. 지급대상자2 적용 (값이 있으면 변경, 없으면 기존 값 유지)
+                            // 2. 지급대상자2 적용 (설정값이 있으면 반영, 없으면 기존 값 유지)
                             let finalFpName = curFpName;
                             let finalFpId = curFpId;
                             if (hasFp) {
@@ -579,7 +765,7 @@
                                 }
                             }
 
-                            // 3. 시상률(지급비율2) 적용 (값이 있으면 재계산, 없으면 기존 값 유지)
+                            // 3. 시상률(지급비율2) 적용 (설정값이 있으면 재계산, 없으면 기존 값 유지)
                             let finalRatio2 = curRatio2;
                             let finalPay2 = curPay2;
                             let finalRatio1 = curRatio1;
