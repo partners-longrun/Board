@@ -2514,7 +2514,14 @@
             div.innerHTML = `
             <div class="flex flex-col sm:flex-row justify-between mb-6 items-start sm:items-center gap-4">
                 <div>
-                    <h2 class="text-xl font-bold text-gray-800">지사의 수수료와 시상금 (${state.currentMonth})</h2>
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <h2 class="text-xl font-bold text-gray-800">지사의 수수료와 시상금 (${state.currentMonth})</h2>
+                        <!-- 마감 상태 뱃지 및 마감하기/취소 버튼 -->
+                        <div id="branchMonthClosingArea" class="flex items-center gap-2">
+                            <span id="branchMonthClosingBadge" class="text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-400 border border-gray-200 animate-pulse">마감상태 확인중...</span>
+                            <button id="branchMonthClosingBtn" onclick="handleToggleMonthClosing()" class="hidden text-xs px-3 py-1 rounded-lg font-bold transition shadow-xs"></button>
+                        </div>
+                    </div>
                     <p class="text-sm text-gray-500 mt-1">지사 수수료 및 법인 시상 현황입니다.</p>
                 </div>
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-xl self-start sm:self-center">
@@ -2586,6 +2593,9 @@
                     💡 Tip: 시상금 및 기타 수수료/공제 항목의 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.
                 </div>
             </div>`;
+
+            // 마감 상태 비동기 조회
+            setTimeout(checkMonthClosingStatus, 20);
 
             return div;
         }
@@ -4246,29 +4256,34 @@
                             </div>
                         </div>
 
-                        <!-- 정렬 라디오 버튼 그룹 -->
-                        <div class="flex items-center gap-2 sm:gap-2.5 bg-gray-50/90 border border-gray-200 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-gray-700 shadow-sm flex-wrap">
-                            <span class="text-gray-400 font-bold select-none text-xs">정렬 :</span>
-                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
-                                <input type="radio" name="lapseSortRadio" value="id" ${state.lapseSortOrder === 'id' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
-                                <span>사번</span>
+                        <!-- 정렬 세그먼트 컨트롤 (이미지2 스타일) -->
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                <span class="w-1.5 h-3 bg-primary rounded-sm inline-block"></span>
+                                정렬
                             </label>
-                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
-                                <input type="radio" name="lapseSortRadio" value="highestLapsed" ${state.lapseSortOrder === 'highestLapsed' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
-                                <span>실효</span>
-                            </label>
-                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
-                                <input type="radio" name="lapseSortRadio" value="highestArrears" ${state.lapseSortOrder === 'highestArrears' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
-                                <span>연체</span>
-                            </label>
-                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
-                                <input type="radio" name="lapseSortRadio" value="highestUnpaid" ${state.lapseSortOrder === 'highestUnpaid' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
-                                <span>미납</span>
-                            </label>
-                            <label class="flex items-center gap-1 cursor-pointer hover:text-primary transition">
-                                <input type="radio" name="lapseSortRadio" value="highestUnsubmitted" ${state.lapseSortOrder === 'highestUnsubmitted' ? 'checked' : ''} class="w-3.5 h-3.5 text-primary border-gray-300 focus:ring-primary cursor-pointer">
-                                <span>미제출</span>
-                            </label>
+                            <div id="lapseSortRadioGroup" class="inline-flex flex-wrap p-1 bg-gray-200/60 rounded-xl gap-0.5 border border-gray-200/80">
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="lapseSortRadio" value="id" ${state.lapseSortOrder === 'id' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">사번</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="lapseSortRadio" value="highestLapsed" ${state.lapseSortOrder === 'highestLapsed' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">실효</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="lapseSortRadio" value="highestArrears" ${state.lapseSortOrder === 'highestArrears' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">연체</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="lapseSortRadio" value="highestUnpaid" ${state.lapseSortOrder === 'highestUnpaid' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">미납</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="lapseSortRadio" value="highestUnsubmitted" ${state.lapseSortOrder === 'highestUnsubmitted' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">미제출</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -5613,6 +5628,73 @@
                     modal.remove();
                 }
             });
+        // ==========================================
+        // 지사대표 마감 처리 및 상태 관리
+        // ==========================================
+        window.checkMonthClosingStatus = async function () {
+            const badge = document.getElementById('branchMonthClosingBadge');
+            const btn = document.getElementById('branchMonthClosingBtn');
+            if (!badge || !btn) return;
+
+            try {
+                const res = await callApi('getMonthClosingStatus', state.currentMonth, state.user.staffId);
+                if (res && res.success) {
+                    state.isCurrentMonthClosed = !!res.isClosed;
+                    state.currentMonthClosedAt = res.closedAt || '';
+
+                    if (res.isClosed) {
+                        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> 마감완료${res.closedAt ? ` (${res.closedAt.split(' ')[0]})` : ''}`;
+                        btn.className = "text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-xs bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300";
+                        btn.textContent = "마감 취소";
+                        btn.classList.remove('hidden');
+                    } else {
+                        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1";
+                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span> 미마감 (일반사용자 숨김)`;
+                        btn.className = "text-xs px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs bg-primary hover:bg-primary/90 text-white";
+                        btn.textContent = "마감 하기";
+                        btn.classList.remove('hidden');
+                    }
+                } else {
+                    badge.textContent = "상태 조회 실패";
+                    badge.classList.remove('animate-pulse');
+                }
+            } catch (e) {
+                console.warn('Check month closing status error:', e);
+            }
+        };
+
+        window.handleToggleMonthClosing = async function () {
+            const btn = document.getElementById('branchMonthClosingBtn');
+            const isCurrentlyClosed = !!state.isCurrentMonthClosed;
+            const targetMonth = state.currentMonth;
+
+            const confirmMsg = isCurrentlyClosed
+                ? `[${targetMonth}월] 마감 처리를 '취소'하시겠습니까?\n\n※ 마감 취소 시 일반 사용자(위촉자 등)에게 해당 월의 데이터가 숨겨집니다.`
+                : `[${targetMonth}월] 데이터를 '마감 하기' 처리하시겠습니까?\n\n※ 마감 처리 후 일반 사용자(위촉자 등)가 해당 월의 데이터를 조회할 수 있게 됩니다.`;
+
+            if (!confirm(confirmMsg)) return;
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 처리중...`;
+            }
+
+            try {
+                const res = await callApi('toggleMonthClosing', targetMonth, !isCurrentlyClosed, state.user.staffId);
+                if (res && res.success) {
+                    alert(res.message);
+                    // 세션 캐시 무효화
+                    sessionStorage.removeItem('APP_MONTH_LIST');
+                    await checkMonthClosingStatus();
+                } else {
+                    alert(res.message || '마감 처리 중 오류가 발생했습니다.');
+                    if (btn) btn.disabled = false;
+                }
+            } catch (e) {
+                alert('서버 통신 오류가 발생했습니다: ' + e.message);
+                if (btn) btn.disabled = false;
+            }
         };
 
         // 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
