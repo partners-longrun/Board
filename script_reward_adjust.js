@@ -41,14 +41,22 @@
                     }
                 }
 
-                // state.months(서버 및 세션에 등록된 실제 마감월 데이터) 병합
-                if (typeof state !== 'undefined' && Array.isArray(state.months)) {
-                    state.months.forEach(m => {
-                        const mClean = String(m).trim();
-                        if (/^\d{6}$/.test(mClean) && !months.includes(mClean)) {
-                            months.push(mClean);
+                // state.months 및 state.currentMonth(서버 및 세션에 등록된 실제 마감월 데이터) 병합
+                if (typeof state !== 'undefined') {
+                    if (Array.isArray(state.months)) {
+                        state.months.forEach(m => {
+                            const mClean = String(m).trim();
+                            if (/^\d{6}$/.test(mClean) && !months.includes(mClean)) {
+                                months.push(mClean);
+                            }
+                        });
+                    }
+                    if (state.currentMonth) {
+                        const curClean = String(state.currentMonth).trim();
+                        if (/^\d{6}$/.test(curClean) && !months.includes(curClean)) {
+                            months.push(curClean);
                         }
-                    });
+                    }
                 }
                 
                 // 고유값 및 내림차순 정렬
@@ -58,7 +66,7 @@
             }
 
             const adjMonths = getAdjMonthsList();
-            const defaultSelectedMonth = (typeof state !== 'undefined' && state.currentMonth && adjMonths.includes(state.currentMonth))
+            const defaultSelectedMonth = (typeof state !== 'undefined' && state.currentMonth)
                 ? state.currentMonth
                 : (adjMonths[0] || '');
 
@@ -474,16 +482,18 @@
                         return 0;
                     }
 
-                    // 헬퍼 3: 회차 또는 경과월(차월) 산출
-                    function getRowRoundOrElapsed(row) {
+                    // 헬퍼 3: 회차 또는 경과월(차월) 산출 (지급: 경과차월/납입회차, 환수: 미유지/실효회차)
+                    function getRowRoundOrElapsed(row, isRefund) {
                         const roundVal = String(row['납입회차'] || row['회차'] || '').trim();
                         if (roundVal !== '') {
                             const parsedR = parseInt(roundVal.replace(/[^0-9]/g, ''), 10);
                             if (!isNaN(parsedR) && parsedR > 0) {
-                                return parsedR;
+                                // 환수 건: 원장의 회차가 최종납입회차이므로 +1 하여 미유지(실효) 회차 적용
+                                // 지급 건: 원장의 회차 그대로 적용
+                                return isRefund ? (parsedR + 1) : parsedR;
                             }
                         }
-                        // 납입회차가 없으면 마감월과 계약월 간 경과차월 계산 (계약당월 = 1차월, 24년 5월 계약 -> 25년 7월 마감 = 15차월)
+                        // 회차가 기재되지 않은 경우: 마감월과 계약월 간 경과차월 기준 계산 (계약당월 = 1차월)
                         const cMonth = parseContractMonth(row['계약일'] || row['계약일자'] || row['계약월']);
                         const mMonth = parseMonthNumber(row['마감월']);
                         if (cMonth > 0 && mMonth > 0) {
@@ -492,9 +502,13 @@
                             const mYear = Math.floor(mMonth / 100);
                             const mM = mMonth % 100;
                             const elapsed = (mYear - cYear) * 12 + (mM - cM) + 1;
+                            if (isRefund) {
+                                // 환수 건: 마감월 실효 시 2개월 미납 기준이므로 최종 납입은 마감-2차월, 미유지 회차는 마감-1차월 (예: 1월 계약, 7월 마감 -> 6회차 실효)
+                                return elapsed > 1 ? (elapsed - 1) : 1;
+                            }
                             return elapsed > 0 ? elapsed : 0;
                         }
-                        return 0;
+                        return isRefund ? 1 : 0;
                     }
 
                     // 헬퍼 4: 시상률 파싱
@@ -521,9 +535,9 @@
                         const rowAgentName = String(row['모집인'] || '').trim();
                         const rowAgentId = String(row['사번'] || '').trim();
                         const rowContractMonth = parseContractMonth(row['계약일'] || row['계약일자'] || row['계약월']);
-                        const rowRoundOrElapsed = getRowRoundOrElapsed(row);
                         const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
                         const rowPayRefundType = isRowRefund ? '환수' : '지급';
+                        const rowRoundOrElapsed = getRowRoundOrElapsed(row, isRowRefund);
 
                         // [방식 B] 지급 / 환수 분기 매칭 및 곱연산
                         let defaultLeaderVal = '';

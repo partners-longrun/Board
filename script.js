@@ -4223,9 +4223,10 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                                     엑셀저장
                                 </button>
-                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 w-max max-w-xs px-3 py-2 bg-gray-900/95 text-white text-xs rounded-lg shadow-2xl backdrop-blur-sm pointer-events-none transition duration-200 text-center leading-relaxed whitespace-pre-line">
+                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 w-max px-3.5 py-2 bg-gray-900/95 text-white text-xs rounded-lg shadow-2xl backdrop-blur-sm pointer-events-none transition duration-200 text-center leading-relaxed whitespace-nowrap">
                                     <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900/95"></div>
-                                    위촉자와 해촉자를 한 시트에 저장하고,<br>실효, 연체 계약만 저장합니다.
+                                    <div>위촉자와 해촉자를 한 시트에 저장하고,</div>
+                                    <div>실효, 연체 계약만 저장합니다.</div>
                                 </div>
                             </div>
                         </div>
