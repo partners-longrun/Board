@@ -4517,17 +4517,33 @@
                             </div>
                         </div>
 
-                        <!-- 정렬 드롭박스 -->
-                        <div class="relative min-w-[160px] flex-1 sm:flex-none">
-                            <select id="retentionAdminSort" class="w-full appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm text-gray-700 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition cursor-pointer">
-                                <option value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'selected' : ''}>13회유지율 최저순</option>
-                                <option value="highest13" ${state.retentionSortOrder === 'highest13' ? 'selected' : ''}>13회유지율 최고순</option>
-                                <option value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'selected' : ''}>25회유지율 최저순</option>
-                                <option value="highest25" ${state.retentionSortOrder === 'highest25' ? 'selected' : ''}>25회유지율 최고순</option>
-                                <option value="id" ${state.retentionSortOrder === 'id' ? 'selected' : ''}>사번순</option>
-                            </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                                <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <!-- 정렬 세그먼트 컨트롤 (캡슐 버튼) -->
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+                                <span class="w-1.5 h-3 bg-primary rounded-sm inline-block"></span>
+                                정렬
+                            </label>
+                            <div id="retentionSortRadioGroup" class="inline-flex flex-wrap p-1 bg-gray-200/60 rounded-xl gap-0.5 border border-gray-200/80">
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="retentionSortRadio" value="id" ${state.retentionSortOrder === 'id' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">사번</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="retentionSortRadio" value="lowest13" ${state.retentionSortOrder === 'lowest13' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">13회 최저</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="retentionSortRadio" value="lowest25" ${state.retentionSortOrder === 'lowest25' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">25회 최저</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="retentionSortRadio" value="highest13" ${state.retentionSortOrder === 'highest13' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">13회 최고</span>
+                                </label>
+                                <label class="cursor-pointer select-none">
+                                    <input type="radio" name="retentionSortRadio" value="highest25" ${state.retentionSortOrder === 'highest25' ? 'checked' : ''} class="sr-only peer">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all inline-block text-gray-600 hover:text-gray-900 peer-checked:bg-primary peer-checked:text-white peer-checked:shadow-sm">25회 최고</span>
+                                </label>
                             </div>
                         </div>
 
@@ -4670,7 +4686,7 @@
                 populateOrgFilter(state.data.retentionAdminSummary);
 
                 const searchInput = div.querySelector('#retentionAdminSearch');
-                const sortSelect = div.querySelector('#retentionAdminSort');
+                const sortRadios = div.querySelectorAll('input[name="retentionSortRadio"]');
                 const orgSelect = div.querySelector('#retentionAdminOrgFilter');
                 const hideNoRateCheck = div.querySelector('#retentionHideNoRate');
 
@@ -4679,9 +4695,13 @@
                 };
 
                 searchInput.addEventListener('input', updateView);
-                sortSelect.addEventListener('change', (e) => {
-                    state.retentionSortOrder = e.target.value;
-                    updateView();
+                sortRadios.forEach(r => {
+                    r.addEventListener('change', (e) => {
+                        if (e.target.checked) {
+                            state.retentionSortOrder = e.target.value;
+                            updateView();
+                        }
+                    });
                 });
                 orgSelect.addEventListener('change', (e) => {
                     state.retentionOrgFilter = e.target.value;
