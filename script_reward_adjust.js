@@ -15,17 +15,17 @@
             // 엑셀 파싱 원천 데이터 임시 보관소
             let uploadedParsedRows = []; 
 
-            // 202510부터 전월(현재 일 기준)까지의 마감월 목록 동적 생성 헬퍼
+            // 202510부터 현재월/익월 및 state.months(실제 데이터 월)를 포함한 마감월 목록 동적 생성 헬퍼
             function getAdjMonthsList() {
                 const months = [];
                 const startYear = 2025;
                 const startMonth = 10;
                 
                 const now = new Date();
-                // 전월 계산
-                const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const endYear = prevDate.getFullYear();
-                const endMonth = prevDate.getMonth() + 1;
+                // 익월(현재월 + 1개월)까지 생성하여 당월 및 익월 마감작업 지원
+                const targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                const endYear = targetDate.getFullYear();
+                const endMonth = targetDate.getMonth() + 1;
                 
                 let currYear = startYear;
                 let currMonth = startMonth;
@@ -40,12 +40,27 @@
                         currYear++;
                     }
                 }
-                // 최신 월(전월)이 가장 상단에 오도록 내림차순 정렬
-                return months.reverse();
+
+                // state.months(서버 및 세션에 등록된 실제 마감월 데이터) 병합
+                if (typeof state !== 'undefined' && Array.isArray(state.months)) {
+                    state.months.forEach(m => {
+                        const mClean = String(m).trim();
+                        if (/^\d{6}$/.test(mClean) && !months.includes(mClean)) {
+                            months.push(mClean);
+                        }
+                    });
+                }
+                
+                // 고유값 및 내림차순 정렬
+                const uniqueMonths = [...new Set(months)];
+                uniqueMonths.sort((a, b) => b.localeCompare(a));
+                return uniqueMonths;
             }
 
             const adjMonths = getAdjMonthsList();
-            const defaultSelectedMonth = adjMonths[0] || ''; // 내림차순 첫 항목 = 전월
+            const defaultSelectedMonth = (typeof state !== 'undefined' && state.currentMonth && adjMonths.includes(state.currentMonth))
+                ? state.currentMonth
+                : (adjMonths[0] || '');
 
             // 천원 단위 쉼표 포맷 헬퍼
             function formatNumberWithCommas(val) {
@@ -265,7 +280,7 @@
                                     <th style="width: 75px; min-width: 75px; white-space: nowrap;" class="p-3">소속</th>
                                     <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3 text-center">지급환수</th>
                                     <th class="p-3">증권번호</th>
-                                    <th style="width: 75px; min-width: 75px; white-space: nowrap;" class="p-3">모집자</th>
+                                    <th style="width: 75px; min-width: 75px; white-space: nowrap;" class="p-3">모집인</th>
                                     <th style="width: 60px; min-width: 60px; white-space: nowrap;" class="p-3">계약자</th>
                                     <th id="thContractDate" style="width: 95px; min-width: 95px; white-space: nowrap;" class="p-3 font-mono cursor-pointer select-none hover:bg-gray-200/70 transition" title="클릭하여 오름차순/내림차순/정렬취소 토글">
                                         계약일 <span id="contractDateSortIcon" class="text-gray-400 font-bold ml-0.5">⇅</span>
@@ -773,6 +788,14 @@
 
                             if (hasRatio) {
                                 finalRatio2 = isRowRefund ? -Math.abs(targetRatio2) : targetRatio2;
+
+                                // 환수의 경우: 지급비율2의 절대값은 원본 시상률(rateFloat)의 절대값을 초과할 수 없음 (초과 시 시상률 값 그대로 적용)
+                                if (isRowRefund && Math.abs(rateFloat) > 0) {
+                                    if (Math.abs(finalRatio2) > Math.abs(rateFloat)) {
+                                        finalRatio2 = rateFloat;
+                                    }
+                                }
+
                                 finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
                                 if (isRowRefund && finalPay2 > 0) {
                                     finalPay2 = -finalPay2;
