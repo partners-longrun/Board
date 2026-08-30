@@ -4218,10 +4218,16 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                                 프린트
                             </button>
-                            <button onclick="downloadAllLapseAdminExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm flex-1 sm:flex-none">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                엑셀저장
-                            </button>
+                            <div class="relative group flex-1 sm:flex-none">
+                                <button onclick="downloadAllLapseAdminExcel()" title="위촉자와 해촉자를 한 시트에 저장하고,&#10;실효, 연체 계약만 저장합니다." class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    엑셀저장
+                                </button>
+                                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 w-max max-w-xs px-3 py-2 bg-gray-900/90 text-white text-xs rounded-lg shadow-xl backdrop-blur-sm pointer-events-none transition duration-200 text-center leading-relaxed whitespace-pre-line">
+                                    위촉자와 해촉자를 한 시트에 저장하고,<br>실효, 연체 계약만 저장합니다.
+                                    <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900/90"></div>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto justify-center">
                             <button onclick="setLapseBaseType('recruiter')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
@@ -5250,106 +5256,156 @@
                         };
                     });
                     
-                    let prevId = null;
-                    
-                    list.forEach(x => {
-                        const currentId = x['사번'];
-                        const currentName = state.lapseBaseType === 'collector' ? x['수금인명'] : x['모집인명'];
-                        
-                        // 파트너(사번) 변경 시 구분선 주입 (맨 첫 번째 사원 위에도 포함하도록 prevId가 null이어도 무조건 맨 처음에 들어감)
-                        if (prevId !== currentId) {
-                            const mergeRow = worksheet.addRow([`${currentName} (${currentId})`]);
-                            worksheet.mergeCells(mergeRow.number, 1, mergeRow.number, 12);
+                    // 위촉자와 해촉자 분리
+                    const activeList = list.filter(x => !x.isResigned);
+                    const resignedList = list.filter(x => !!x.isResigned);
+
+                    // 리스트 렌더링 헬퍼 함수
+                    const renderListToSheet = (dataList) => {
+                        let prevId = null;
+                        dataList.forEach(x => {
+                            const currentId = x['사번'];
+                            const currentName = state.lapseBaseType === 'collector' ? x['수금인명'] : x['모집인명'];
                             
-                            // 구분선 스타일 지정
-                            mergeRow.getCell(1).fill = {
-                                type: 'pattern',
-                                pattern: 'solid',
-                                fgColor: { argb: 'FFF3F4F6' }
-                            };
-                            mergeRow.getCell(1).font = {
-                                name: '맑은 고딕',
-                                size: 10,
-                                color: { argb: 'FF374151' },
-                                bold: true
-                            };
-                            mergeRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                            
-                            for (let i = 1; i <= 12; i++) {
-                                const cell = mergeRow.getCell(i);
-                                cell.border = {
-                                    top: { style: 'medium', color: { argb: 'FF9CA3AF' } },
-                                    bottom: { style: 'medium', color: { argb: 'FF9CA3AF' } },
-                                    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                                    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                            // 파트너(사번) 변경 시 구분선 주입
+                            if (prevId !== currentId) {
+                                const mergeRow = worksheet.addRow([`${currentName} (${currentId})`]);
+                                worksheet.mergeCells(mergeRow.number, 1, mergeRow.number, 12);
+                                
+                                // 구분선 스타일 지정
+                                mergeRow.getCell(1).fill = {
+                                    type: 'pattern',
+                                    pattern: 'solid',
+                                    fgColor: { argb: 'FFF3F4F6' }
                                 };
-                            }
-                        }
-                        
-                        const dataRow = worksheet.addRow([
-                            x['계약상태'] || '-',
-                            x['모집인명'] || '-',
-                            x['수금인명'] || '-',
-                            x['보험사'] || '-',
-                            x['증권번호'] || '-',
-                            x['상품명'] || '-',
-                            Number(x['계속보험료'] || 0),
-                            formatLapseDate(x['계약일']),
-                            x['납입회차'] || '-',
-                            x['최종납입월'] || '-',
-                            x['계약자'] || '-',
-                            formatLapseDate(x['데이터기준일'])
-                        ]);
-                        
-                        dataRow.eachCell((cell, colNumber) => {
-                            cell.font = { name: '맑은 고딕', size: 10 };
-                            cell.border = {
-                                top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                                left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                                bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
-                                right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
-                            };
-                            
-                            if (colNumber === 1) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
-                                if (cell.value === '실효') {
-                                    cell.font.color = { argb: 'FFEF4444' };
-                                    cell.font.bold = true;
-                                } else if (cell.value === '연체') {
-                                    cell.font.color = { argb: 'FF2563EB' };
-                                    cell.font.bold = true;
+                                mergeRow.getCell(1).font = {
+                                    name: '맑은 고딕',
+                                    size: 10,
+                                    color: { argb: 'FF374151' },
+                                    bold: true
+                                };
+                                mergeRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                                
+                                for (let i = 1; i <= 12; i++) {
+                                    const cell = mergeRow.getCell(i);
+                                    cell.border = {
+                                        top: { style: 'medium', color: { argb: 'FF9CA3AF' } },
+                                        bottom: { style: 'medium', color: { argb: 'FF9CA3AF' } },
+                                        left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                        right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                                    };
                                 }
                             }
-                            else if ([2, 3, 8, 9, 10, 11, 12].includes(colNumber)) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
-                            }
-                            else if (colNumber === 5) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                                cell.numFmt = '@';
-                            }
-                            else if (colNumber === 7) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false };
-                                cell.numFmt = '#,##0';
-                            }
-                            else if (colNumber === 6) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                            }
-                            else if (colNumber === 4) {
-                                cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
-                            }
+                            
+                            const rawPolicyNo = x['증권번호'] || '-';
+                            const policyNoVal = (!isNaN(Number(rawPolicyNo)) && String(rawPolicyNo).trim() !== '' && !String(rawPolicyNo).includes('-') && !String(rawPolicyNo).includes(' ')) ? Number(rawPolicyNo) : rawPolicyNo;
+
+                            const dataRow = worksheet.addRow([
+                                x['계약상태'] || '-',
+                                x['모집인명'] || '-',
+                                x['수금인명'] || '-',
+                                x['보험사'] || '-',
+                                policyNoVal,
+                                x['상품명'] || '-',
+                                Number(x['계속보험료'] || 0),
+                                formatLapseDate(x['계약일']),
+                                x['납입회차'] || '-',
+                                x['최종납입월'] || '-',
+                                x['계약자'] || '-',
+                                formatLapseDate(x['데이터기준일'])
+                            ]);
+                            
+                            dataRow.eachCell((cell, colNumber) => {
+                                cell.font = { name: '맑은 고딕', size: 10 };
+                                cell.border = {
+                                    top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                                    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+                                };
+                                
+                                if (colNumber === 1) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                    if (cell.value === '실효') {
+                                        cell.font.color = { argb: 'FFEF4444' };
+                                        cell.font.bold = true;
+                                    } else if (cell.value === '연체') {
+                                        cell.font.color = { argb: 'FF2563EB' };
+                                        cell.font.bold = true;
+                                    }
+                                }
+                                else if ([2, 3, 8, 9, 10, 11, 12].includes(colNumber)) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                }
+                                else if (colNumber === 5) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+                                    cell.numFmt = '0';
+                                }
+                                else if (colNumber === 7) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: false };
+                                    cell.numFmt = '#,##0';
+                                }
+                                else if (colNumber === 6) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                                }
+                                else if (colNumber === 4) {
+                                    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                                }
+                            });
+                            
+                            prevId = currentId;
                         });
+                    };
+
+                    // 1. 위촉자 리스트업
+                    if (activeList.length > 0) {
+                        renderListToSheet(activeList);
+                    }
+
+                    // 2. 해촉자 리스트업 (해촉자가 존재할 경우 해촉자 타이틀 행 추가 후 리스트업)
+                    if (resignedList.length > 0) {
+                        const resignedTitleRow = worksheet.addRow(['■ 해촉자']);
+                        worksheet.mergeCells(resignedTitleRow.number, 1, resignedTitleRow.number, 12);
                         
-                        prevId = currentId;
-                    });
+                        // 해촉자 타이틀 스타일 지정
+                        resignedTitleRow.getCell(1).fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFE2E8F0' }
+                        };
+                        resignedTitleRow.getCell(1).font = {
+                            name: '맑은 고딕',
+                            size: 11,
+                            color: { argb: 'FF1E293B' },
+                            bold: true
+                        };
+                        resignedTitleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+                        
+                        for (let i = 1; i <= 12; i++) {
+                            const cell = resignedTitleRow.getCell(i);
+                            cell.border = {
+                                top: { style: 'medium', color: { argb: 'FF64748B' } },
+                                bottom: { style: 'medium', color: { argb: 'FF64748B' } },
+                                left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+                                right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+                            };
+                        }
+
+                        renderListToSheet(resignedList);
+                    }
                     
-                    // 열 너비 계산 및 자동 지정
+                    // 열 너비 계산 및 자동 지정 (증권번호 열은 18로 고정)
                     worksheet.columns.forEach((column) => {
+                        if (column.number === 5) {
+                            column.width = 18;
+                            return;
+                        }
                         let maxLen = 10;
                         column.eachCell({ includeEmpty: false }, (cell) => {
                             const row = worksheet.getRow(cell.row);
                             const firstVal = String(row.getCell(1).value || '');
-                            // 구분선 행(병합된 행)은 열 너비 계산에서 제외
-                            if (firstVal.includes('(') && firstVal.includes(')')) {
+                            // 구분선 행(병합된 행) 및 해촉자 타이틀 행은 열 너비 계산에서 제외
+                            if ((firstVal.includes('(') && firstVal.includes(')')) || firstVal.startsWith('■')) {
                                 return;
                             }
                             
@@ -5362,6 +5418,9 @@
                         });
                         column.width = Math.min(Math.max(maxLen + 3, 10), 45);
                     });
+                    
+                    // 증권번호 열(5번) 너비 18 고정 보장
+                    worksheet.getColumn(5).width = 18;
                     
                     const baseTypeName = state.lapseBaseType === 'collector' ? '수금인' : '모집인';
                     const fileName = `실효연체관리_${baseTypeName}기준_전체_${new Date().toISOString().substring(0, 10)}.xlsx`;
