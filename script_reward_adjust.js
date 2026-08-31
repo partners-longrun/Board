@@ -1313,7 +1313,10 @@
                 function getDisplayList() {
                     const onlyRetired = chkRetiredOnly && chkRetiredOnly.checked;
                     if (!onlyRetired) return listData;
-                    return listData.filter(row => row['퇴사여부'] === 'Y');
+                    return listData.filter(row => {
+                        const val = String(row['퇴사여부'] || '').trim().toUpperCase();
+                        return val === 'Y' || (val !== '' && val !== 'N' && val !== 'NO' && val !== 'FALSE' && val !== '-');
+                    });
                 }
 
                 // 합계 행 계산 및 출력 함수
