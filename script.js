@@ -6517,7 +6517,7 @@
                                     <th class="px-2 py-2.5 text-center border-r border-gray-100">사번</th>
                                     <th class="px-2 py-2.5 text-center border-r border-gray-100">입사년월</th>
                                     <th class="px-2 py-2.5 text-center border-r border-gray-200">1년경과</th>
-                                    <th class="px-2 py-2.5 text-right bg-violet-50/10 border-r border-gray-200" title="(생보 × 900%) + (손보 × 850%)">직전 마감월</th>
+                                    <th class="px-2 py-2.5 text-right bg-violet-50/10 border-r border-gray-200" title="(생보 × 900%) + (손보 × 750%)">직전 마감월</th>
                                     <th class="px-2 py-2.5 text-right bg-blue-50/10 border-r border-gray-100" title="직전 3개월 총수당 × 130%">3개월 (130%)</th>
                                     <th class="px-2 py-2.5 text-right bg-blue-50/10 border-r border-gray-100" title="직전 6개월 총수당 × 60%">6개월 (60%)</th>
                                     <th class="px-2 py-2.5 text-right bg-blue-50/10 border-r border-gray-100" title="직전 9개월 총수당 × 40%">9개월 (40%)</th>
@@ -6546,9 +6546,9 @@
                 return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
             }
 
-            // 직전 마감월 기준액: (생보 × 900%) + (손보 × 850%)
+            // 직전 마감월 기준액: (생보 × 900%) + (손보 × 750%)
             function calcLastMonth(u) {
-                return Math.round((u.lifePremium || 0) * 9 + (u.nonLifePremium || 0) * 8.5);
+                return Math.round((u.lifePremium || 0) * 9 + (u.nonLifePremium || 0) * 7.5);
             }
             // 기준액: 백엔드에서 이미 multiplier 적용됨
             // allowance3m = 3m총수당 × 1.3
