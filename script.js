@@ -422,7 +422,7 @@
 
                     if (isExecutive) {
                         // 지사대표 & 최고 운영진: 전체 인원 및 전체 실적
-                        systemPrompt = "당신은 GA(보험대리점) 파트너스본부의 최고 전략 컨설턴트입니다. 지사대표와 최고 운영진을 위한 '당월 마감 AI 종합 브리핑'을 작성하십시오. 전체 파트너들의 실적 흐름, 전반적인 계약 건전성(유지율/실효연체), 마감 전 최고 리더가 챙겨야 할 핵심 관리 전략을 개조식(Bullet points) 4~5줄로 간결하고 통찰력 있게 작성하십시오.";
+                        systemPrompt = "당신은 GA(보험대리점) 파트너스본부의 최고 전략 컨설턴트입니다. 지사대표와 최고 운영진을 위한 '당월 마감 AI 종합 브리핑'을 반드시 한국어로만 작성하십시오. 영어, 사고 과정(CoT), 시스템 역할 설명 등은 일체 출력하지 마십시오. 전체 파트너들의 실적 흐름, 전반적인 계약 건전성(유지율/실효연체), 마감 전 최고 리더가 챙겨야 할 핵심 관리 전략을 한국어 개조식(Bullet points) 4~5줄로 간결하고 통찰력 있게 작성하십시오.";
                         let summaryTxt = `마감월: ${state.currentMonth}`;
                         if (state.data.adminSummary?.reward?.active) {
                             const list = state.data.adminSummary.reward.active;
@@ -430,17 +430,17 @@
                             list.forEach(x => { totalPrem += (x.nlPrem || 0); totalPay += (x.totalPay || 0); });
                             summaryTxt += `, 위촉 파트너 수: ${list.length}명, 손보 신계약 총액: 약 ${Math.round(totalPrem / 10000)}만원, 총지급 시상금: 약 ${Math.round(totalPay / 10000)}만원`;
                         }
-                        userPrompt = `보고 대상: 파트너스본부 전체, ${summaryTxt}. 이 데이터를 바탕으로 최고 리더를 위한 당월 총평과 핵심 리스크 방어 전략 브리핑을 작성해줘.`;
+                        userPrompt = `보고 대상: 파트너스본부 전체, ${summaryTxt}. 이 데이터를 바탕으로 최고 리더를 위한 당월 총평과 핵심 리스크 방어 전략 브리핑을 오직 자연스러운 한국어로만 작성해줘.`;
                     } else if (isManager) {
                         // 관리자: 본인 소속 조직의 인원 및 실적
                         const myOrg = state.user.organization || '담당 소속';
-                        systemPrompt = `당신은 GA 파트너스본부의 관리자 코칭 전문가입니다. 관리자가 담당하는 [${myOrg}] 소속 파트너들을 위한 '당월 조직 AI 브리핑'을 작성하십시오. 소속 파트너들의 실적 흐름과 유지율/실효연체 관리 포인트를 개조식 3~4줄로 명확하게 작성하십시오.`;
+                        systemPrompt = `당신은 GA 파트너스본부의 관리자 코칭 전문가입니다. 관리자가 담당하는 [${myOrg}] 소속 파트너들을 위한 '당월 조직 AI 브리핑'을 반드시 한국어로만 작성하십시오. 영어 및 사고 과정 원문은 출력하지 마십시오. 소속 파트너들의 실적 흐름과 유지율/실효연체 관리 포인트를 한국어 개조식 3~4줄로 명확하게 작성하십시오.`;
                         let orgTxt = `담당 소속: ${myOrg}, 마감월: ${state.currentMonth}`;
                         if (state.data.adminSummary?.reward?.active) {
                             const list = state.data.adminSummary.reward.active;
                             orgTxt += `, 소속 파트너 수: ${list.length}명`;
                         }
-                        userPrompt = `${orgTxt}. 이 소속 조직의 성과 향상과 계약 유지를 위한 관리자용 핵심 코칭 브리핑을 작성해줘.`;
+                        userPrompt = `${orgTxt}. 이 소속 조직의 성과 향상과 계약 유지를 위한 관리자용 핵심 코칭 브리핑을 오직 한국어로만 작성해줘.`;
                     } else {
                         // 일반 파트너: 본인 1인 맞춤형
                         const myName = state.user.name;
@@ -448,8 +448,8 @@
                         const lapsedCnt = state.lapseData?.lapsed?.length || 0;
                         const arrearsCnt = state.lapseData?.arrears?.length || 0;
                         const unpaidCnt = state.lapseData?.unpaid?.length || 0;
-                        systemPrompt = `당신은 파트너스본부의 따뜻하고 유능한 1:1 파트너 전담 AI 코치입니다. [${myName} 파트너]의 실적과 계약 상태를 분석하여, 진심 어린 격려와 함께 이번 달 수당 극대화 및 계약 유지를 위한 맞춤형 행동 지침을 친절하고 명확하게 3~4줄로 작성하십시오.`;
-                        userPrompt = `파트너명: ${myName}, 마감월: ${state.currentMonth}, 13회차 통산유지율: ${myRet}, 당월 실효: ${lapsedCnt}건, 당월 연체: ${arrearsCnt}건, 당월 미납: ${unpaidCnt}건. 맞춤형 코칭 브리핑을 작성해줘.`;
+                        systemPrompt = `당신은 파트너스본부의 따뜻하고 유능한 1:1 파트너 전담 AI 코치입니다. [${myName} 파트너]의 실적과 계약 상태를 분석하여, 반드시 한국어로만 친절하고 명확하게 3~4줄로 작성하십시오. 영어는 사용하지 마십시오.`;
+                        userPrompt = `파트너명: ${myName}, 마감월: ${state.currentMonth}, 13회차 통산유지율: ${myRet}, 당월 실효: ${lapsedCnt}건, 당월 연체: ${arrearsCnt}건, 당월 미납: ${unpaidCnt}건. 맞춤형 코칭 브리핑을 오직 한국어로만 작성해줘.`;
                     }
 
                     const aiText = await callGeminiAI(systemPrompt, userPrompt);
@@ -4357,8 +4357,8 @@
 
                     try {
                         const topRisks = scoredList.slice(0, 10).map(x => `${x.name}(${x.org1 || '-'}): [${x.badgeLabel}] ${x.reasons.join(', ')}`).join('\n');
-                        const sysPrompt = `당신은 GA(보험대리점) 파트너스본부의 최고 감사 및 계약관리 리스크 통제 전문가입니다. 관리자를 위해 산하 파트너들의 유지율, 실효, 연체, 확인서 미제출 이상징후 데이터를 바탕으로 '마감 리스크 종합 방어 브리핑'을 작성하십시오. 환수 예방 및 유지율 관리를 위한 핵심 조치 사항을 개조식(Bullet points) 4~5줄로 전문적이고 강력하게 제시하십시오.`;
-                        const usrPrompt = `분석 대상: ${scopeLabel}, 마감월: ${state.currentMonth}\n점검인원: ${scoredList.length}명, 고위험: ${dangerCount}명, 경고: ${warnCount}명, 확인서 미제출 발생: ${unsubCount}명\n\n[주요 관리 대상 파트너 및 리스크 징후]\n${topRisks}\n\n위 데이터를 분석하여 마감 전 시급히 조치해야 할 실무 지침과 환수 방어 가이드를 작성해줘.`;
+                        const sysPrompt = `당신은 GA(보험대리점) 파트너스본부의 최고 감사 및 계약관리 리스크 통제 전문가입니다. 관리자를 위해 산하 파트너들의 유지율, 실효, 연체, 확인서 미제출 이상징후 데이터를 바탕으로 '마감 리스크 종합 방어 브리핑'을 반드시 한국어로만 작성하십시오. 영어, 사고 과정 원문 등은 일체 출력하지 마십시오. 환수 예방 및 유지율 관리를 위한 핵심 조치 사항을 한국어 개조식(Bullet points) 4~5줄로 전문적이고 강력하게 제시하십시오.`;
+                        const usrPrompt = `분석 대상: ${scopeLabel}, 마감월: ${state.currentMonth}\n점검인원: ${scoredList.length}명, 고위험: ${dangerCount}명, 경고: ${warnCount}명, 확인서 미제출 발생: ${unsubCount}명\n\n[주요 관리 대상 파트너 및 리스크 징후]\n${topRisks}\n\n위 데이터를 분석하여 마감 전 시급히 조치해야 할 실무 지침과 환수 방어 가이드를 오직 자연스러운 한국어로만 작성해줘.`;
 
                         const res = await callGeminiAI(sysPrompt, usrPrompt);
                         overviewCachedText = res || '진단 결과를 생성하지 못했습니다.';
@@ -4497,8 +4497,8 @@
             </div>`;
 
             try {
-                const sysPrompt = `당신은 GA 파트너스본부의 관리자 1:1 면담 코칭 전문가입니다. 관리자가 특정 파트너와 면담할 때 바로 꺼내어 쓸 수 있는 '핵심 면담 화법 & 조치 솔루션'을 2~3줄로 매우 구체적이고 부드럽지만 단호하게 작성하십시오.`;
-                const usrPrompt = `파트너: ${name}(${org}), 위험등급: ${riskLabel}, 감지사유: [${reasons}], 13회차유지율: ${ret13}, 실효: ${lapsed}건, 연체: ${arrears}건, 확인서미제출: ${unsubmitted}건. 관리자가 이 파트너에게 어떤 말로 대화를 시작하고 무엇을 즉시 조치시켜야 하는지 작성해줘.`;
+                const sysPrompt = `당신은 GA 파트너스본부의 관리자 1:1 면담 코칭 전문가입니다. 관리자가 특정 파트너와 면담할 때 바로 꺼내어 쓸 수 있는 '핵심 면담 화법 & 조치 솔루션'을 반드시 한국어로만 2~3줄로 매우 구체적이고 부드럽지만 단호하게 작성하십시오. 영어는 일체 사용하지 마십시오.`;
+                const usrPrompt = `파트너: ${name}(${org}), 위험등급: ${riskLabel}, 감지사유: [${reasons}], 13회차유지율: ${ret13}, 실효: ${lapsed}건, 연체: ${arrears}건, 확인서미제출: ${unsubmitted}건. 관리자가 이 파트너에게 어떤 말로 대화를 시작하고 무엇을 즉시 조치시켜야 하는지 오직 한국어로만 작성해줘.`;
 
                 const res = await callGeminiAI(sysPrompt, usrPrompt);
                 box.innerHTML = `<div class="font-semibold text-indigo-900 mb-1 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> 1:1 면담 코칭 가이드</div><div class="whitespace-pre-wrap leading-relaxed">${res || '가이드를 생성하지 못했습니다.'}</div>`;
