@@ -460,7 +460,24 @@
                     const aiText = await callGeminiAI(systemPrompt, userPrompt);
                     cachedText = aiText || 'AI 브리핑을 생성하지 못했습니다.';
                     sessionStorage.setItem(cacheKey, cachedText);
-                    renderCard(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-800 text-sm bg-white/80 p-4 rounded-xl border border-indigo-50 shadow-xs">${cachedText}</div>`);
+
+                    // 보기 좋은 카드/단락 형태로 포맷팅 렌더링
+                    const formatToPrettyHtml = (txt) => {
+                        const lines = txt.split('\n').filter(l => l.trim().length > 0);
+                        return lines.map(line => {
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith('#') || trimmed.startsWith('[') && trimmed.includes(']')) {
+                                return `<h4 class="text-sm font-extrabold text-indigo-950 mt-2 mb-1 flex items-center gap-1.5"><span class="w-1.5 h-3.5 bg-indigo-600 rounded-full inline-block"></span>${trimmed.replace(/^#+\s*/, '')}</h4>`;
+                            }
+                            if (trimmed.startsWith('*') || trimmed.startsWith('-') || /^\d+\./.test(trimmed)) {
+                                const clean = trimmed.replace(/^[\*\-\d\.]+\s*/, '');
+                                return `<div class="flex items-start gap-2 text-xs sm:text-sm text-slate-700 py-1 leading-relaxed"><span class="text-indigo-500 font-bold mt-0.5">•</span><span>${clean}</span></div>`;
+                            }
+                            return `<p class="text-xs sm:text-sm text-slate-700 py-1 leading-relaxed">${trimmed}</p>`;
+                        }).join('');
+                    };
+
+                    renderCard(`<div class="leading-relaxed font-medium bg-white/90 p-4 sm:p-5 rounded-xl border border-indigo-100/80 shadow-xs space-y-1">${formatToPrettyHtml(cachedText)}</div>`);
                 } catch (err) {
                     console.error(err);
                     renderCard(`<div class="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">AI 브리핑 생성 중 오류가 발생했습니다: ${err.message || err.toString()}</div>`);
@@ -4368,7 +4385,23 @@
                         const res = await callGeminiAI(sysPrompt, usrPrompt);
                         overviewCachedText = res || '진단 결과를 생성하지 못했습니다.';
                         sessionStorage.setItem(overviewCacheKey, overviewCachedText);
-                        renderAIOverview(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-100 text-sm bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">${overviewCachedText}</div>`);
+
+                        const formatAnomalyHtml = (txt) => {
+                            const lines = txt.split('\n').filter(l => l.trim().length > 0);
+                            return lines.map(line => {
+                                const trimmed = line.trim();
+                                if (trimmed.startsWith('#') || trimmed.startsWith('[') && trimmed.includes(']')) {
+                                    return `<h4 class="text-sm font-extrabold text-amber-300 mt-2 mb-1 flex items-center gap-1.5"><span class="w-1.5 h-3.5 bg-amber-400 rounded-full inline-block"></span>${trimmed.replace(/^#+\s*/, '')}</h4>`;
+                                }
+                                if (trimmed.startsWith('*') || trimmed.startsWith('-') || /^\d+\./.test(trimmed)) {
+                                    const clean = trimmed.replace(/^[\*\-\d\.]+\s*/, '');
+                                    return `<div class="flex items-start gap-2 text-xs sm:text-sm text-slate-100 py-1 leading-relaxed"><span class="text-amber-300 font-bold mt-0.5">•</span><span>${clean}</span></div>`;
+                                }
+                                return `<p class="text-xs sm:text-sm text-slate-100 py-1 leading-relaxed">${trimmed}</p>`;
+                            }).join('');
+                        };
+
+                        renderAIOverview(`<div class="leading-relaxed font-medium bg-white/10 p-4 sm:p-5 rounded-xl border border-white/10 backdrop-blur-sm space-y-1">${formatAnomalyHtml(overviewCachedText)}</div>`);
                     } catch (err) {
                         console.error('executeAIOverview error', err);
                         renderAIOverview(`<div class="p-4 bg-red-900/50 text-red-200 rounded-xl text-sm font-medium border border-red-500/40">AI 진단 오류: ${err.message || err.toString()}</div>`);
