@@ -2,6 +2,29 @@
         // 백그라운드 프리페치 활성화 (홈 화면 로드 후 유휴 시간에 다른 메뉴 사전 캐싱)
         const ENABLE_BACKGROUND_PREFETCH = true;
 
+        // Gemini AI API Configuration
+        const GEMINI_API_KEY = 'AIzaSyAbTT_4CCc0A_Mbmsjz6l-MLGQFVhJ6_uA';
+
+        async function callGeminiAI(systemInstruction, userPrompt) {
+            const apiKey = (window.GEMINI_API_KEY_CUSTOM || GEMINI_API_KEY || '').trim();
+            if (!apiKey) throw new Error("Gemini API 키가 설정되지 않았습니다.");
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: userPrompt }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] }
+                })
+            });
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`Gemini API Error (${response.status}): ${errText}`);
+            }
+            const data = await response.json();
+            return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        }
+
         async function callApi(action, ...args) {
             if (API_URL === 'INSERT_YOUR_GAS_WEB_APP_URL_HERE') {
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
@@ -300,6 +323,177 @@
             return div;
         }
 
+        // === 당월 마감 AI 종합 브리핑 위젯 컴포넌트 ===
+        async function renderAIBriefingWidget(containerEl, viewContext = 'home') {
+            if (!containerEl) return;
+
+            const isExecutive = isBranchRepAny() || isOpsAny();
+            const isManager = !isExecutive && isAdminAny();
+            const isSolo = !isExecutive && !isManager;
+
+            const cacheKey = `AI_BRIEFING_${state.user.staffId}_${state.currentMonth}_${isExecutive ? 'EXEC' : (isManager ? 'MGR' : 'SOLO')}`;
+            let cachedText = sessionStorage.getItem(cacheKey) || '';
+
+            // 권한별 타이틀 및 뱃지
+            let title = '';
+            let badgeText = '';
+            let subtitle = '';
+            if (isExecutive) {
+                title = '당월 마감 AI 종합 브리핑';
+                badgeText = '전체 조직 총괄';
+                subtitle = `Gemini AI가 ${state.currentMonth} 전체 파트너의 실적 추이와 계약 건전성 데이터를 종합 분석한 결과입니다.`;
+            } else if (isManager) {
+                title = `당월 마감 AI 브리핑 (${state.user.organization || '담당 소속'})`;
+                badgeText = '소속 관리자';
+                subtitle = `Gemini AI가 [${state.user.organization || '담당 소속'}] 소속 파트너들의 당월 실적 및 유지율 데이터를 분석한 결과입니다.`;
+            } else {
+                title = `${state.user.name} 님의 당월 스마트 AI 코칭 브리핑`;
+                badgeText = '개인 맞춤';
+                subtitle = `Gemini AI가 ${state.user.name} 님의 당월 실적, 유지율, 관리 필요 계약을 1:1 심층 분석한 결과입니다.`;
+            }
+
+            const renderCard = (contentHtml, isGenerating = false) => {
+                containerEl.innerHTML = `
+                <div class="bg-gradient-to-br from-indigo-50/90 via-blue-50/70 to-amber-50/60 border border-indigo-100/90 rounded-2xl shadow-sm p-4 sm:p-5 mb-6 transition-all duration-300">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3 border-b border-indigo-100/60 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-primary flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                                <svg class="w-4 h-4 text-amber-200 animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-sm sm:text-base text-gray-800 tracking-tight flex items-center gap-1.5">
+                                        ${title}
+                                    </h3>
+                                    <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-indigo-100 text-indigo-700">${badgeText}</span>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-0.5">${subtitle}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 self-end sm:self-auto">
+                            ${cachedText ? `
+                            <button id="ai-copy-btn" class="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <span>복사</span>
+                            </button>` : ''}
+                            <button id="ai-refresh-btn" ${isGenerating ? 'disabled' : ''} class="px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold shadow-xs transition flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                                <svg class="w-3.5 h-3.5 ${isGenerating ? 'animate-spin text-primary' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                <span>${cachedText ? '다시 분석' : '분석 실행'}</span>
+                            </button>
+                            ${cachedText ? `
+                            <button id="ai-toggle-btn" class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/60 transition cursor-pointer">
+                                <svg id="ai-toggle-icon" class="w-4 h-4 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>` : ''}
+                        </div>
+                    </div>
+                    <div id="ai-briefing-body">
+                        ${contentHtml}
+                    </div>
+                </div>`;
+
+                const refreshBtn = containerEl.querySelector('#ai-refresh-btn');
+                const copyBtn = containerEl.querySelector('#ai-copy-btn');
+                const toggleBtn = containerEl.querySelector('#ai-toggle-btn');
+                const bodyEl = containerEl.querySelector('#ai-briefing-body');
+                const toggleIcon = containerEl.querySelector('#ai-toggle-icon');
+
+                if (refreshBtn) refreshBtn.onclick = () => generateBriefing(true);
+                if (copyBtn) {
+                    copyBtn.onclick = () => {
+                        if (!cachedText) return;
+                        navigator.clipboard.writeText(cachedText).then(() => {
+                            copyBtn.innerHTML = `<svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span class="text-emerald-600 font-bold">복사완료</span>`;
+                            setTimeout(() => {
+                                copyBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg><span>복사</span>`;
+                            }, 2000);
+                        });
+                    };
+                }
+                if (toggleBtn && bodyEl && toggleIcon) {
+                    toggleBtn.onclick = () => {
+                        bodyEl.classList.toggle('hidden');
+                        toggleIcon.classList.toggle('rotate-180');
+                    };
+                }
+            };
+
+            const generateBriefing = async (force = false) => {
+                if (!force && cachedText) {
+                    renderCard(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-800 text-sm bg-white/80 p-4 rounded-xl border border-indigo-50 shadow-xs">${cachedText}</div>`);
+                    return;
+                }
+
+                renderCard(`
+                <div class="flex flex-col items-center justify-center py-6 text-indigo-600">
+                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p class="text-sm font-bold text-gray-700">Gemini AI가 실적 및 계약 건전성 데이터를 심층 분석하고 있습니다...</p>
+                    <p class="text-xs text-gray-400 mt-0.5">잠시만 기다려주세요 (약 2~3초 소요)</p>
+                </div>`, true);
+
+                try {
+                    let systemPrompt = "";
+                    let userPrompt = "";
+
+                    if (isExecutive) {
+                        // 지사대표 & 최고 운영진: 전체 인원 및 전체 실적
+                        systemPrompt = "당신은 GA(보험대리점) 파트너스본부의 최고 전략 컨설턴트입니다. 지사대표와 최고 운영진을 위한 '당월 마감 AI 종합 브리핑'을 작성하십시오. 전체 파트너들의 실적 흐름, 전반적인 계약 건전성(유지율/실효연체), 마감 전 최고 리더가 챙겨야 할 핵심 관리 전략을 개조식(Bullet points) 4~5줄로 간결하고 통찰력 있게 작성하십시오.";
+                        let summaryTxt = `마감월: ${state.currentMonth}`;
+                        if (state.data.adminSummary?.reward?.active) {
+                            const list = state.data.adminSummary.reward.active;
+                            let totalPrem = 0, totalPay = 0;
+                            list.forEach(x => { totalPrem += (x.nlPrem || 0); totalPay += (x.totalPay || 0); });
+                            summaryTxt += `, 위촉 파트너 수: ${list.length}명, 손보 신계약 총액: 약 ${Math.round(totalPrem / 10000)}만원, 총지급 시상금: 약 ${Math.round(totalPay / 10000)}만원`;
+                        }
+                        userPrompt = `보고 대상: 파트너스본부 전체, ${summaryTxt}. 이 데이터를 바탕으로 최고 리더를 위한 당월 총평과 핵심 리스크 방어 전략 브리핑을 작성해줘.`;
+                    } else if (isManager) {
+                        // 관리자: 본인 소속 조직의 인원 및 실적
+                        const myOrg = state.user.organization || '담당 소속';
+                        systemPrompt = `당신은 GA 파트너스본부의 관리자 코칭 전문가입니다. 관리자가 담당하는 [${myOrg}] 소속 파트너들을 위한 '당월 조직 AI 브리핑'을 작성하십시오. 소속 파트너들의 실적 흐름과 유지율/실효연체 관리 포인트를 개조식 3~4줄로 명확하게 작성하십시오.`;
+                        let orgTxt = `담당 소속: ${myOrg}, 마감월: ${state.currentMonth}`;
+                        if (state.data.adminSummary?.reward?.active) {
+                            const list = state.data.adminSummary.reward.active;
+                            orgTxt += `, 소속 파트너 수: ${list.length}명`;
+                        }
+                        userPrompt = `${orgTxt}. 이 소속 조직의 성과 향상과 계약 유지를 위한 관리자용 핵심 코칭 브리핑을 작성해줘.`;
+                    } else {
+                        // 일반 파트너: 본인 1인 맞춤형
+                        const myName = state.user.name;
+                        const myRet = state.data.homeData?.retentionRate || '-';
+                        const lapsedCnt = state.lapseData?.lapsed?.length || 0;
+                        const arrearsCnt = state.lapseData?.arrears?.length || 0;
+                        const unpaidCnt = state.lapseData?.unpaid?.length || 0;
+                        systemPrompt = `당신은 파트너스본부의 따뜻하고 유능한 1:1 파트너 전담 AI 코치입니다. [${myName} 파트너]의 실적과 계약 상태를 분석하여, 진심 어린 격려와 함께 이번 달 수당 극대화 및 계약 유지를 위한 맞춤형 행동 지침을 친절하고 명확하게 3~4줄로 작성하십시오.`;
+                        userPrompt = `파트너명: ${myName}, 마감월: ${state.currentMonth}, 13회차 통산유지율: ${myRet}, 당월 실효: ${lapsedCnt}건, 당월 연체: ${arrearsCnt}건, 당월 미납: ${unpaidCnt}건. 맞춤형 코칭 브리핑을 작성해줘.`;
+                    }
+
+                    const aiText = await callGeminiAI(systemPrompt, userPrompt);
+                    cachedText = aiText || 'AI 브리핑을 생성하지 못했습니다.';
+                    sessionStorage.setItem(cacheKey, cachedText);
+                    renderCard(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-800 text-sm bg-white/80 p-4 rounded-xl border border-indigo-50 shadow-xs">${cachedText}</div>`);
+                } catch (err) {
+                    console.error(err);
+                    renderCard(`<div class="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100">AI 브리핑 생성 중 오류가 발생했습니다: ${err.message || err.toString()}</div>`);
+                }
+            };
+
+            if (cachedText) {
+                renderCard(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-800 text-sm bg-white/80 p-4 rounded-xl border border-indigo-50 shadow-xs">${cachedText}</div>`);
+            } else {
+                renderCard(`
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/70 p-4 rounded-xl border border-indigo-50">
+                    <p class="text-sm text-gray-600 font-medium">
+                        ${isExecutive ? '전체 파트너 실적과 계약 건전성을 종합 진단하는 AI 브리핑을 확인해보세요.' : (isManager ? '담당 소속 파트너들의 실적과 유지율을 분석하는 맞춤 브리핑을 확인해보세요.' : '나의 당월 실적과 유지율을 바탕으로 한 1:1 AI 코칭 리포트를 확인해보세요.')}
+                    </p>
+                    <button id="ai-start-btn" class="px-4 py-2 bg-gradient-to-r from-indigo-600 to-primary text-white rounded-xl text-xs font-bold shadow-sm hover:from-indigo-700 hover:to-primaryHover transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4 text-amber-200" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <span>✨ AI 브리핑 생성</span>
+                    </button>
+                </div>`);
+                const startBtn = containerEl.querySelector('#ai-start-btn');
+                if (startBtn) startBtn.onclick = () => generateBriefing(true);
+            }
+        }
+
         function createHomeView() {
             const div = document.createElement('div');
 
@@ -334,7 +528,7 @@
             };
 
             div.innerHTML = `
-                <div class="mb-8 flex items-center justify-between gap-4">
+                <div class="mb-6 flex items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-gray-800 tracking-tight">안녕하세요, ${state.user.name}님 👋</h2>
                         <p class="text-gray-500 text-sm mt-2 font-medium bg-gray-100 inline-block px-3 py-1 rounded-full">파트너스 보드에 오신 것을 환영합니다.</p>
@@ -345,6 +539,9 @@
                         </svg>
                     </button>
                 </div>
+
+                <!-- 당월 마감 AI 종합 브리핑 위젯 영역 -->
+                <div id="home-ai-briefing-container"></div>
                 
                 <div class="mb-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -562,6 +759,11 @@
                     </div>` : ''}
                 </div>
             `;
+
+            setTimeout(() => {
+                const aiCont = div.querySelector('#home-ai-briefing-container');
+                if (aiCont) renderAIBriefingWidget(aiCont, 'home');
+            }, 10);
 
             return div;
         }
@@ -936,7 +1138,7 @@
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
                         <div class="px-6 py-4 mt-2">
                              <p class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 ml-1">Administration</p>
-                             ${(isBranchRepAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
+                             ${(isBranchRepAny() || isOpsAny() || isAdminAny()) ? sidebarLink('admin', '관리자', icons.admin) : ''}
                              ${isBranchRepAny() ? sidebarLink('branch', '지사대표', icons.branch) : ''}
                              ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('lapseAdmin', '실효연체관리', icons.lapseAdmin) : ''}
                              ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny()) ? sidebarLink('retentionAdmin', '유지율', icons.retentionAdmin) : ''}
@@ -1059,7 +1261,7 @@
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
-                            ${(isBranchRepAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(isBranchRepAny() || isOpsAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.admin}</span> 관리자
                             </a>` : ''}
                             ${isBranchRepAny() ? `<a href="#" data-nav="branch" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'branch' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
@@ -2648,6 +2850,9 @@
                 </div>
             </div>
 
+            <!-- 당월 마감 AI 종합 브리핑 위젯 영역 -->
+            <div id="branch-ai-briefing-container"></div>
+
             <!-- 행1: 요약 카드 3개 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div class="col-span-1">
@@ -2711,8 +2916,12 @@
                 </div>
             </div>`;
 
-            // 마감 상태 비동기 조회
-            setTimeout(checkMonthClosingStatus, 20);
+            // 마감 상태 비동기 조회 및 AI 브리핑 위젯 로드
+            setTimeout(() => {
+                checkMonthClosingStatus();
+                const aiCont = div.querySelector('#branch-ai-briefing-container');
+                if (aiCont) renderAIBriefingWidget(aiCont, 'branch');
+            }, 20);
 
             return div;
         }
@@ -3908,8 +4117,415 @@
             return div;
         }
 
+        function createAnomalyAdminView() {
+            const div = document.createElement('div');
+            const isExecutive = isBranchRepAny() || isOpsAny();
+            const scopeLabel = isExecutive ? '전체 파트너' : `소속 파트너 (${state.user.organization || '담당 소속'})`;
+
+            div.innerHTML = `
+            <div class="flex flex-col sm:flex-row justify-between mb-6 items-start sm:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl font-bold text-gray-800 tracking-tight">이상징후 탐지 AI (${state.currentMonth})</h2>
+                        <span class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700">${scopeLabel}</span>
+                    </div>
+                    <p class="text-gray-500 text-sm mt-1">유지율, 실효·연체·미납 및 신계약 확인서 데이터를 종합 분석하여 계약관리 리스크를 조기 진단합니다.</p>
+                </div>
+                <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
+                    <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">시상금</button>
+                    ${!isAdminAny() ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 text-gray-500 hover:text-gray-700">증원수당</button>` : ''}
+                    <button onclick="setAT('anomaly')" class="px-4 py-2 text-sm rounded-md transition duration-200 bg-white shadow-sm text-indigo-600 font-bold flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <span>이상징후 탐지 AI</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 요약 통계 카드 4개 -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 flex flex-col items-center text-center border-l-[5px] border-l-slate-400">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">점검 대상 파트너</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-gray-800" id="anomaly-stat-total">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 flex flex-col items-center text-center border-l-[5px] border-l-red-500">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">🔴 고위험 집중관리</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-red-500" id="anomaly-stat-danger">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 flex flex-col items-center text-center border-l-[5px] border-l-orange-400">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">🟠 경고 주의관리</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-orange-500" id="anomaly-stat-warning">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 flex flex-col items-center text-center border-l-[5px] border-l-purple-500">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">확인서 미제출 발생</p>
+                    <p class="text-2xl sm:text-3xl font-extrabold text-purple-600" id="anomaly-stat-unsub">-</p>
+                </div>
+            </div>
+
+            <!-- Gemini AI 이상징후 종합 전략 진단 배너 -->
+            <div id="anomaly-ai-overview-container" class="mb-6"></div>
+
+            <!-- 검색 및 필터 컨트롤 -->
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
+                <div class="relative w-full max-w-md">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
+                    </div>
+                    <input type="text" id="anomalySearch" placeholder="파트너 이름 또는 사번 검색" class="w-full pl-11 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition text-sm">
+                </div>
+
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+                    <div class="inline-flex p-1 bg-gray-100 rounded-xl gap-1 border border-gray-200/60" id="anomalyRiskFilterGroup">
+                        <button data-risk="ALL" class="anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-gray-800">전체</button>
+                        <button data-risk="DANGER" class="anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition text-gray-500 hover:text-red-600">🔴 고위험</button>
+                        <button data-risk="WARNING" class="anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition text-gray-500 hover:text-orange-600">🟠 경고</button>
+                        <button data-risk="CAUTION" class="anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition text-gray-500 hover:text-amber-600">🟡 주의</button>
+                        <button data-risk="SAFE" class="anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition text-gray-500 hover:text-emerald-600">🟢 양호</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 파트너별 이상징후 카드 그리드 리스트 -->
+            <div id="anomalyListContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="col-span-full flex items-center justify-center py-20">
+                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            </div>`;
+
+            setTimeout(async () => {
+                let list = [];
+                // 1. 실효연체 데이터 로드 (권한별 격리 적용된 API)
+                try {
+                    const res = await callApi('getAdminLapseArrearsSummary', state.user.staffId, 'recruiter');
+                    if (res && res.success && res.list) {
+                        list = res.list;
+                    }
+                } catch (e) {
+                    console.error('getAdminLapseArrearsSummary error in anomaly view', e);
+                }
+
+                // 2. 유지율 데이터 로드 (동일 권한 격리 적용)
+                let retentionMap = {};
+                try {
+                    const retRes = await callApi('getAdminRetentionSummary', state.user.staffId);
+                    if (retRes && retRes.success && retRes.list) {
+                        retRes.list.forEach(r => {
+                            retentionMap[String(r.id)] = r;
+                        });
+                    }
+                } catch (e) {
+                    console.error('getAdminRetentionSummary error in anomaly view', e);
+                }
+
+                // 3. 룰 기반 리스크 스코어링 및 결합
+                const scoredList = list.map(item => {
+                    const sid = String(item.id);
+                    const ret = retentionMap[sid] || {};
+                    const ret13 = ret.retention13Raw !== null && ret.retention13Raw !== undefined ? Number(ret.retention13Raw) : null;
+                    const ret25 = ret.retention25Raw !== null && ret.retention25Raw !== undefined ? Number(ret.retention25Raw) : null;
+
+                    const lapsed = Number(item.lapsed || 0);
+                    const arrears = Number(item.arrears || 0);
+                    const unpaid = Number(item.unpaid || 0);
+                    const unsubmitted = Number(item.unsubmitted || 0);
+
+                    let score = 0;
+                    const reasons = [];
+
+                    // 유지율 위험
+                    if (ret13 !== null && ret13 < 75) { score += 40; reasons.push(`13회차 유지율 극심(${ret13}%)`); }
+                    else if (ret13 !== null && ret13 < 85) { score += 20; reasons.push(`13회차 유지율 저조(${ret13}%)`); }
+
+                    if (ret25 !== null && ret25 < 70) { score += 20; reasons.push(`25회차 유지율 미달(${ret25}%)`); }
+
+                    // 실효 위험
+                    if (lapsed >= 5) { score += 40; reasons.push(`당월 실효 대량 발생(${lapsed}건)`); }
+                    else if (lapsed >= 2) { score += 25; reasons.push(`당월 실효 발생(${lapsed}건)`); }
+                    else if (lapsed === 1) { score += 10; reasons.push(`당월 실효 1건`); }
+
+                    // 연체 위험
+                    if (arrears >= 5) { score += 30; reasons.push(`당월 연체 누적(${arrears}건)`); }
+                    else if (arrears >= 2) { score += 15; reasons.push(`연체 계약 주의(${arrears}건)`); }
+
+                    // 확인서 미제출 (신계약 환수/수당 보류 직결)
+                    if (unsubmitted >= 3) { score += 30; reasons.push(`신계약 확인서 다수 미제출(${unsubmitted}건)`); }
+                    else if (unsubmitted >= 1) { score += 15; reasons.push(`확인서 미제출(${unsubmitted}건)`); }
+
+                    // 미납
+                    if (unpaid >= 4) { score += 15; reasons.push(`당월 미납 다수(${unpaid}건)`); }
+
+                    let riskLevel = 'SAFE';
+                    let badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    let badgeLabel = '🟢 양호';
+                    if (score >= 60) {
+                        riskLevel = 'DANGER';
+                        badgeColor = 'bg-red-50 text-red-700 border-red-200';
+                        badgeLabel = '🔴 고위험';
+                    } else if (score >= 35) {
+                        riskLevel = 'WARNING';
+                        badgeColor = 'bg-orange-50 text-orange-700 border-orange-200';
+                        badgeLabel = '🟠 경고';
+                    } else if (score >= 15) {
+                        riskLevel = 'CAUTION';
+                        badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                        badgeLabel = '🟡 주의';
+                    }
+
+                    return {
+                        ...item,
+                        ret13,
+                        ret25,
+                        ret13Str: ret.retention13 || '-',
+                        ret25Str: ret.retention25 || '-',
+                        score,
+                        riskLevel,
+                        badgeColor,
+                        badgeLabel,
+                        reasons
+                    };
+                });
+
+                // 스코어 높은 순(위험도 높은 순)으로 정렬
+                scoredList.sort((a, b) => b.score - a.score);
+
+                // 통계 카드 업데이트
+                const totalEl = div.querySelector('#anomaly-stat-total');
+                const dangerEl = div.querySelector('#anomaly-stat-danger');
+                const warnEl = div.querySelector('#anomaly-stat-warning');
+                const unsubEl = div.querySelector('#anomaly-stat-unsub');
+
+                const dangerCount = scoredList.filter(x => x.riskLevel === 'DANGER').length;
+                const warnCount = scoredList.filter(x => x.riskLevel === 'WARNING').length;
+                const unsubCount = scoredList.filter(x => (x.unsubmitted || 0) > 0).length;
+
+                if (totalEl) totalEl.innerText = `${scoredList.length}명`;
+                if (dangerEl) dangerEl.innerText = `${dangerCount}명`;
+                if (warnEl) warnEl.innerText = `${warnCount}명`;
+                if (unsubEl) unsubEl.innerText = `${unsubCount}명`;
+
+                // Gemini AI 종합 진단 브리핑 영역 렌더링
+                const aiOverviewEl = div.querySelector('#anomaly-ai-overview-container');
+                const overviewCacheKey = `ANOMALY_AI_OVERVIEW_${state.user.staffId}_${state.currentMonth}`;
+                let overviewCachedText = sessionStorage.getItem(overviewCacheKey) || '';
+
+                const renderAIOverview = (bodyContent, isRunning = false) => {
+                    if (!aiOverviewEl) return;
+                    aiOverviewEl.innerHTML = `
+                    <div class="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 pb-3 border-b border-indigo-700/60">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
+                                    <svg class="w-4 h-4 text-white animate-pulse" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-base text-white flex items-center gap-2">
+                                        Gemini AI 종합 이상징후 진단 & 방어 전략
+                                    </h3>
+                                    <p class="text-xs text-indigo-200 mt-0.5">${scopeLabel} 위험군 집중 분석</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 self-end sm:self-auto">
+                                ${overviewCachedText ? `
+                                <button id="anomaly-overview-copy" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    <span>복사</span>
+                                </button>` : ''}
+                                <button id="anomaly-overview-run" ${isRunning ? 'disabled' : ''} class="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-primary hover:from-amber-600 hover:to-primaryHover text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                                    <svg class="w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    <span>${overviewCachedText ? '다시 진단' : '✨ AI 심층 진단 실행'}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="anomaly-overview-body">
+                            ${bodyContent}
+                        </div>
+                    </div>`;
+
+                    const runBtn = aiOverviewEl.querySelector('#anomaly-overview-run');
+                    const copyBtn = aiOverviewEl.querySelector('#anomaly-overview-copy');
+                    if (runBtn) runBtn.onclick = () => executeAIOverview(true);
+                    if (copyBtn) {
+                        copyBtn.onclick = () => {
+                            if (!overviewCachedText) return;
+                            navigator.clipboard.writeText(overviewCachedText).then(() => {
+                                copyBtn.innerHTML = `<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>복사완료</span>`;
+                                setTimeout(() => {
+                                    copyBtn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg><span>복사</span>`;
+                                }, 2000);
+                            });
+                        };
+                    }
+                };
+
+                const executeAIOverview = async (force = false) => {
+                    if (!force && overviewCachedText) {
+                        renderAIOverview(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-100 text-sm bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">${overviewCachedText}</div>`);
+                        return;
+                    }
+
+                    renderAIOverview(`
+                    <div class="flex flex-col items-center justify-center py-6 text-amber-300">
+                        <div class="w-8 h-8 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                        <p class="text-sm font-bold text-white">Gemini AI가 ${scopeLabel}의 위험 패턴 및 환수 리스크를 종합 진단하고 있습니다...</p>
+                        <p class="text-xs text-indigo-200 mt-1">잠시만 기다려주세요 (약 2~3초 소요)</p>
+                    </div>`, true);
+
+                    try {
+                        const topRisks = scoredList.slice(0, 10).map(x => `${x.name}(${x.org1 || '-'}): [${x.badgeLabel}] ${x.reasons.join(', ')}`).join('\n');
+                        const sysPrompt = `당신은 GA(보험대리점) 파트너스본부의 최고 감사 및 계약관리 리스크 통제 전문가입니다. 관리자를 위해 산하 파트너들의 유지율, 실효, 연체, 확인서 미제출 이상징후 데이터를 바탕으로 '마감 리스크 종합 방어 브리핑'을 작성하십시오. 환수 예방 및 유지율 관리를 위한 핵심 조치 사항을 개조식(Bullet points) 4~5줄로 전문적이고 강력하게 제시하십시오.`;
+                        const usrPrompt = `분석 대상: ${scopeLabel}, 마감월: ${state.currentMonth}\n점검인원: ${scoredList.length}명, 고위험: ${dangerCount}명, 경고: ${warnCount}명, 확인서 미제출 발생: ${unsubCount}명\n\n[주요 관리 대상 파트너 및 리스크 징후]\n${topRisks}\n\n위 데이터를 분석하여 마감 전 시급히 조치해야 할 실무 지침과 환수 방어 가이드를 작성해줘.`;
+
+                        const res = await callGeminiAI(sysPrompt, usrPrompt);
+                        overviewCachedText = res || '진단 결과를 생성하지 못했습니다.';
+                        sessionStorage.setItem(overviewCacheKey, overviewCachedText);
+                        renderAIOverview(`<div class="whitespace-pre-wrap leading-relaxed font-medium text-slate-100 text-sm bg-white/10 p-4 rounded-xl border border-white/10 backdrop-blur-sm">${overviewCachedText}</div>`);
+                    } catch (err) {
+                        console.error('executeAIOverview error', err);
+                        renderAIOverview(`<div class="p-4 bg-red-900/50 text-red-200 rounded-xl text-sm font-medium border border-red-500/40">AI 진단 오류: ${err.message || err.toString()}</div>`);
+                    }
+                };
+
+                if (overviewCachedText) {
+                    executeAIOverview(false);
+                } else {
+                    renderAIOverview(`
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white/5 p-4 rounded-xl border border-white/10">
+                        <p class="text-sm text-indigo-100 font-medium">
+                            고위험군 파트너 ${dangerCount}명을 포함하여 산하 인원의 계약관리 리스크를 AI로 심층 분석합니다.
+                        </p>
+                        <span class="text-xs text-amber-300 font-semibold">오른쪽 위의 [✨ AI 심층 진단 실행] 버튼을 눌러주세요.</span>
+                    </div>`);
+                }
+
+                // 리스트 렌더링 함수
+                let currentFilter = 'ALL';
+                const container = div.querySelector('#anomalyListContainer');
+
+                const renderPartnerCards = () => {
+                    const searchVal = (div.querySelector('#anomalySearch')?.value || '').trim().toLowerCase();
+                    let filtered = scoredList.filter(item => {
+                        const matchText = item.name.toLowerCase().includes(searchVal) || String(item.id).includes(searchVal);
+                        if (!matchText) return false;
+                        if (currentFilter === 'ALL') return true;
+                        return item.riskLevel === currentFilter;
+                    });
+
+                    if (filtered.length === 0) {
+                        container.innerHTML = `<div class="col-span-full bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-500">해당 조건의 파트너 이상징후 내역이 없습니다.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = filtered.map(item => `
+                    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-5 border border-gray-100 flex flex-col justify-between group relative">
+                        <div>
+                            <div class="flex justify-between items-start mb-3 border-b border-gray-50 pb-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="font-bold text-lg text-gray-900">${item.name}</h3>
+                                        <span class="text-xs text-gray-400 font-mono">(${item.id})</span>
+                                        ${item.org1 ? `<span class="text-[11px] font-normal text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">${item.org1}</span>` : ''}
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-0.5">리스크 위험 점수: <span class="font-bold text-gray-700">${item.score}점</span></p>
+                                </div>
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-full border ${item.badgeColor} shadow-xs whitespace-nowrap">
+                                    ${item.badgeLabel}
+                                </span>
+                            </div>
+
+                            <!-- 핵심 지표 4분할 그리드 -->
+                            <div class="grid grid-cols-4 gap-1.5 text-center mb-3">
+                                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">13회차</p>
+                                    <p class="text-xs sm:text-sm font-extrabold ${item.ret13 !== null && item.ret13 < 85 ? 'text-red-500' : 'text-gray-800'}">${item.ret13Str}</p>
+                                </div>
+                                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">당월실효</p>
+                                    <p class="text-xs sm:text-sm font-extrabold ${item.lapsed > 0 ? 'text-red-500' : 'text-gray-400'}">${item.lapsed}건</p>
+                                </div>
+                                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">당월연체</p>
+                                    <p class="text-xs sm:text-sm font-extrabold ${item.arrears > 0 ? 'text-orange-500' : 'text-gray-400'}">${item.arrears}건</p>
+                                </div>
+                                <div class="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                                    <p class="text-[10px] text-gray-400 font-bold uppercase mb-0.5">미제출</p>
+                                    <p class="text-xs sm:text-sm font-extrabold ${item.unsubmitted > 0 ? 'text-purple-600' : 'text-gray-400'}">${item.unsubmitted}건</p>
+                                </div>
+                            </div>
+
+                            <!-- 주요 감지 징후 사유 태그 -->
+                            <div class="mb-4 min-h-[38px]">
+                                ${item.reasons.length > 0 ? `
+                                <div class="flex flex-wrap gap-1">
+                                    ${item.reasons.map(r => `<span class="px-2 py-0.5 text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200/60 rounded-md">⚠️ ${r}</span>`).join('')}
+                                </div>` : `<p class="text-xs text-emerald-600 font-medium py-1">특별한 계약관리 이상징후가 감지되지 않았습니다.</p>`}
+                            </div>
+                        </div>
+
+                        <!-- 개별 AI 코칭 가이드 영역 -->
+                        <div class="pt-3 border-t border-gray-100">
+                            <div id="ai-partner-guide-${item.id}" class="hidden mb-3 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-xs text-gray-700 leading-relaxed font-medium"></div>
+                            <button onclick="window.generatePartnerAICoaching('${item.id}', '${item.name}', '${item.org1 || ''}', '${item.badgeLabel}', '${item.reasons.join(', ')}', '${item.ret13Str}', ${item.lapsed}, ${item.arrears}, ${item.unsubmitted})" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 text-indigo-700 border border-indigo-200 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                <span>1:1 면담 코칭 가이드</span>
+                            </button>
+                        </div>
+                    </div>`).join('');
+                };
+
+                // 필터 버튼 이벤트 연결
+                div.querySelectorAll('.anomaly-filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        div.querySelectorAll('.anomaly-filter-btn').forEach(b => {
+                            b.className = 'anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition text-gray-500 hover:text-gray-800';
+                        });
+                        btn.className = 'anomaly-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold transition bg-white shadow-sm text-indigo-600';
+                        currentFilter = btn.getAttribute('data-risk');
+                        renderPartnerCards();
+                    });
+                });
+
+                const searchInput = div.querySelector('#anomalySearch');
+                if (searchInput) searchInput.addEventListener('input', renderPartnerCards);
+
+                // 초기 파트너 카드 렌더링
+                renderPartnerCards();
+            }, 10);
+
+            return div;
+        }
+
+        // 개별 파트너 1:1 AI 면담 코칭 생성 전역 함수
+        window.generatePartnerAICoaching = async function(id, name, org, riskLabel, reasons, ret13, lapsed, arrears, unsubmitted) {
+            const box = document.getElementById(`ai-partner-guide-${id}`);
+            if (!box) return;
+
+            if (!box.classList.contains('hidden')) {
+                box.classList.add('hidden');
+                return;
+            }
+
+            box.classList.remove('hidden');
+            box.innerHTML = `
+            <div class="flex items-center gap-2 text-indigo-600 py-1">
+                <div class="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <span>${name} 파트너 맞춤 면담 가이드 작성 중...</span>
+            </div>`;
+
+            try {
+                const sysPrompt = `당신은 GA 파트너스본부의 관리자 1:1 면담 코칭 전문가입니다. 관리자가 특정 파트너와 면담할 때 바로 꺼내어 쓸 수 있는 '핵심 면담 화법 & 조치 솔루션'을 2~3줄로 매우 구체적이고 부드럽지만 단호하게 작성하십시오.`;
+                const usrPrompt = `파트너: ${name}(${org}), 위험등급: ${riskLabel}, 감지사유: [${reasons}], 13회차유지율: ${ret13}, 실효: ${lapsed}건, 연체: ${arrears}건, 확인서미제출: ${unsubmitted}건. 관리자가 이 파트너에게 어떤 말로 대화를 시작하고 무엇을 즉시 조치시켜야 하는지 작성해줘.`;
+
+                const res = await callGeminiAI(sysPrompt, usrPrompt);
+                box.innerHTML = `<div class="font-semibold text-indigo-900 mb-1 flex items-center gap-1"><span class="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span> 1:1 면담 코칭 가이드</div><div class="whitespace-pre-wrap leading-relaxed">${res || '가이드를 생성하지 못했습니다.'}</div>`;
+            } catch (err) {
+                console.error(err);
+                box.innerHTML = `<div class="text-red-500">생성 실패: ${err.message || err.toString()}</div>`;
+            }
+        };
+
         function createAdminView() {
             if (state.isLoading) return getSkeletonUI();
+            if (state.adminTab === 'anomaly') return createAnomalyAdminView();
+
             const div = document.createElement('div');
             const dd = state.data.adminSummary || {};
             if (dd.error) { div.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">데이터 로드 실패: ${dd.message}</div>`; return div; }
@@ -3931,6 +4547,10 @@
                 <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start sm:self-center">
                     <button onclick="setAT('reward')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'reward' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">시상금</button>
                     ${!isAdminAny() ? `<button onclick="setAT('recruitment')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'recruitment' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">증원수당</button>` : ''}
+                    <button onclick="setAT('anomaly')" class="px-4 py-2 text-sm rounded-md transition duration-200 ${state.adminTab === 'anomaly' ? 'bg-white shadow-sm text-indigo-600 font-bold' : 'text-gray-500 hover:text-gray-700'} flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <span>이상징후 탐지 AI</span>
+                    </button>
                 </div>
             </div>
 
