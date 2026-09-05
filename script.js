@@ -426,9 +426,14 @@
                         let summaryTxt = `마감월: ${state.currentMonth}`;
                         if (state.data.adminSummary?.reward?.active) {
                             const list = state.data.adminSummary.reward.active;
-                            let totalPrem = 0, totalPay = 0;
-                            list.forEach(x => { totalPrem += (x.nlPrem || 0); totalPay += (x.totalPay || 0); });
-                            summaryTxt += `, 위촉 파트너 수: ${list.length}명, 손보 신계약 총액: 약 ${Math.round(totalPrem / 10000)}만원, 총지급 시상금: 약 ${Math.round(totalPay / 10000)}만원`;
+                            let totalReward = 0, totalComm = 0;
+                            list.forEach(x => {
+                                const rPay = (x.nlPay || 0) + (x.lPay || 0) + (x.hqPay || 0) + (x.nlCorpPay || 0) + (x.lCorpPay || 0);
+                                const cPay = (x.nlCommPay || 0) + (x.lCommPay || 0) + (x.mgrCommPay || 0);
+                                totalReward += rPay;
+                                totalComm += cPay;
+                            });
+                            summaryTxt += `, 위촉 파트너 수: ${list.length}명, 총지급 시상금: 약 ${Math.round(totalReward / 10000)}만원, 총지급 수수료: 약 ${Math.round(totalComm / 10000)}만원`;
                         }
                         userPrompt = `보고 대상: 파트너스본부 전체, ${summaryTxt}. 이 데이터를 바탕으로 최고 리더를 위한 당월 총평과 핵심 리스크 방어 전략 브리핑을 오직 자연스러운 한국어로만 작성해줘.`;
                     } else if (isManager) {
