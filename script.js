@@ -2,27 +2,13 @@
         // 백그라운드 프리페치 활성화 (홈 화면 로드 후 유휴 시간에 다른 메뉴 사전 캐싱)
         const ENABLE_BACKGROUND_PREFETCH = true;
 
-        // Gemini AI API Configuration
-        const GEMINI_API_KEY = 'AIzaSyAbTT_4CCc0A_Mbmsjz6l-MLGQFVhJ6_uA';
-
+        // Gemini AI Backend 중계 호출 함수 (API 키는 GAS 백엔드에서 안전하게 보관 및 관리)
         async function callGeminiAI(systemInstruction, userPrompt) {
-            const apiKey = (window.GEMINI_API_KEY_CUSTOM || GEMINI_API_KEY || '').trim();
-            if (!apiKey) throw new Error("Gemini API 키가 설정되지 않았습니다.");
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: userPrompt }] }],
-                    systemInstruction: { parts: [{ text: systemInstruction }] }
-                })
-            });
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`Gemini API Error (${response.status}): ${errText}`);
+            const res = await callApi('callGeminiApiBackend', systemInstruction, userPrompt);
+            if (res && res.error) {
+                throw new Error(res.message || 'AI 분석 응답에 실패했습니다.');
             }
-            const data = await response.json();
-            return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return res?.text || '';
         }
 
         async function callApi(action, ...args) {
