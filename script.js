@@ -1908,20 +1908,60 @@
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg>
                         </div>
-                        <input type="text" id="ncSearch" value="${state.ncSearch || ''}" placeholder="이름 검색 후 Enter 또는 검색 클릭" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                        <input type="text" id="ncSearch" value="${state.ncSearch || ''}" placeholder="이름(모집인/계약자) 또는 증권번호 입력 시 즉시 검색" class="w-full pl-11 pr-4 py-3 border border-gray-200 rounded-xl bg-white shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
                     </div>
                     <button id="ncSearchBtn" class="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-xl shadow-sm transition whitespace-nowrap">검색</button>
                 </div>
 
                 <div id="nc-list-container">
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                        이름을 검색하거나 검색을 눌러 신계약 리스트를 조회합니다.
+                        <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                        신계약 데이터를 불러오는 중입니다...
                     </div>
                 </div>`;
 
                 setTimeout(async () => {
                     const dataKey = state.newContractTab === 'nl' ? 'newContractNl' : 'newContractL';
                     const container = div.querySelector('#nc-list-container');
+
+                    // 1) 계약자-모집인 일치/유사(마스킹 포함) 판별 헬퍼
+                    const isSimilarName = (agentName, custName) => {
+                        if (!agentName || !custName) return false;
+                        const a = String(agentName).replace(/\s+/g, '').replace(/\(.*?\)/g, '');
+                        const c = String(custName).replace(/\s+/g, '').replace(/\(.*?\)/g, '');
+                        if (!a || !c) return false;
+                        if (a === c) return true;
+
+                        // 마스킹(*) 문자가 포함된 경우 (예: 김*민, 김*, 홍**)
+                        if (c.includes('*') || a.includes('*')) {
+                            // 길이가 같은 경우 (김영민 vs 김*민 등)
+                            if (a.length === c.length) {
+                                let match = true;
+                                let matchedChars = 0;
+                                for (let i = 0; i < a.length; i++) {
+                                    if (a[i] === '*' || c[i] === '*') continue;
+                                    if (a[i] !== c[i]) {
+                                        match = false;
+                                        break;
+                                    }
+                                    matchedChars++;
+                                }
+                                if (match && matchedChars >= 1) return true;
+                            }
+                            // 정규식 와일드카드 매칭
+                            try {
+                                if (c.includes('*')) {
+                                    const escaped = c.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.');
+                                    if (new RegExp('^' + escaped + '$').test(a)) return true;
+                                }
+                                if (a.includes('*')) {
+                                    const escaped = a.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.');
+                                    if (new RegExp('^' + escaped + '$').test(c)) return true;
+                                }
+                            } catch (e) {}
+                        }
+                        return false;
+                    };
 
                     // 데이터 페치 (캐싱 포함)
                     const fetchData = async () => {
@@ -1944,45 +1984,108 @@
                             return;
                         }
                         const fmtR = (v) => `<span class="${parseFloat(v) < 0 ? 'text-red-500' : 'text-gray-700'}">${v}</span>`;
-                        const desktopRows = list.map(r => `
-                        <tr class="group hover:bg-gray-50 transition border-b border-gray-100">
-                            <td class="p-2 text-center text-xs text-gray-500 font-mono">${r.month}</td>
-                            <td class="p-2 text-center font-semibold text-gray-800">${r.name}</td>
-                            <td class="p-2 text-center text-xs text-gray-700">${r.company}</td>
-                            <td class="p-2 text-left text-xs text-gray-500 font-mono">${r.policyNo}</td>
-                            <td class="p-2 text-center text-xs text-gray-500">${r.date}</td>
-                            <td class="p-2 text-xs text-gray-700 max-w-[180px]"><div class="truncate" title="${r.product}">${r.product}</div></td>
-                            <td class="p-2 text-center text-xs text-gray-500">${r.term}</td>
-                            <td class="p-2 text-right text-sm font-medium text-gray-800">${formatMoney(r.premium)}</td>
-                            <td class="p-2 text-center text-sm text-gray-600 bg-gray-50/60">${r.customer}</td>
-                            <td class="p-2 text-right text-sm font-bold ${r.commission < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(r.commission)}</td>
-                            <td class="p-2 text-right text-xs">${fmtR(r.commRate)}</td>
-                            <td class="p-2 text-right text-sm font-bold ${r.reward < 0 ? 'text-red-500' : 'text-blue-600'} ${r.rewardDesc ? 'custom-tooltip text-blue-800/90' : ''}" ${r.rewardDesc ? `data-tooltip="${r.rewardDesc}" tabindex="0"` : ''}>${formatMoney(r.reward)}</td>
-                            <td class="p-2 text-right text-xs">${fmtR(r.rewardRate)}</td>
-                            <td class="p-2 text-right text-sm font-extrabold ${r.total < 0 ? 'text-red-500' : 'text-gray-900'} bg-indigo-50/60">${formatMoney(r.total)}</td>
-                            <td class="p-2 text-right text-xs font-semibold bg-indigo-50/60">${fmtR(r.totalRate)}</td>
-                        </tr>`).join('');
 
-                        const mobileCards = list.map(r => `
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                            <div class="flex justify-between items-start mb-2">
-                                <div>
-                                    <p class="font-bold text-gray-900">${r.name} <span class="text-xs text-gray-400 font-normal">(${r.company})</span></p>
-                                    <p class="text-xs text-gray-500 font-mono mt-0.5">${r.policyNo}</p>
+                        // 2) 모집인별 시각적 구분 및 본인계약 노란색 하이라이트
+                        let currentAgentKey = null;
+                        let agentGroupIdx = -1;
+
+                        const desktopRows = list.map((r, idx) => {
+                            const agentKey = r.agentId || r.name;
+                            const isNewAgent = (idx === 0 || agentKey !== currentAgentKey);
+                            if (isNewAgent) {
+                                currentAgentKey = agentKey;
+                                agentGroupIdx++;
+                            }
+
+                            const isMatch = isSimilarName(r.name, r.customer);
+
+                            // 모집인 구분 상단 선 (모집인이 바뀔 때 굵은 선으로 구분)
+                            const borderClass = (isNewAgent && idx > 0)
+                                ? 'border-t-2 border-gray-300'
+                                : 'border-b border-gray-100';
+
+                            // 배경색: 일치/유사는 밝은 노란색, 일반 행은 모집인별 교차 배경
+                            let rowBgClass = '';
+                            if (isMatch) {
+                                rowBgClass = 'bg-amber-100/70 hover:bg-amber-200/70';
+                            } else if (agentGroupIdx % 2 === 1) {
+                                rowBgClass = 'bg-slate-50/70 hover:bg-slate-100/70';
+                            } else {
+                                rowBgClass = 'bg-white hover:bg-gray-50';
+                            }
+
+                            const custCellClass = isMatch 
+                                ? 'bg-amber-200/60 font-bold text-amber-900 ring-1 ring-inset ring-amber-300 rounded' 
+                                : 'bg-gray-50/60 text-gray-600';
+                            const totalCellClass = isMatch ? 'bg-amber-200/40' : 'bg-indigo-50/60';
+
+                            return `
+                            <tr class="group transition ${borderClass} ${rowBgClass}">
+                                <td class="p-2 text-center text-xs text-gray-500 font-mono">${r.month}</td>
+                                <td class="p-2 text-center ${isNewAgent ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}">${r.name}</td>
+                                <td class="p-2 text-center text-xs text-gray-700">${r.company}</td>
+                                <td class="p-2 text-left text-xs text-gray-500 font-mono">${r.policyNo}</td>
+                                <td class="p-2 text-center text-xs text-gray-500">${r.date}</td>
+                                <td class="p-2 text-xs text-gray-700 max-w-[180px]"><div class="truncate" title="${r.product}">${r.product}</div></td>
+                                <td class="p-2 text-center text-xs text-gray-500">${r.term}</td>
+                                <td class="p-2 text-right text-sm font-medium text-gray-800">${formatMoney(r.premium)}</td>
+                                <td class="p-2 text-center text-sm ${custCellClass}">${r.customer}</td>
+                                <td class="p-2 text-right text-sm font-bold ${r.commission < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(r.commission)}</td>
+                                <td class="p-2 text-right text-xs">${fmtR(r.commRate)}</td>
+                                <td class="p-2 text-right text-sm font-bold ${r.reward < 0 ? 'text-red-500' : 'text-blue-600'} ${r.rewardDesc ? 'custom-tooltip text-blue-800/90' : ''}" ${r.rewardDesc ? `data-tooltip="${r.rewardDesc}" tabindex="0"` : ''}>${formatMoney(r.reward)}</td>
+                                <td class="p-2 text-right text-xs">${fmtR(r.rewardRate)}</td>
+                                <td class="p-2 text-right text-sm font-extrabold ${r.total < 0 ? 'text-red-500' : 'text-gray-900'} ${totalCellClass}">${formatMoney(r.total)}</td>
+                                <td class="p-2 text-right text-xs font-semibold ${totalCellClass}">${fmtR(r.totalRate)}</td>
+                            </tr>`;
+                        }).join('');
+
+                        let currentMobileAgentKey = null;
+                        const mobileCards = list.map((r, idx) => {
+                            const agentKey = r.agentId || r.name;
+                            const isNewAgent = (idx === 0 || agentKey !== currentMobileAgentKey);
+                            if (isNewAgent) {
+                                currentMobileAgentKey = agentKey;
+                            }
+
+                            const isMatch = isSimilarName(r.name, r.customer);
+                            const cardBg = isMatch 
+                                ? 'bg-amber-50/90 border-amber-300 ring-1 ring-amber-300 shadow-sm' 
+                                : 'bg-white border-gray-100 shadow-sm';
+
+                            const agentHeader = isNewAgent ? `
+                            <div class="${idx > 0 ? 'mt-4' : ''} pt-2 pb-1.5 px-1 flex items-center justify-between border-b border-gray-200">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                                    <span class="font-bold text-sm text-gray-900">${r.name}</span>
+                                    <span class="text-xs text-gray-500 font-mono">(${r.agentId || '모집인'})</span>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-xs text-gray-400">익월총수당</p>
-                                    <p class="font-extrabold text-base ${r.total < 0 ? 'text-red-500' : 'text-gray-900'}">${formatMoney(r.total)}</p>
+                            </div>` : '';
+
+                            return `
+                            ${agentHeader}
+                            <div class="${cardBg} rounded-2xl p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p class="font-bold text-gray-900">${r.name} <span class="text-xs text-gray-400 font-normal">(${r.company})</span></p>
+                                        <p class="text-xs text-gray-500 font-mono mt-0.5">${r.policyNo}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-400">익월총수당</p>
+                                        <p class="font-extrabold text-base ${r.total < 0 ? 'text-red-500' : 'text-gray-900'}">${formatMoney(r.total)}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            <p class="text-sm text-gray-600 mb-3 truncate">${r.product}</p>
-                            <div class="grid grid-cols-3 gap-2 text-center text-xs bg-gray-50 rounded-xl p-2">
-                                <div><p class="text-gray-400 mb-0.5">보험료</p><p class="font-semibold text-gray-700">${formatMoney(r.premium)}</p></div>
-                                <div><p class="text-gray-400 mb-0.5">익월수수료</p><p class="font-semibold ${r.commission < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(r.commission)}</p></div>
-                                <div><p class="text-gray-400 mb-0.5">시상금계</p><p class="font-semibold ${r.reward < 0 ? 'text-red-500' : 'text-blue-600'} ${r.rewardDesc ? 'custom-tooltip text-blue-800/90' : ''}" ${r.rewardDesc ? `data-tooltip="${r.rewardDesc}" tabindex="0"` : ''}>${formatMoney(r.reward)}</p></div>
-                            </div>
-                            <div class="mt-2 text-right text-[11px] text-gray-400">계약자: ${r.customer} | 계약일: ${r.date} | 총수당율: ${r.totalRate}</div>
-                        </div>`).join('');
+                                <p class="text-sm text-gray-600 mb-3 truncate">${r.product}</p>
+                                <div class="grid grid-cols-3 gap-2 text-center text-xs bg-gray-50/80 rounded-xl p-2">
+                                    <div><p class="text-gray-400 mb-0.5">보험료</p><p class="font-semibold text-gray-700">${formatMoney(r.premium)}</p></div>
+                                    <div><p class="text-gray-400 mb-0.5">익월수수료</p><p class="font-semibold ${r.commission < 0 ? 'text-red-500' : 'text-blue-600'}">${formatMoney(r.commission)}</p></div>
+                                    <div><p class="text-gray-400 mb-0.5">시상금계</p><p class="font-semibold ${r.reward < 0 ? 'text-red-500' : 'text-blue-600'} ${r.rewardDesc ? 'custom-tooltip text-blue-800/90' : ''}" ${r.rewardDesc ? `data-tooltip="${r.rewardDesc}" tabindex="0"` : ''}>${formatMoney(r.reward)}</p></div>
+                                </div>
+                                <div class="mt-2 flex justify-between items-center text-[11px] text-gray-500">
+                                    <div>계약자: <span class="${isMatch ? 'px-1.5 py-0.5 bg-amber-200 text-amber-900 font-bold rounded' : 'font-medium'}">${r.customer}</span></div>
+                                    <div>총수당율: <span class="font-semibold">${r.totalRate}</span></div>
+                                </div>
+                            </div>`;
+                        }).join('');
 
                         container.innerHTML = `
                         <div class="flex justify-end mb-2 px-1 text-sm text-gray-600">
@@ -2019,16 +2122,22 @@
                         <div class="md:hidden flex flex-col gap-3">${mobileCards}</div>`;
                     };
 
-                    // 검색 핸들러 (Enter키 또는 검색 버튼)
-                    const doSearch = async (filterText) => {
-                        container.innerHTML = `<div class="flex items-center justify-center h-40"><div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>`;
-                        const allData = await fetchData();
-                        if (!allData) return;
-                        if (!filterText) {
-                            renderNcTable(allData);
+                    // 3) 실시간 검색 핸들러 (입력 즉시 필터링)
+                    let cachedList = null;
+
+                    const doSearch = (filterText) => {
+                        if (!cachedList) return;
+                        const q = (filterText || '').trim().toLowerCase();
+                        if (!q) {
+                            renderNcTable(cachedList);
                         } else {
-                            const q = filterText.toLowerCase();
-                            renderNcTable(allData.filter(r => r.name.toLowerCase().includes(q) || r.policyNo.toLowerCase().includes(q)));
+                            const filtered = cachedList.filter(r => 
+                                (r.name && r.name.toLowerCase().includes(q)) || 
+                                (r.customer && r.customer.toLowerCase().includes(q)) || 
+                                (r.policyNo && r.policyNo.toLowerCase().includes(q)) ||
+                                (r.company && r.company.toLowerCase().includes(q))
+                            );
+                            renderNcTable(filtered);
                         }
                     };
 
@@ -2036,11 +2145,16 @@
                     const searchBtn = div.querySelector('#ncSearchBtn');
 
                     if (searchInput) {
+                        // 실시간 입력 이벤트: 타이핑 즉시 검색 결과 표시
                         searchInput.addEventListener('input', (e) => {
-                            state.ncSearch = e.target.value.trim();
+                            state.ncSearch = e.target.value;
+                            doSearch(state.ncSearch);
                         });
                         searchInput.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter') doSearch(state.ncSearch);
+                            if (e.key === 'Enter') {
+                                state.ncSearch = e.target.value;
+                                doSearch(state.ncSearch);
+                            }
                         });
                     }
                     if (searchBtn) {
@@ -2049,8 +2163,11 @@
                         });
                     }
 
-                    // [CHANGE] Immediately perform search with persistent term to display filtered data
-                    doSearch(state.ncSearch);
+                    // 초기 데이터 로드 및 렌더링
+                    cachedList = await fetchData();
+                    if (cachedList) {
+                        doSearch(state.ncSearch || '');
+                    }
                 }, 10);
 
                 return div;
