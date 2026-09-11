@@ -194,6 +194,12 @@
         };
 
         function navigate(view, push = true) {
+            if (view === 'feeTable') {
+                if (!state.user || state.user.role !== '지사대표') {
+                    alert('수수료 예시표는 현재 개발 및 검증 단계로, 지사대표 권한 사용자에게만 오픈되어 있습니다.');
+                    return;
+                }
+            }
             state.currentView = view;
             if (push) history.pushState({ view: view }, '', '#/' + view);
             state.mobileMenuOpen = false;
@@ -1161,7 +1167,8 @@
                 performanceAnalysis: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>',
                 bondAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
                 totalAllowanceForecast: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>',
-                rewardAdjust: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>'
+                rewardAdjust: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>',
+                feeTable: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>'
             };
 
             container.innerHTML = `
@@ -1183,6 +1190,7 @@
                              ${!hasRole('실장') ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
+                             ${(state.user && state.user.role === '지사대표') ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1253,7 +1261,8 @@
                                             bondAdmin: '채권관리',
                                             performanceAnalysis: '실적분석',
                                             totalAllowanceForecast: '총수당예상',
-                                            rewardAdjust: '시상조정'
+                                            rewardAdjust: '시상조정',
+                                            feeTable: '수수료 예시표'
                                         };
                                         return viewMap[state.currentView] || '시스템';
                                     })()}
@@ -1309,6 +1318,9 @@
                             </a>` : ''}
                             ${(state.user.isRecruiter && !hasRole('실장')) ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
+                            </a>` : ''}
+                            ${(state.user && state.user.role === '지사대표') ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
                             ${(isBranchRepAny() || isOpsAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
@@ -1374,6 +1386,7 @@
             else if (state.currentView === 'performanceAnalysis') main.appendChild(createPerformanceAnalysisView());
             else if (state.currentView === 'totalAllowanceForecast') main.appendChild(createTotalAllowanceForecastView());
             else if (state.currentView === 'rewardAdjust') main.appendChild(createRewardAdjustView());
+            else if (state.currentView === 'feeTable') renderFeeTableView();
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
