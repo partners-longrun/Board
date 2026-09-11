@@ -7960,6 +7960,9 @@
             else if (state.currentView === 'admin') fetchAdmin(cacheKey);
             else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
             else if (state.currentView === 'totalAllowanceForecast') fetchTotalAllowanceForecastData();
+            else if (state.currentView === 'feeTable') {
+                if (typeof loadFeeTableData === 'function') loadFeeTableData();
+            }
         }
 
         async function fetchPerformanceAnalysisData() {

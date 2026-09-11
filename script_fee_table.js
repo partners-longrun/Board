@@ -7,7 +7,12 @@
  * ==============================================================================
  */
 
+var FEE_TABLE_DATA = null;
+var feeTableAvailableMonths = [];
+var feeTableLoading = false;
+
 var feeTableState = {
+    month: '', // 현재 선택된 기준월 (예: '2026.09')
     category: '손해보험', // '손해보험' | '생명보험'
     company: 'DB손보',
     searchKeyword: '',
@@ -38,22 +43,89 @@ function getEffectiveFeeRate() {
 }
 
 /**
+ * 구글 드라이브로부터 수수료 예시표 데이터 비동기 로드
+ */
+async function loadFeeTableData(targetMonth = null) {
+    if (feeTableLoading) return;
+    feeTableLoading = true;
+    renderFeeTableView(); // 로딩 스피너 표시
+
+    try {
+        const staffId = (state.user && state.user.staffId) ? state.user.staffId : (state.user ? state.user.id : '');
+        const monthParam = targetMonth || feeTableState.month || '';
+
+        const [monthsRes, dataRes] = await Promise.all([
+            (feeTableAvailableMonths.length === 0) ? callApi('getAvailableFeeMonths') : Promise.resolve({ success: true, months: feeTableAvailableMonths }),
+            callApi('getFeeTableData', staffId, monthParam)
+        ]);
+
+        if (monthsRes && monthsRes.success && Array.isArray(monthsRes.months)) {
+            feeTableAvailableMonths = monthsRes.months;
+        }
+
+        if (dataRes && dataRes.success && dataRes.data) {
+            FEE_TABLE_DATA = dataRes.data;
+            feeTableState.month = dataRes.month || monthParam;
+            if (dataRes.rates && state.user) {
+                if (dataRes.rates.nonLifeRate) state.user.nonLifeRate = dataRes.rates.nonLifeRate;
+                if (dataRes.rates.lifeRate) state.user.lifeRate = dataRes.rates.lifeRate;
+            }
+        } else {
+            FEE_TABLE_DATA = null;
+            console.warn('Fee table data not found for month:', monthParam, dataRes);
+        }
+    } catch (err) {
+        console.error('loadFeeTableData error:', err);
+        FEE_TABLE_DATA = null;
+    } finally {
+        feeTableLoading = false;
+        renderFeeTableView();
+    }
+}
+
+/**
  * 수수료 예시표 메인 뷰 렌더링
  */
 function renderFeeTableView() {
     const container = document.getElementById('main-view');
     if (!container) return;
 
-    // 데이터 검증
-    if (typeof FEE_TABLE_DATA === 'undefined' || !FEE_TABLE_DATA.categories) {
+    // 1. 로딩 중 상태
+    if (feeTableLoading) {
         container.innerHTML = `
-            <div class="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100 max-w-lg mx-auto mt-12">
-                <div class="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4">
+            <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 max-w-md mx-auto mt-16 animate-fadeIn">
+                <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </div>
+                <h3 class="font-extrabold text-slate-900 text-lg mb-1">수수료 예시표 데이터를 불러오는 중입니다...</h3>
+                <p class="text-xs text-slate-400">구글 드라이브에서 최신 수수료 규정을 동기화하고 있습니다.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 2. 데이터가 아직 로드되지 않은 초기 상태
+    if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
+        const isManager = isBranchRepAny() || isAdminAny();
+        container.innerHTML = `
+            <div class="bg-white rounded-3xl p-8 text-center shadow-sm border border-slate-100 max-w-lg mx-auto mt-12 animate-fadeIn">
+                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 </div>
-                <h3 class="font-bold text-gray-800 text-lg mb-2">수수료 예시표 데이터를 불러올 수 없습니다</h3>
-                <p class="text-sm text-gray-500 mb-6">데이터 파일(fee_data_202609.js)이 준비되지 않았습니다. 관리자에게 문의하세요.</p>
-                <button onclick="navigate('home')" class="px-6 py-2.5 bg-gray-900 text-white font-medium rounded-xl text-sm shadow-md hover:bg-black transition">홈으로 돌아가기</button>
+                <h3 class="font-bold text-slate-800 text-lg mb-2">등록된 수수료 예시표가 없습니다</h3>
+                <p class="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
+                    구글 드라이브에 등록된 수수료 데이터가 없습니다.<br>
+                    ${isManager ? '손보/생보 엑셀 파일을 업로드하여 데이터를 등록해 주세요.' : '관리자에게 수수료 데이터 업로드를 요청해 주세요.'}
+                </p>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="loadFeeTableData()" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-slate-200 transition">다시 시도</button>
+                    ${isManager ? `
+                        <button onclick="openFeeExcelUploadModal()" class="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 hover:bg-primaryHover transition flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            수수료 엑셀 업로드
+                        </button>
+                    ` : ''}
+                </div>
             </div>
         `;
         return;
@@ -172,11 +244,27 @@ function renderFeeTableView() {
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                         </div>
                         <div>
-                            <h2 class="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                                수수료 예시표
-                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 tracking-normal">${FEE_TABLE_DATA.month} 기준</span>
-                            </h2>
-                            <p class="text-xs sm:text-sm text-slate-500">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>
+                            <div class="flex items-center gap-2.5 flex-wrap">
+                                <h2 class="text-2xl font-black tracking-tight text-slate-900">수수료 예시표</h2>
+                                <!-- 기준월 선택 셀렉트박스 -->
+                                <div class="relative inline-flex items-center">
+                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-xs font-bold py-1 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 transition">
+                                        ${(feeTableAvailableMonths.length > 0 ? feeTableAvailableMonths : [FEE_TABLE_DATA.month || '2026.09']).map(m => `
+                                            <option value="${m}" ${m === feeTableState.month ? 'selected' : ''}>${m} 기준</option>
+                                        `).join('')}
+                                    </select>
+                                    <div class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-orange-600">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                                ${isManager ? `
+                                    <button onclick="openFeeExcelUploadModal()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                                        <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                        엑셀 데이터 업로드
+                                    </button>
+                                ` : ''}
+                            </div>
+                            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>
                         </div>
                     </div>
                 </div>
@@ -550,4 +638,387 @@ function setFeePayoutRate(rate, fullRender = true) {
 function resetFeePayoutRate() {
     feeTableState.overrideRate = null;
     renderFeeTableView();
+}
+
+/**
+ * ==============================================================================
+ * 관리자 전용: 수수료 예시표 엑셀 업로드 및 브라우저 파서 (SheetJS)
+ * ==============================================================================
+ */
+
+/**
+ * 엑셀 업로드 모달 열기
+ */
+function openFeeExcelUploadModal() {
+    const modalId = 'fee-excel-upload-modal';
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = "fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+        document.body.appendChild(modal);
+    }
+
+    const defaultMonth = feeTableState.month || (state.currentMonth ? state.currentMonth : '2026.09');
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 flex flex-col animate-scaleUp">
+            <!-- Modal Header -->
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-orange-100 text-primary flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-slate-900 text-lg">수수료 예시표 엑셀 업로드</h3>
+                        <p class="text-xs text-slate-400">손보 / 생보 엑셀 파일을 브라우저에서 파싱하여 드라이브에 저장합니다.</p>
+                    </div>
+                </div>
+                <button onclick="closeFeeExcelUploadModal()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5">
+                <!-- 1. Month Input -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">적용 기준월 (YYYY.MM)</label>
+                    <input type="text" id="ft-upload-month" value="${defaultMonth}" placeholder="예: 2026.09" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition">
+                    <p class="text-[11px] text-slate-400 mt-1">※ 동일 기준월 데이터가 이미 존재하는 경우 최신 데이터로 덮어씌워집니다.</p>
+                </div>
+
+                <!-- 2. Non-Life Excel File -->
+                <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            손해보험 엑셀 파일 (.xlsx)
+                        </span>
+                        <span class="text-[11px] font-medium text-slate-400">12개 손보사 시트</span>
+                    </div>
+                    <input type="file" id="ft-file-nonlife" accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                </div>
+
+                <!-- 3. Life Excel File -->
+                <div class="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            생명보험 엑셀 파일 (.xlsx)
+                        </span>
+                        <span class="text-[11px] font-medium text-slate-400">17개 생보사 시트</span>
+                    </div>
+                    <input type="file" id="ft-file-life" accept=".xlsx,.xls" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                </div>
+
+                <!-- Progress & Status -->
+                <div id="ft-upload-status" class="hidden text-xs font-bold text-center py-2 px-3 rounded-xl"></div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+                <button onclick="closeFeeExcelUploadModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-200/60 rounded-xl transition">취소</button>
+                <button id="ft-upload-submit-btn" onclick="executeFeeExcelUpload()" class="px-6 py-2.5 bg-primary text-white text-xs font-extrabold rounded-xl shadow-md shadow-orange-500/20 hover:bg-primaryHover transition flex items-center gap-1.5">
+                    <span>변환 및 드라이브 저장</span>
+                </button>
+            </div>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+}
+
+/**
+ * 엑셀 업로드 모달 닫기
+ */
+function closeFeeExcelUploadModal() {
+    const modal = document.getElementById('fee-excel-upload-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/**
+ * 브라우저에서 SheetJS로 단일 엑셀 워크북 파싱
+ */
+function parseFeeWorkbook(workbook, category) {
+    const companyData = {};
+    const sheetNames = workbook.SheetNames || [];
+
+    sheetNames.forEach(sName => {
+        if (sName.includes('변경')) return; // 변경내역 시트 제외
+        const ws = workbook.Sheets[sName];
+        if (!ws || !ws['!ref']) return;
+
+        // 1. Row 1의 기준 지급율 탐색
+        let baseRate = 1.0;
+        for (let c = 0; c < 20; c++) {
+            const cLetter = String.fromCharCode(65 + c);
+            const cell = ws[`${cLetter}1`];
+            if (cell && typeof cell.v === 'number') {
+                const num = cell.v;
+                if (num > 0.3 && num <= 1.0) {
+                    baseRate = num;
+                    break;
+                }
+            }
+        }
+
+        // 2. 셀 맵 구성
+        const cellMap = {};
+        for (let cellKey in ws) {
+            if (cellKey[0] === '!') continue;
+            const val = ws[cellKey].v;
+            if (val !== undefined && val !== null) {
+                cellMap[cellKey] = String(val).replace(/[\r\n]+/g, ' ').trim();
+            }
+        }
+
+        // 3. 헤더 행 찾기 (10행 ~ 14행)
+        let headerRow = 10;
+        for (let h = 10; h <= 14; h++) {
+            let rowText = '';
+            for (let ci = 0; ci < 26; ci++) {
+                const cl = String.fromCharCode(65 + ci);
+                if (cellMap[`${cl}${h}`]) rowText += ' ' + cellMap[`${cl}${h}`];
+            }
+            if (/상품명|상품 명|보험종목|보종|구분/.test(rowText)) {
+                headerRow = h;
+                break;
+            }
+        }
+
+        // 4. 열 매핑
+        const colHeaders = {};
+        const maxCol = 35; // A to AI
+        for (let ci = 1; ci <= maxCol; ci++) {
+            const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
+            let combHeader = '';
+            for (let rh = Math.max(10, headerRow - 1); rh <= (headerRow + 3); rh++) {
+                if (cellMap[`${colLetter}${rh}`]) {
+                    combHeader += ' ' + cellMap[`${colLetter}${rh}`];
+                }
+            }
+            combHeader = combHeader.trim();
+            if (combHeader) colHeaders[colLetter] = combHeader;
+        }
+
+        let prodCol = 'A';
+        const optCols = [];
+        const rateColMap = { first: null, year1: null, m13: null, year2: null, year3: null, total: null };
+
+        for (let col in colHeaders) {
+            const hText = colHeaders[col];
+            if (/상품명|상품 명/.test(hText) && prodCol === 'A') {
+                prodCol = col;
+            } else if (/구분|종별|만기|납기|납입|담보|종 구분|형 구분|만기구분|보종|보험종목/.test(hText) && !rateColMap.total && col !== prodCol) {
+                optCols.push({ col: col, title: hText.split(' ')[0] });
+            }
+
+            if (/총계|총수수료|총 수수료|합계계/.test(hText)) rateColMap.total = col;
+            if (/1차년도 합계|1차년도합계|1차년계|1차년計|1차년 計/.test(hText)) rateColMap.year1 = col;
+            if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) rateColMap.year2 = col;
+            if (/3차년도 합계|3차년도합계|3차년계|3차년計|3차년 計/.test(hText)) rateColMap.year3 = col;
+            if (/1회차|익월計|익월계|1회 지급\(1회차\)|성과수수료 \(1회차\)|장기성과수수료 \(1회차\)|신계약기본수수료 \(1회차\)|장기선급성과|GA성과수수료 \(1회차\)|모집수수료 \(1회차\)|신계약성과수수료 1회|모집수수료1/.test(hText)) {
+                if (!rateColMap.first) rateColMap.first = col;
+            }
+            if (/13차월|13회차|13~14회차|13~15회차|13~24회차|13-24회차|13회 計|13회계|13회|13~18회/.test(hText)) {
+                if (!rateColMap.m13) rateColMap.m13 = col;
+            }
+        }
+
+        if (cellMap[`B${headerRow + 2}`] && !cellMap[`A${headerRow + 2}`]) {
+            prodCol = 'B';
+        }
+
+        // 5. 데이터 행 파싱
+        let maxRow = 0;
+        for (let k in cellMap) {
+            const m = k.match(/^[A-Z]+(\d+)$/);
+            if (m) {
+                const rn = parseInt(m[1], 10);
+                if (rn > maxRow) maxRow = rn;
+            }
+        }
+
+        const dataRows = [];
+        let lastProduct = '';
+        const lastOpts = {};
+
+        function getNormRate(colLetter, r) {
+            if (!colLetter) return 0.0;
+            const raw = cellMap[`${colLetter}${r}`];
+            if (!raw) return 0.0;
+            const num = parseFloat(String(raw).replace(/[^0-9.-]/g, ''));
+            if (isNaN(num)) return 0.0;
+            let v = num;
+            if (baseRate > 0 && baseRate !== 1.0) {
+                v = v / baseRate;
+            }
+            if (v > 0 && v < 30.0) {
+                v = v * 100.0;
+            }
+            return Math.round(v * 100) / 100;
+        }
+
+        for (let r = headerRow + 1; r <= maxRow; r++) {
+            const pVal = cellMap[`${prodCol}${r}`] || '';
+            if (/수수료타입|합계|비고|※|업적|기준/.test(pVal)) continue;
+            if (pVal) lastProduct = pVal;
+            if (!lastProduct) continue;
+
+            const totVal = rateColMap.total ? cellMap[`${rateColMap.total}${r}`] : null;
+            const y1Val = rateColMap.year1 ? cellMap[`${rateColMap.year1}${r}`] : null;
+            const hasRate = (totVal && !isNaN(parseFloat(totVal))) || (y1Val && !isNaN(parseFloat(y1Val)));
+            if (!hasRate) continue;
+
+            const rowOpts = {};
+            optCols.forEach(oc => {
+                const val = cellMap[`${oc.col}${r}`];
+                if (val) lastOpts[oc.col] = val;
+                const curOpt = lastOpts[oc.col] || '-';
+                if (curOpt && curOpt !== '-') {
+                    const title = oc.title || '조건';
+                    rowOpts[title] = curOpt;
+                }
+            });
+
+            const rFirst = getNormRate(rateColMap.first, r);
+            let rY1 = getNormRate(rateColMap.year1, r);
+            let rM13 = getNormRate(rateColMap.m13, r);
+            const rY2 = getNormRate(rateColMap.year2, r);
+            const rY3 = getNormRate(rateColMap.year3, r);
+            let rTot = getNormRate(rateColMap.total, r);
+
+            if (rTot === 0 && (rY1 > 0 || rY2 > 0)) {
+                rTot = Math.round((rY1 + rY2 + rY3) * 100) / 100;
+            }
+            if (rY1 === 0 && rFirst > 0) {
+                rY1 = rFirst;
+            }
+            if (rM13 === 0 && rY2 > 0) {
+                rM13 = Math.round((rY2 / 2.0) * 100) / 100;
+            }
+
+            dataRows.push({
+                product: lastProduct.replace(/[\r\n]+/g, ' ').trim(),
+                options: rowOpts,
+                rates: {
+                    first: rFirst,
+                    year1: rY1,
+                    m13:   rM13,
+                    year2: rY2,
+                    year3: rY3,
+                    total: rTot
+                }
+            });
+        }
+
+        if (dataRows.length > 0) {
+            companyData[sName] = dataRows;
+        }
+    });
+
+    return companyData;
+}
+
+/**
+ * 엑셀 파싱 및 백엔드 저장 실행
+ */
+async function executeFeeExcelUpload() {
+    const monthInput = document.getElementById('ft-upload-month');
+    const month = (monthInput ? monthInput.value : '').trim();
+    if (!month || month.length < 6) {
+        alert('올바른 적용 기준월(예: 2026.09)을 입력해 주세요.');
+        return;
+    }
+
+    const nonLifeFileInput = document.getElementById('ft-file-nonlife');
+    const lifeFileInput = document.getElementById('ft-file-life');
+
+    const hasNonLife = nonLifeFileInput && nonLifeFileInput.files && nonLifeFileInput.files.length > 0;
+    const hasLife = lifeFileInput && lifeFileInput.files && lifeFileInput.files.length > 0;
+
+    if (!hasNonLife && !hasLife) {
+        alert('손해보험 또는 생명보험 엑셀 파일을 최소 1개 이상 선택해 주세요.');
+        return;
+    }
+
+    const statusEl = document.getElementById('ft-upload-status');
+    const btn = document.getElementById('ft-upload-submit-btn');
+
+    const setStatus = (msg, isError = false) => {
+        if (!statusEl) return;
+        statusEl.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-blue-50', 'text-blue-600', 'bg-emerald-50', 'text-emerald-700');
+        if (isError) {
+            statusEl.classList.add('bg-red-50', 'text-red-600');
+        } else {
+            statusEl.classList.add('bg-blue-50', 'text-blue-600');
+        }
+        statusEl.innerHTML = msg;
+    };
+
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+    try {
+        if (typeof XLSX === 'undefined') {
+            throw new Error('SheetJS(XLSX) 라이브러리가 로드되지 않았습니다.');
+        }
+
+        const readFileAsArrayBuffer = (file) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsArrayBuffer(file);
+            });
+        };
+
+        const resultCategories = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? { ...FEE_TABLE_DATA.categories } : { "손해보험": {}, "생명보험": {} };
+
+        // 1. 손해보험 파싱
+        if (hasNonLife) {
+            setStatus('손해보험 엑셀 파일을 분석하고 있습니다...');
+            const buf = await readFileAsArrayBuffer(nonLifeFileInput.files[0]);
+            const wb = XLSX.read(buf, { type: 'array' });
+            resultCategories['손해보험'] = parseFeeWorkbook(wb, '손해보험');
+        }
+
+        // 2. 생명보험 파싱
+        if (hasLife) {
+            setStatus('생명보험 엑셀 파일을 분석하고 있습니다...');
+            const buf = await readFileAsArrayBuffer(lifeFileInput.files[0]);
+            const wb = XLSX.read(buf, { type: 'array' });
+            resultCategories['생명보험'] = parseFeeWorkbook(wb, '생명보험');
+        }
+
+        const totalNonLife = Object.keys(resultCategories['손해보험'] || {}).length;
+        const totalLife = Object.keys(resultCategories['생명보험'] || {}).length;
+
+        setStatus(`구글 드라이브에 저장 중입니다... (손보 ${totalNonLife}개사, 생보 ${totalLife}개사)`);
+
+        const payload = {
+            month: month,
+            updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            categories: resultCategories
+        };
+
+        const res = await callApi('saveFeeTableData', month, payload);
+
+        if (res && res.success) {
+            setStatus(`<span class="text-emerald-700 font-bold">✓ ${res.message || '성공적으로 저장되었습니다.'}</span>`);
+            setTimeout(() => {
+                closeFeeExcelUploadModal();
+                feeTableState.month = month;
+                feeTableAvailableMonths = []; // 캐시 초기화
+                loadFeeTableData(month);
+            }, 1200);
+        } else {
+            throw new Error(res?.message || '구글 드라이브 저장에 실패했습니다.');
+        }
+    } catch (err) {
+        console.error('executeFeeExcelUpload error:', err);
+        setStatus(`오류: ${err.message || err.toString()}`, true);
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
 }
