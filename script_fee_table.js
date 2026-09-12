@@ -23,25 +23,31 @@ var feeTableState = {
 };
 
 /**
- * 보험사 목록 정렬
- * - 손해보험: 1번 한화손보, 2번 흥국화재, 이후 한글 가나다순 / 영문 ABC순
+ * 보험사 목록 정렬 및 필터링
+ * - 손해보험: 한화손보, 흥국화재, KB손보, DB손보, 삼성화재, 하나손보, 현대해상, 롯데손보, 메리츠, 농협손보, AIG손보 (MG손보 제외)
  * - 생명보험: 1번 한화생명, 2번 KB라이프, 이후 한글 가나다순 / 영문 ABC순
  */
 function sortInsuranceCompanies(list, category) {
-    const sorted = [...list];
     if (category === '손해보험') {
-        const top1 = '한화손보';
-        const top2 = '흥국화재';
-        sorted.sort((a, b) => {
-            if (a === top1) return -1;
-            if (b === top1) return 1;
-            if (a === top2) return -1;
-            if (b === top2) return 1;
+        const order = [
+            '한화손보', '흥국화재', 'KB손보', 'DB손보', '삼성화재', 
+            '하나손보', '현대해상', '롯데손보', '메리츠', '농협손보', 'AIG손보'
+        ];
+        // MG손보 제외
+        const filtered = list.filter(c => !c.includes('MG'));
+        filtered.sort((a, b) => {
+            const idxA = order.indexOf(a);
+            const idxB = order.indexOf(b);
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
             return a.localeCompare(b, 'ko', { sensitivity: 'base' });
         });
+        return filtered;
     } else if (category === '생명보험') {
         const top1 = '한화생명';
         const top2 = 'KB라이프';
+        const sorted = [...list];
         sorted.sort((a, b) => {
             if (a === top1) return -1;
             if (b === top1) return 1;
@@ -49,10 +55,33 @@ function sortInsuranceCompanies(list, category) {
             if (b === top2) return 1;
             return a.localeCompare(b, 'ko', { sensitivity: 'base' });
         });
+        return sorted;
     } else {
+        const sorted = [...list];
         sorted.sort((a, b) => a.localeCompare(b, 'ko', { sensitivity: 'base' }));
+        return sorted;
     }
-    return sorted;
+}
+
+/**
+ * 보험사별 13차월(2차년도 분할) 합산 표기 보정
+ * - 13~14차월(2개월분) 합산 표시 회사: 1/2로 계산 (DB손보, KB손보)
+ * - 13~15차월(3개월분) 합산 표시 회사: 1/3로 계산 (농협손보, 삼성화재, 현대해상, 흥국화재)
+ */
+function getAdjustedBaseRates(rates, companyName) {
+    if (!rates) return { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+    const r = { ...rates };
+    const comp = companyName || '';
+
+    // 1/2로 계산할 회사 (DB손보, KB손보)
+    if (comp.includes('DB') || comp.includes('KB')) {
+        r.m13 = Math.round((r.m13 / 2.0) * 100) / 100;
+    }
+    // 1/3로 계산할 회사 (농협손보, 삼성화재, 현대해상, 흥국화재)
+    else if (comp.includes('농협') || comp.includes('삼성') || comp.includes('현대') || comp.includes('흥국')) {
+        r.m13 = Math.round((r.m13 / 3.0) * 100) / 100;
+    }
+    return r;
 }
 
 /**
@@ -242,7 +271,8 @@ function renderFeeTableView() {
     const multiplier = currentRate / 100.0;
     const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
 
-    const baseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+    const rawBaseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+    const baseRates = getAdjustedBaseRates(rawBaseRates, feeTableState.company);
     
     // 계산된 수수료율 (지급율 반영)
     const calcRates = {
@@ -333,10 +363,10 @@ function renderFeeTableView() {
                 <!-- 손보 vs 생보 -->
                 <div class="flex items-center gap-1 p-1 bg-slate-200/70 rounded-xl flex-shrink-0">
                     <button onclick="switchFeeCategory('손해보험')" class="px-4 py-1.5 rounded-lg font-extrabold text-xs transition-all ${feeTableState.category === '손해보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
-                        손해보험 <span class="text-[10px] font-normal opacity-70">(${Object.keys(categories['손해보험'] || {}).length})</span>
+                        손해보험 <span class="text-[10px] font-normal opacity-70">(${sortInsuranceCompanies(Object.keys(categories['손해보험'] || {}), '손해보험').length})</span>
                     </button>
                     <button onclick="switchFeeCategory('생명보험')" class="px-4 py-1.5 rounded-lg font-extrabold text-xs transition-all ${feeTableState.category === '생명보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
-                        생명보험 <span class="text-[10px] font-normal opacity-70">(${Object.keys(categories['생명보험'] || {}).length})</span>
+                        생명보험 <span class="text-[10px] font-normal opacity-70">(${sortInsuranceCompanies(Object.keys(categories['생명보험'] || {}), '생명보험').length})</span>
                     </button>
                 </div>
 
@@ -372,7 +402,7 @@ function renderFeeTableView() {
                             </div>
                         </div>
                         <div>
-                            <label id="ft-product-count-label" class="block text-[11px] font-bold text-slate-500 mb-1">선택된 상품 (${filteredProducts.length}개)</label>
+                            <label id="ft-product-count-label" class="block text-[11px] font-bold text-slate-500 mb-1">상품 선택 (상품 수 : ${filteredProducts.length}개)</label>
                             <select id="ft-product-select" class="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" onchange="selectFeeProduct(this.value)">
                                 ${filteredProducts.map(p => `
                                     <option value="${p}" ${p === feeTableState.selectedProduct ? 'selected' : ''}>${p}</option>
@@ -630,7 +660,8 @@ function updateFeeCalculations() {
     const currentRate = getEffectiveFeeRate();
     const multiplier = currentRate / 100.0;
     const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
-    const baseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+    const rawBaseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+    const baseRates = getAdjustedBaseRates(rawBaseRates, feeTableState.company);
 
     const calcRates = {
         first: Math.round(baseRates.first * multiplier * 10) / 10,
@@ -792,7 +823,7 @@ function handleFeeProductSearch(val) {
     }
 
     const countLabel = document.getElementById('ft-product-count-label');
-    if (countLabel) countLabel.innerText = `선택된 상품 (${filteredProducts.length}개)`;
+    if (countLabel) countLabel.innerText = `상품 선택 (상품 수 : ${filteredProducts.length}개)`;
 
     const select = document.getElementById('ft-product-select');
     if (select) {
@@ -1002,6 +1033,7 @@ function parseFeeWorkbook(workbook, category) {
 
     sheetNames.forEach(sName => {
         if (sName.includes('변경')) return; // 변경내역 시트 제외
+        if (sName.includes('MG')) return; // MG손보 신규계약 중단으로 파싱 및 업로드 제외
         const ws = workbook.Sheets[sName];
         if (!ws || !ws['!ref']) return;
 
