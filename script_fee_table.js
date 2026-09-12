@@ -18,8 +18,8 @@ var feeTableState = {
     searchKeyword: '',
     selectedProduct: '',
     selectedOptions: {},
-    premium: 100000, // 기본 월납 보험료 100,000원
-    overrideRate: null // 관리자/지사대표가 조정한 지급율 (null이면 자동 계산)
+    premium: 150000, // 기본 월납 보험료 150,000원
+    overrideRate: null // 관리자/지사대표가 조정한 지급율 (null이면 자동 계산, 최초 디폴트값: 내지급율)
 };
 
 /**
@@ -240,7 +240,7 @@ function renderFeeTableView() {
     // 수수료율 및 원화 금액 계산
     const currentRate = getEffectiveFeeRate();
     const multiplier = currentRate / 100.0;
-    const premium = feeTableState.premium || 100000;
+    const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
 
     const baseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
     
@@ -318,10 +318,10 @@ function renderFeeTableView() {
                         <input type="number" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
                     </div>
                     <div class="flex items-center justify-between gap-1 mt-1.5">
+                        <button onclick="setFeePayoutRate(75)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 75 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">75%</button>
                         <button onclick="setFeePayoutRate(80)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 80 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">80%</button>
-                        <button onclick="setFeePayoutRate(84)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 84 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">84%</button>
-                        <button onclick="setFeePayoutRate(88)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 88 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">88%</button>
-                        <button onclick="setFeePayoutRate(100)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 100 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">100%</button>
+                        <button onclick="setFeePayoutRate(85)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 85 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">85%</button>
+                        <button onclick="setFeePayoutRate(90)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 90 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">90%</button>
                         <button onclick="resetFeePayoutRate()" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === null ? 'bg-primary text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">내지급율</button>
                     </div>
                 </div>
@@ -366,15 +366,13 @@ function renderFeeTableView() {
                                 <div class="absolute left-2.5 top-2.5 text-slate-400 pointer-events-none">
                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                                 </div>
-                                ${feeTableState.searchKeyword ? `
-                                    <button onclick="clearFeeProductSearch()" class="absolute right-2 top-2 text-slate-400 hover:text-slate-600">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                    </button>
-                                ` : ''}
+                                <button id="ft-search-clear-btn" onclick="clearFeeProductSearch()" class="absolute right-2 top-2 text-slate-400 hover:text-slate-600 ${feeTableState.searchKeyword ? '' : 'hidden'}">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-500 mb-1">선택된 상품 (${filteredProducts.length}개)</label>
+                            <label id="ft-product-count-label" class="block text-[11px] font-bold text-slate-500 mb-1">선택된 상품 (${filteredProducts.length}개)</label>
                             <select id="ft-product-select" class="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" onchange="selectFeeProduct(this.value)">
                                 ${filteredProducts.map(p => `
                                     <option value="${p}" ${p === feeTableState.selectedProduct ? 'selected' : ''}>${p}</option>
@@ -384,38 +382,40 @@ function renderFeeTableView() {
                     </div>
 
                     <!-- Dynamic Option Selector Chips (만기, 납기, 구분 등) -->
-                    ${optionKeys.length > 0 ? `
-                    <div class="pt-2.5 border-t border-slate-100 space-y-2">
-                        ${optionKeys.map(optKey => {
-                            const valSet = [];
-                            selectedProdRows.forEach(r => {
-                                if (r.options && r.options[optKey]) {
-                                    const val = r.options[optKey];
-                                    if (!valSet.includes(val)) valSet.push(val);
-                                }
-                            });
-                            if (valSet.length === 0) return '';
-                            
-                            const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
+                    <div id="ft-options-container">
+                        ${optionKeys.length > 0 ? `
+                        <div class="pt-2.5 border-t border-slate-100 space-y-2">
+                            ${optionKeys.map(optKey => {
+                                const valSet = [];
+                                selectedProdRows.forEach(r => {
+                                    if (r.options && r.options[optKey]) {
+                                        const val = r.options[optKey];
+                                        if (!valSet.includes(val)) valSet.push(val);
+                                    }
+                                });
+                                if (valSet.length === 0) return '';
+                                
+                                const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
 
-                            return `
-                                <div class="flex items-center gap-2 flex-wrap">
-                                    <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
-                                    <div class="flex flex-wrap gap-1">
-                                        ${valSet.map(v => {
-                                            const selected = (v === curVal);
-                                            return `
-                                                <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
-                                                    ${v}
-                                                </button>
-                                            `;
-                                        }).join('')}
+                                return `
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
+                                        <div class="flex flex-wrap gap-1">
+                                            ${valSet.map(v => {
+                                                const selected = (v === curVal);
+                                                return `
+                                                    <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
+                                                        ${v}
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
                                     </div>
-                                </div>
-                            `;
-                        }).join('')}
+                                `;
+                            }).join('')}
+                        </div>
+                        ` : ''}
                     </div>
-                    ` : ''}
                 </div>
 
                 <!-- 우측 (5열): Monthly Premium Simulator (컴팩트 카드 형태) -->
@@ -435,14 +435,10 @@ function renderFeeTableView() {
                         </div>
                         <div class="grid grid-cols-4 gap-1.5">
                             <button onclick="setFeePremium(100000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">10만</button>
-                            <button onclick="setFeePremium(200000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">20만</button>
                             <button onclick="setFeePremium(300000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">30만</button>
+                            <button onclick="setFeePremium(500000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">50만</button>
                             <button onclick="addFeePremium(50000)" class="py-1.5 bg-orange-500/30 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 rounded-lg text-xs font-bold transition">+5만</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-                        <button onclick="addFeePremium(50000)" class="px-3 py-2 bg-orange-500/30 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 rounded-xl text-xs font-bold transition">+5만</button>
                     </div>
                 </div>
             </div>
@@ -466,8 +462,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-bold">1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">${calcRates.first.toFixed(1)}<span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1">${calcAmounts.first.toLocaleString('ko-KR')} <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-first">${calcRates.first.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1"><span id="ft-amt-first">${calcAmounts.first.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
@@ -478,8 +474,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold">Y1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">${calcRates.year1.toFixed(1)}<span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-indigo-600 mt-1">${calcAmounts.year1.toLocaleString('ko-KR')} <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year1">${calcRates.year1.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-indigo-600 mt-1"><span id="ft-amt-year1">${calcAmounts.year1.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
@@ -490,8 +486,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">13M</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight">${calcRates.m13.toFixed(1)}<span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-orange-600 mt-1">${calcAmounts.m13.toLocaleString('ko-KR')} <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-m13">${calcRates.m13.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-orange-600 mt-1"><span id="ft-amt-m13">${calcAmounts.m13.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
@@ -502,8 +498,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[10px] font-bold">Y2</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">${calcRates.year2.toFixed(1)}<span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-purple-600 mt-1">${calcAmounts.year2.toLocaleString('ko-KR')} <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year2">${calcRates.year2.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-purple-600 mt-1"><span id="ft-amt-year2">${calcAmounts.year2.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
@@ -515,8 +511,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] font-bold">Y3</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">${calcRates.year3.toFixed(1)}<span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-emerald-600 mt-1">${calcAmounts.year3.toLocaleString('ko-KR')} <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year3">${calcRates.year3.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-emerald-600 mt-1"><span id="ft-amt-year3">${calcAmounts.year3.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
                     ` : ''}
@@ -528,8 +524,8 @@ function renderFeeTableView() {
                             <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">TOTAL</span>
                         </div>
                         <div>
-                            <p class="text-2xl sm:text-3xl font-black tracking-tight">${calcRates.total.toFixed(1)}<span class="text-base font-bold text-orange-100 ml-0.5">%</span></p>
-                            <p class="text-sm sm:text-base font-black text-white mt-1 drop-shadow-xs">${calcAmounts.total.toLocaleString('ko-KR')} <span class="text-xs font-medium text-orange-100">원</span></p>
+                            <p class="text-2xl sm:text-3xl font-black tracking-tight"><span id="ft-rate-total">${calcRates.total.toFixed(1)}</span><span class="text-base font-bold text-orange-100 ml-0.5">%</span></p>
+                            <p class="text-sm sm:text-base font-black text-white mt-1 drop-shadow-xs"><span id="ft-amt-total">${calcAmounts.total.toLocaleString('ko-KR')}</span> <span class="text-xs font-medium text-orange-100">원</span></p>
                         </div>
                     </div>
 
@@ -594,17 +590,219 @@ function switchFeeCompany(comp) {
     renderFeeTableView();
 }
 
+function updateFeeCalculations() {
+    if (!FEE_TABLE_DATA) return;
+    const catCompanies = FEE_TABLE_DATA.categories[feeTableState.category] || {};
+    const currentRows = catCompanies[feeTableState.company] || [];
+
+    const productMap = {};
+    currentRows.forEach(row => {
+        if (row.product) {
+            if (!productMap[row.product]) productMap[row.product] = [];
+            productMap[row.product].push(row);
+        }
+    });
+
+    const selectedProdRows = feeTableState.selectedProduct ? (productMap[feeTableState.selectedProduct] || []) : [];
+    const optionKeys = [];
+    selectedProdRows.forEach(row => {
+        if (row.options) {
+            Object.keys(row.options).forEach(k => {
+                if (!optionKeys.includes(k)) optionKeys.push(k);
+            });
+        }
+    });
+
+    let matchedRow = selectedProdRows.find(row => {
+        if (!row.options) return true;
+        for (let k of optionKeys) {
+            if (feeTableState.selectedOptions[k] && row.options[k] !== feeTableState.selectedOptions[k]) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    if (!matchedRow && selectedProdRows.length > 0) {
+        matchedRow = selectedProdRows[0];
+    }
+
+    const currentRate = getEffectiveFeeRate();
+    const multiplier = currentRate / 100.0;
+    const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
+    const baseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
+
+    const calcRates = {
+        first: Math.round(baseRates.first * multiplier * 10) / 10,
+        year1: Math.round(baseRates.year1 * multiplier * 10) / 10,
+        m13:   Math.round(baseRates.m13 * multiplier * 10) / 10,
+        year2: Math.round(baseRates.year2 * multiplier * 10) / 10,
+        year3: Math.round((baseRates.year3 || 0) * multiplier * 10) / 10,
+        total: Math.round(baseRates.total * multiplier * 10) / 10
+    };
+
+    const calcAmounts = {
+        first: Math.round(premium * (calcRates.first / 100.0)),
+        year1: Math.round(premium * (calcRates.year1 / 100.0)),
+        m13:   Math.round(premium * (calcRates.m13 / 100.0)),
+        year2: Math.round(premium * (calcRates.year2 / 100.0)),
+        year3: Math.round(premium * (calcRates.year3 / 100.0)),
+        total: Math.round(premium * (calcRates.total / 100.0))
+    };
+
+    const rateFirst = document.getElementById('ft-rate-first');
+    const amtFirst = document.getElementById('ft-amt-first');
+    if (rateFirst) rateFirst.innerText = calcRates.first.toFixed(1);
+    if (amtFirst) amtFirst.innerText = calcAmounts.first.toLocaleString('ko-KR');
+
+    const rateY1 = document.getElementById('ft-rate-year1');
+    const amtY1 = document.getElementById('ft-amt-year1');
+    if (rateY1) rateY1.innerText = calcRates.year1.toFixed(1);
+    if (amtY1) amtY1.innerText = calcAmounts.year1.toLocaleString('ko-KR');
+
+    const rateM13 = document.getElementById('ft-rate-m13');
+    const amtM13 = document.getElementById('ft-amt-m13');
+    if (rateM13) rateM13.innerText = calcRates.m13.toFixed(1);
+    if (amtM13) amtM13.innerText = calcAmounts.m13.toLocaleString('ko-KR');
+
+    const rateY2 = document.getElementById('ft-rate-year2');
+    const amtY2 = document.getElementById('ft-amt-year2');
+    if (rateY2) rateY2.innerText = calcRates.year2.toFixed(1);
+    if (amtY2) amtY2.innerText = calcAmounts.year2.toLocaleString('ko-KR');
+
+    const rateY3 = document.getElementById('ft-rate-year3');
+    const amtY3 = document.getElementById('ft-amt-year3');
+    if (rateY3) rateY3.innerText = calcRates.year3.toFixed(1);
+    if (amtY3) amtY3.innerText = calcAmounts.year3.toLocaleString('ko-KR');
+
+    const rateTotal = document.getElementById('ft-rate-total');
+    const amtTotal = document.getElementById('ft-amt-total');
+    if (rateTotal) rateTotal.innerText = calcRates.total.toFixed(1);
+    if (amtTotal) amtTotal.innerText = calcAmounts.total.toLocaleString('ko-KR');
+}
+
 /**
- * 상품 검색 인풋
+ * 옵션 선택 칩 부분 렌더링
+ */
+function updateFeeOptionsUI() {
+    const container = document.getElementById('ft-options-container');
+    if (!container || !FEE_TABLE_DATA) return;
+
+    const catCompanies = FEE_TABLE_DATA.categories[feeTableState.category] || {};
+    const currentRows = catCompanies[feeTableState.company] || [];
+    const productMap = {};
+    currentRows.forEach(row => {
+        if (row.product) {
+            if (!productMap[row.product]) productMap[row.product] = [];
+            productMap[row.product].push(row);
+        }
+    });
+
+    const selectedProdRows = feeTableState.selectedProduct ? (productMap[feeTableState.selectedProduct] || []) : [];
+    const optionKeys = [];
+    selectedProdRows.forEach(row => {
+        if (row.options) {
+            Object.keys(row.options).forEach(k => {
+                if (!optionKeys.includes(k)) optionKeys.push(k);
+            });
+        }
+    });
+
+    if (selectedProdRows.length > 0) {
+        optionKeys.forEach(k => {
+            if (!feeTableState.selectedOptions[k]) {
+                const firstVal = selectedProdRows[0].options ? selectedProdRows[0].options[k] : '';
+                if (firstVal) feeTableState.selectedOptions[k] = firstVal;
+            }
+        });
+    }
+
+    if (optionKeys.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="pt-2.5 border-t border-slate-100 space-y-2">
+            ${optionKeys.map(optKey => {
+                const valSet = [];
+                selectedProdRows.forEach(r => {
+                    if (r.options && r.options[optKey]) {
+                        const val = r.options[optKey];
+                        if (!valSet.includes(val)) valSet.push(val);
+                    }
+                });
+                if (valSet.length === 0) return '';
+                
+                const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
+
+                return `
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
+                        <div class="flex flex-wrap gap-1">
+                            ${valSet.map(v => {
+                                const selected = (v === curVal);
+                                return `
+                                    <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
+                                        ${v}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+/**
+ * 상품 검색 인풋 (한글 조합/자모 분리 방지를 위해 인풋 리렌더링 없이 셀렉트박스/옵션/수치만 부분 갱신)
  */
 function handleFeeProductSearch(val) {
     feeTableState.searchKeyword = val;
-    renderFeeTableView();
-    const input = document.getElementById('ft-product-search');
-    if (input) {
-        input.focus();
-        input.selectionStart = input.selectionEnd = input.value.length;
+
+    const clearBtn = document.getElementById('ft-search-clear-btn');
+    if (clearBtn) {
+        if (val) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
     }
+
+    if (!FEE_TABLE_DATA) return;
+    const catCompanies = FEE_TABLE_DATA.categories[feeTableState.category] || {};
+    const currentRows = catCompanies[feeTableState.company] || [];
+
+    const productMap = {};
+    currentRows.forEach(row => {
+        if (row.product) {
+            if (!productMap[row.product]) productMap[row.product] = [];
+            productMap[row.product].push(row);
+        }
+    });
+    const productList = Object.keys(productMap);
+
+    const kw = val.trim().toLowerCase();
+    const filteredProducts = kw 
+        ? productList.filter(p => p.toLowerCase().includes(kw))
+        : productList;
+
+    if (!productMap[feeTableState.selectedProduct] || (kw && !filteredProducts.includes(feeTableState.selectedProduct))) {
+        feeTableState.selectedProduct = filteredProducts.length > 0 ? filteredProducts[0] : '';
+        feeTableState.selectedOptions = {};
+    }
+
+    const countLabel = document.getElementById('ft-product-count-label');
+    if (countLabel) countLabel.innerText = `선택된 상품 (${filteredProducts.length}개)`;
+
+    const select = document.getElementById('ft-product-select');
+    if (select) {
+        select.innerHTML = filteredProducts.map(p => `
+            <option value="${p}" ${p === feeTableState.selectedProduct ? 'selected' : ''}>${p}</option>
+        `).join('');
+    }
+
+    updateFeeOptionsUI();
+    updateFeeCalculations();
 }
 
 /**
@@ -612,7 +810,9 @@ function handleFeeProductSearch(val) {
  */
 function clearFeeProductSearch() {
     feeTableState.searchKeyword = '';
-    renderFeeTableView();
+    const input = document.getElementById('ft-product-search');
+    if (input) input.value = '';
+    handleFeeProductSearch('');
 }
 
 /**
@@ -621,7 +821,8 @@ function clearFeeProductSearch() {
 function selectFeeProduct(prod) {
     feeTableState.selectedProduct = prod;
     feeTableState.selectedOptions = {};
-    renderFeeTableView();
+    updateFeeOptionsUI();
+    updateFeeCalculations();
 }
 
 /**
@@ -629,22 +830,27 @@ function selectFeeProduct(prod) {
  */
 function setFeeOption(key, val) {
     feeTableState.selectedOptions[key] = val;
-    renderFeeTableView();
+    updateFeeOptionsUI();
+    updateFeeCalculations();
 }
 
 /**
- * 월 보험료 입력
+ * 월 보험료 입력 (한글/숫자 타이핑 시 전체 뷰 재렌더링 방지하여 포커스 및 입력 끊김 방지)
  */
 function handleFeePremiumInput(val) {
     const raw = String(val).replace(/[^0-9]/g, '');
     const num = parseInt(raw, 10);
     feeTableState.premium = isNaN(num) ? 0 : num;
-    renderFeeTableView();
+
     const input = document.getElementById('ft-premium-input');
     if (input) {
-        input.focus();
-        input.selectionStart = input.selectionEnd = input.value.length;
+        const formatted = (feeTableState.premium || 0).toLocaleString('ko-KR');
+        if (input.value !== formatted && raw !== '') {
+            const pos = input.selectionEnd;
+            input.value = formatted;
+        }
     }
+    updateFeeCalculations();
 }
 
 /**
@@ -652,7 +858,9 @@ function handleFeePremiumInput(val) {
  */
 function setFeePremium(amt) {
     feeTableState.premium = amt;
-    renderFeeTableView();
+    const input = document.getElementById('ft-premium-input');
+    if (input) input.value = amt.toLocaleString('ko-KR');
+    updateFeeCalculations();
 }
 
 /**
@@ -660,7 +868,9 @@ function setFeePremium(amt) {
  */
 function addFeePremium(delta) {
     feeTableState.premium = (feeTableState.premium || 0) + delta;
-    renderFeeTableView();
+    const input = document.getElementById('ft-premium-input');
+    if (input) input.value = feeTableState.premium.toLocaleString('ko-KR');
+    updateFeeCalculations();
 }
 
 /**
