@@ -14,13 +14,46 @@ var feeTableLoading = false;
 var feeTableState = {
     month: '', // 현재 선택된 기준월 (예: '2026.09')
     category: '손해보험', // '손해보험' | '생명보험'
-    company: 'DB손보',
+    company: '한화손보',
     searchKeyword: '',
     selectedProduct: '',
     selectedOptions: {},
     premium: 100000, // 기본 월납 보험료 100,000원
     overrideRate: null // 관리자/지사대표가 조정한 지급율 (null이면 자동 계산)
 };
+
+/**
+ * 보험사 목록 정렬
+ * - 손해보험: 1번 한화손보, 2번 흥국화재, 이후 한글 가나다순 / 영문 ABC순
+ * - 생명보험: 1번 한화생명, 2번 KB라이프, 이후 한글 가나다순 / 영문 ABC순
+ */
+function sortInsuranceCompanies(list, category) {
+    const sorted = [...list];
+    if (category === '손해보험') {
+        const top1 = '한화손보';
+        const top2 = '흥국화재';
+        sorted.sort((a, b) => {
+            if (a === top1) return -1;
+            if (b === top1) return 1;
+            if (a === top2) return -1;
+            if (b === top2) return 1;
+            return a.localeCompare(b, 'ko', { sensitivity: 'base' });
+        });
+    } else if (category === '생명보험') {
+        const top1 = '한화생명';
+        const top2 = 'KB라이프';
+        sorted.sort((a, b) => {
+            if (a === top1) return -1;
+            if (b === top1) return 1;
+            if (a === top2) return -1;
+            if (b === top2) return 1;
+            return a.localeCompare(b, 'ko', { sensitivity: 'base' });
+        });
+    } else {
+        sorted.sort((a, b) => a.localeCompare(b, 'ko', { sensitivity: 'base' }));
+    }
+    return sorted;
+}
 
 /**
  * 현재 적용되는 지급율 계산
@@ -133,7 +166,8 @@ function renderFeeTableView() {
 
     const categories = FEE_TABLE_DATA.categories;
     const catCompanies = categories[feeTableState.category] || {};
-    const companyList = Object.keys(catCompanies);
+    const rawCompanyList = Object.keys(catCompanies);
+    const companyList = sortInsuranceCompanies(rawCompanyList, feeTableState.category);
 
     // 유효한 보험사 선택 보장
     if (!catCompanies[feeTableState.company] && companyList.length > 0) {
@@ -234,167 +268,180 @@ function renderFeeTableView() {
     const isManager = isBranchRepAny() || isAdminAny();
 
     container.innerHTML = `
-        <div class="space-y-6 pb-20 max-w-7xl mx-auto animate-fadeIn">
+        <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
             
-            <!-- 1. Header & Quick Controls -->
-            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <!-- 1. Header & Quick Controls (컴팩트 높이) -->
+            <div class="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                         </div>
                         <div>
-                            <div class="flex items-center gap-2.5 flex-wrap">
-                                <h2 class="text-2xl font-black tracking-tight text-slate-900">수수료 예시표</h2>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h2 class="text-xl font-black tracking-tight text-slate-900">수수료 예시표</h2>
                                 <!-- 기준월 선택 셀렉트박스 -->
                                 <div class="relative inline-flex items-center">
-                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-xs font-bold py-1 pl-3 pr-7 rounded-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 transition">
+                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
                                         ${(feeTableAvailableMonths.length > 0 ? feeTableAvailableMonths : [FEE_TABLE_DATA.month || '2026.09']).map(m => `
                                             <option value="${m}" ${m === feeTableState.month ? 'selected' : ''}>${m} 기준</option>
                                         `).join('')}
                                     </select>
-                                    <div class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-orange-600">
-                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-orange-600">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                 </div>
                                 ${isManager ? `
-                                    <button onclick="openFeeExcelUploadModal()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition">
-                                        <svg class="w-3.5 h-3.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                        엑셀 데이터 업로드
+                                    <button onclick="openFeeExcelUploadModal()" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition">
+                                        <svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                        엑셀 업로드
                                     </button>
                                 ` : ''}
                             </div>
-                            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>
+                            <p class="text-[11px] text-slate-400">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- 관리자/지사대표 전용 지급율 조정 컨트롤 (일반 사용자에게는 완전히 숨김!) -->
                 ${isManager ? `
-                <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 w-full lg:w-auto min-w-[320px] shadow-xs">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                            지급율 시뮬레이션 <span class="text-[10px] font-normal text-slate-400">(관리자 전용)</span>
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 w-full lg:w-auto min-w-[300px] shadow-2xs">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                            지급율 시뮬레이션 <span class="text-[9px] font-normal text-slate-400">(관리자)</span>
                         </span>
-                        <span class="text-sm font-black text-primary" id="ft-payout-display">${currentRate.toFixed(1)}%</span>
+                        <span class="text-xs font-black text-primary" id="ft-payout-display">${currentRate.toFixed(1)}%</span>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <input type="range" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-slider" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                        <input type="number" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-input" class="w-16 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
+                    <div class="flex items-center gap-2">
+                        <input type="range" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-slider" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <input type="number" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
                     </div>
-                    <div class="flex items-center justify-between gap-1 mt-2">
-                        <button onclick="setFeePayoutRate(80)" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100">80%</button>
-                        <button onclick="setFeePayoutRate(84)" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100">84%</button>
-                        <button onclick="setFeePayoutRate(88)" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100">88%</button>
-                        <button onclick="setFeePayoutRate(100)" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-white border border-slate-200 text-slate-600 hover:bg-slate-100">100%</button>
-                        <button onclick="resetFeePayoutRate()" class="px-2 py-0.5 text-[10px] font-semibold rounded bg-orange-50 border border-orange-200 text-primary hover:bg-orange-100">내지급율</button>
+                    <div class="flex items-center justify-between gap-1 mt-1.5">
+                        <button onclick="setFeePayoutRate(80)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 80 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">80%</button>
+                        <button onclick="setFeePayoutRate(84)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 84 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">84%</button>
+                        <button onclick="setFeePayoutRate(88)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 88 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">88%</button>
+                        <button onclick="setFeePayoutRate(100)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 100 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">100%</button>
+                        <button onclick="resetFeePayoutRate()" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === null ? 'bg-primary text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">내지급율</button>
                     </div>
                 </div>
                 ` : ''}
             </div>
 
-            <!-- 2. Category Tab (손보 vs 생보) -->
-            <div class="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl w-fit">
-                <button onclick="switchFeeCategory('손해보험')" class="px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${feeTableState.category === '손해보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
-                    손해보험 <span class="text-xs font-normal opacity-70">(${Object.keys(categories['손해보험'] || {}).length})</span>
-                </button>
-                <button onclick="switchFeeCategory('생명보험')" class="px-6 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${feeTableState.category === '생명보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
-                    생명보험 <span class="text-xs font-normal opacity-70">(${Object.keys(categories['생명보험'] || {}).length})</span>
-                </button>
-            </div>
-
-            <!-- 3. Company Chips (가로 스크롤) -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                ${companyList.map(comp => {
-                    const active = (feeTableState.company === comp);
-                    return `
-                        <button onclick="switchFeeCompany('${comp}')" class="px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 ${active ? 'bg-primary text-white shadow-md shadow-orange-500/25 scale-[1.02]' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-100'}">
-                            ${comp}
-                        </button>
-                    `;
-                }).join('')}
-            </div>
-
-            <!-- 4. Product Search & Dynamic Condition Selector -->
-            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-100 space-y-6">
-                <!-- Search Input & Product Selector -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-2">상품 검색 (키워드/초성)</label>
-                        <div class="relative">
-                            <input type="text" id="ft-product-search" value="${feeTableState.searchKeyword}" placeholder="상품명을 입력하세요 (예: 중증케어, 건강보험 등)" class="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" oninput="handleFeeProductSearch(this.value)">
-                            <div class="absolute left-3.5 top-3.5 text-slate-400 pointer-events-none">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            </div>
-                            ${feeTableState.searchKeyword ? `
-                                <button onclick="clearFeeProductSearch()" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 mb-2">선택된 상품 (${filteredProducts.length}개 검색됨)</label>
-                        <select id="ft-product-select" class="w-full py-3 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" onchange="selectFeeProduct(this.value)">
-                            ${filteredProducts.map(p => `
-                                <option value="${p}" ${p === feeTableState.selectedProduct ? 'selected' : ''}>${p}</option>
-                            `).join('')}
-                        </select>
-                    </div>
+            <!-- 2. Category Tab & Company Chips (컴팩트 가로 배치) -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <!-- 손보 vs 생보 -->
+                <div class="flex items-center gap-1 p-1 bg-slate-200/70 rounded-xl flex-shrink-0">
+                    <button onclick="switchFeeCategory('손해보험')" class="px-4 py-1.5 rounded-lg font-extrabold text-xs transition-all ${feeTableState.category === '손해보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
+                        손해보험 <span class="text-[10px] font-normal opacity-70">(${Object.keys(categories['손해보험'] || {}).length})</span>
+                    </button>
+                    <button onclick="switchFeeCategory('생명보험')" class="px-4 py-1.5 rounded-lg font-extrabold text-xs transition-all ${feeTableState.category === '생명보험' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}">
+                        생명보험 <span class="text-[10px] font-normal opacity-70">(${Object.keys(categories['생명보험'] || {}).length})</span>
+                    </button>
                 </div>
 
-                <!-- Dynamic Option Selector Chips (만기, 납기, 구분 등) -->
-                ${optionKeys.length > 0 ? `
-                <div class="pt-4 border-t border-slate-100 space-y-4">
-                    ${optionKeys.map(optKey => {
-                        const valSet = [];
-                        selectedProdRows.forEach(r => {
-                            if (r.options && r.options[optKey]) {
-                                const val = r.options[optKey];
-                                if (!valSet.includes(val)) valSet.push(val);
-                            }
-                        });
-                        if (valSet.length === 0) return '';
-                        
-                        const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
-
+                <!-- Company Chips (가나다/ABC 순, 예외 우선순위 반영) -->
+                <div class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none flex-grow">
+                    ${companyList.map(comp => {
+                        const active = (feeTableState.company === comp);
                         return `
-                            <div>
-                                <span class="text-xs font-bold text-slate-400 block mb-2">${optKey} 선택</span>
-                                <div class="flex flex-wrap gap-2">
-                                    ${valSet.map(v => {
-                                        const selected = (v === curVal);
-                                        return `
-                                            <button onclick="setFeeOption('${optKey}', '${v}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-150 ${selected ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}">
-                                                ${v}
-                                            </button>
-                                        `;
-                                    }).join('')}
-                                </div>
-                            </div>
+                            <button onclick="switchFeeCompany('${comp}')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all ${active ? 'bg-primary text-white shadow-sm scale-[1.02]' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200/80'}">
+                                ${comp}
+                            </button>
                         `;
                     }).join('')}
                 </div>
-                ` : ''}
             </div>
 
-            <!-- 5. Monthly Premium Simulator Bar -->
-            <div class="bg-gradient-to-r from-slate-900 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div class="space-y-1">
-                    <span class="text-xs font-extrabold uppercase tracking-widest text-orange-400">Monthly Premium Simulator</span>
-                    <h3 class="text-xl sm:text-2xl font-black">월 예상 보험료 입력</h3>
-                    <p class="text-xs text-slate-300">원하시는 월납 보험료를 입력하시면 실수령 예상액으로 즉시 자동 환산됩니다.</p>
-                </div>
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-                    <div class="relative min-w-[200px]">
-                        <input type="text" id="ft-premium-input" value="${premium.toLocaleString('ko-KR')}" class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-lg font-black text-white text-right focus:outline-none focus:border-orange-400 focus:bg-white/20 transition pr-8" oninput="handleFeePremiumInput(this.value)">
-                        <span class="absolute right-3 top-3.5 text-sm font-bold text-slate-300">원</span>
+            <!-- 3. PC 2열 반응형 그리드: [좌측: 상품/옵션 선택] + [우측: 월 보험료 시뮬레이터] -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
+                <!-- 좌측 (7열): 상품 검색 및 옵션 칩 -->
+                <div class="lg:col-span-7 bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100 flex flex-col justify-between space-y-3">
+                    <!-- Search Input & Product Selector (좌우 2칸) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-1">상품 검색</label>
+                            <div class="relative">
+                                <input type="text" id="ft-product-search" value="${feeTableState.searchKeyword}" placeholder="상품명 키워드 검색" class="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" oninput="handleFeeProductSearch(this.value)">
+                                <div class="absolute left-2.5 top-2.5 text-slate-400 pointer-events-none">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                                ${feeTableState.searchKeyword ? `
+                                    <button onclick="clearFeeProductSearch()" class="absolute right-2 top-2 text-slate-400 hover:text-slate-600">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 mb-1">선택된 상품 (${filteredProducts.length}개)</label>
+                            <select id="ft-product-select" class="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition" onchange="selectFeeProduct(this.value)">
+                                ${filteredProducts.map(p => `
+                                    <option value="${p}" ${p === feeTableState.selectedProduct ? 'selected' : ''}>${p}</option>
+                                `).join('')}
+                            </select>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-4 sm:flex gap-1.5">
-                        <button onclick="setFeePremium(100000)" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition">10만</button>
-                        <button onclick="setFeePremium(200000)" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition">20만</button>
-                        <button onclick="setFeePremium(300000)" class="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition">30만</button>
+
+                    <!-- Dynamic Option Selector Chips (만기, 납기, 구분 등) -->
+                    ${optionKeys.length > 0 ? `
+                    <div class="pt-2.5 border-t border-slate-100 space-y-2">
+                        ${optionKeys.map(optKey => {
+                            const valSet = [];
+                            selectedProdRows.forEach(r => {
+                                if (r.options && r.options[optKey]) {
+                                    const val = r.options[optKey];
+                                    if (!valSet.includes(val)) valSet.push(val);
+                                }
+                            });
+                            if (valSet.length === 0) return '';
+                            
+                            const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
+
+                            return `
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
+                                    <div class="flex flex-wrap gap-1">
+                                        ${valSet.map(v => {
+                                            const selected = (v === curVal);
+                                            return `
+                                                <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
+                                                    ${v}
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    ` : ''}
+                </div>
+
+                <!-- 우측 (5열): Monthly Premium Simulator (컴팩트 카드 형태) -->
+                <div class="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-4 sm:p-5 text-white shadow-sm flex flex-col justify-between space-y-3">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest text-orange-400">Premium Simulator</span>
+                            <span class="text-[10px] text-slate-400">실시간 원화 환산</span>
+                        </div>
+                        <h3 class="text-base sm:text-lg font-black text-white">월 예상 보험료 입력</h3>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <div class="relative">
+                            <input type="text" id="ft-premium-input" value="${premium.toLocaleString('ko-KR')}" class="w-full px-3.5 py-2.5 bg-white/10 border border-white/20 rounded-xl text-base font-black text-white text-right focus:outline-none focus:border-orange-400 focus:bg-white/20 transition pr-8" oninput="handleFeePremiumInput(this.value)">
+                            <span class="absolute right-3 top-2.5 text-xs font-bold text-slate-300">원</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button onclick="setFeePremium(100000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">10만</button>
+                            <button onclick="setFeePremium(200000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">20만</button>
+                            <button onclick="setFeePremium(300000)" class="py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold transition">30만</button>
+                            <button onclick="addFeePremium(50000)" class="py-1.5 bg-orange-500/30 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 rounded-lg text-xs font-bold transition">+5만</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
                         <button onclick="addFeePremium(50000)" class="px-3 py-2 bg-orange-500/30 hover:bg-orange-500/40 text-orange-300 border border-orange-400/30 rounded-xl text-xs font-bold transition">+5만</button>
                     </div>
                 </div>
