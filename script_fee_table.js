@@ -85,6 +85,161 @@ function getAdjustedBaseRates(rates, companyName) {
 }
 
 /**
+ * 옵션 계층 우선순위 (상위 -> 하위 계층 구조)
+ * 상위 옵션 선택에 따라 하위 옵션 목록이 동적으로 연쇄 필터링됩니다.
+ */
+const FEE_OPTION_PRIORITY = [
+    '특약유형', '보종구분', '보종', '형 구분', '구분', 
+    '종형', '종 구분', '종별', '담보별', '담보구분', '담보', 
+    '유형', '만기구분', '만기', '납입주기', '납기', '납입기간', '가입금액'
+];
+
+/**
+ * 상품 데이터 행들로부터 정렬된 유효 옵션 키 목록 추출
+ * (미래에셋 '장기유지' 등 불필요 키 자동 제외)
+ */
+function getProductOptionKeys(rows) {
+    if (!rows || rows.length === 0) return [];
+    const keys = [];
+    rows.forEach(row => {
+        if (row.options) {
+            Object.keys(row.options).forEach(k => {
+                if (k.includes('장기유지')) return; // 미래에셋 장기유지 옵션 숨김
+                if (!keys.includes(k)) keys.push(k);
+            });
+        }
+    });
+
+    // 계층 우선순위 정렬
+    keys.sort((a, b) => {
+        const idxA = FEE_OPTION_PRIORITY.findIndex(p => a.includes(p) || p.includes(a));
+        const idxB = FEE_OPTION_PRIORITY.findIndex(p => b.includes(p) || p.includes(b));
+        const orderA = idxA === -1 ? 999 : idxA;
+        const orderB = idxB === -1 ? 999 : idxB;
+        return orderA - orderB;
+    });
+
+    return keys;
+}
+
+/**
+ * 상위 옵션 선택 조건에 따라 실제로 유효한 하위 옵션 값 목록 추출 (연쇄적 종속 필터링)
+ */
+function getValidOptionValues(rows, optionKeys, selectedOptions, targetKey) {
+    const targetIdx = optionKeys.indexOf(targetKey);
+    // targetKey 이전(상위)의 모든 선택 조건을 만족하는 데이터 행만 필터링
+    const filteredRows = rows.filter(r => {
+        if (!r.options) return true;
+        for (let j = 0; j < targetIdx; j++) {
+            const prevKey = optionKeys[j];
+            const selVal = selectedOptions[prevKey];
+            if (selVal && r.options[prevKey] && r.options[prevKey] !== selVal) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    const valSet = [];
+    filteredRows.forEach(r => {
+        if (r.options && r.options[targetKey]) {
+            const val = r.options[targetKey];
+            if (!valSet.includes(val)) valSet.push(val);
+        }
+    });
+    return valSet;
+}
+
+/**
+ * 선택된 옵션값들이 현재 상위 옵션 상태에서 유효한지 검사하고 자동 보정
+ */
+function reconcileFeeSelectedOptions(rows, optionKeys, selectedOptions) {
+    if (!rows || rows.length === 0) return;
+    optionKeys.forEach(k => {
+        const valSet = getValidOptionValues(rows, optionKeys, selectedOptions, k);
+        if (valSet.length > 0) {
+            if (!selectedOptions[k] || !valSet.includes(selectedOptions[k])) {
+                selectedOptions[k] = valSet[0];
+            }
+        } else {
+            delete selectedOptions[k];
+        }
+    });
+}
+
+/**
+ * 조건에 가장 잘 일치하는 단일 데이터 행 찾기 (완벽 일치 -> 최다 일치 fallback)
+ */
+function findMatchedFeeRow(rows, optionKeys, selectedOptions) {
+    if (!rows || rows.length === 0) return null;
+
+    // 1. 완벽 일치 행 탐색
+    let match = rows.find(r => {
+        if (!r.options) return true;
+        for (let k of optionKeys) {
+            if (selectedOptions[k] && r.options[k] && r.options[k] !== selectedOptions[k]) {
+                return false;
+            }
+        }
+        return true;
+    });
+    if (match) return match;
+
+    // 2. 부분 일치 점수 기반 탐색
+    let bestScore = -1;
+    let bestRow = rows[0];
+    rows.forEach(r => {
+        let score = 0;
+        if (r.options) {
+            for (let k of optionKeys) {
+                if (selectedOptions[k] && r.options[k] === selectedOptions[k]) {
+                    score++;
+                }
+            }
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestRow = r;
+        }
+    });
+    return bestRow;
+}
+
+/**
+ * 옵션 선택 칩 HTML 생성 (연쇄 필터링 반영)
+ */
+function renderOptionChipsHtml(selectedProdRows, optionKeys, selectedOptions) {
+    if (!selectedProdRows || selectedProdRows.length === 0 || optionKeys.length === 0) return '';
+    reconcileFeeSelectedOptions(selectedProdRows, optionKeys, selectedOptions);
+
+    return `
+        <div class="pt-2.5 border-t border-slate-100 space-y-2">
+            ${optionKeys.map(optKey => {
+                const valSet = getValidOptionValues(selectedProdRows, optionKeys, selectedOptions, optKey);
+                if (valSet.length === 0) return '';
+                const curVal = selectedOptions[optKey] || valSet[0];
+
+                return `
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[11px] font-bold text-slate-400 w-16 flex-shrink-0">${optKey}:</span>
+                        <div class="flex flex-wrap gap-1">
+                            ${valSet.map(v => {
+                                const selected = (v === curVal);
+                                return `
+                                    <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs scale-105' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
+                                        ${v}
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+/**
  * 현재 적용되는 지급율 계산
  * - 관리자/지사대표가 임의 조정한 경우 overrideRate 반환
  * - 일반 사용자는 본인의 사용자정보 시트 상 지급율 (손보/생보) 자동 적용
@@ -207,12 +362,14 @@ function renderFeeTableView() {
 
     const currentRows = catCompanies[feeTableState.company] || [];
 
-    // 유효한 상품 목록 추출
+    // 유효한 상품 목록 추출 (안내 메시지 행 자동 제외)
     const productMap = {};
     currentRows.forEach(row => {
         if (row.product) {
-            if (!productMap[row.product]) productMap[row.product] = [];
-            productMap[row.product].push(row);
+            const p = row.product.trim();
+            if (/수수료\s*타입|수수료타입/.test(p)) return;
+            if (!productMap[p]) productMap[p] = [];
+            productMap[p].push(row);
         }
     });
     const productList = Object.keys(productMap);
@@ -231,40 +388,12 @@ function renderFeeTableView() {
 
     const selectedProdRows = feeTableState.selectedProduct ? productMap[feeTableState.selectedProduct] : [];
 
-    // 옵션 키 목록 추출 (예: ['구분', '만기', '납기'])
-    const optionKeys = [];
-    selectedProdRows.forEach(row => {
-        if (row.options) {
-            Object.keys(row.options).forEach(k => {
-                if (!optionKeys.includes(k)) optionKeys.push(k);
-            });
-        }
-    });
-
-    // 기본 옵션 선택 보장
-    if (selectedProdRows.length > 0) {
-        optionKeys.forEach(k => {
-            if (!feeTableState.selectedOptions[k]) {
-                const firstVal = selectedProdRows[0].options ? selectedProdRows[0].options[k] : '';
-                if (firstVal) feeTableState.selectedOptions[k] = firstVal;
-            }
-        });
-    }
+    // 옵션 키 목록 및 연쇄 필터링 보정
+    const optionKeys = getProductOptionKeys(selectedProdRows);
+    reconcileFeeSelectedOptions(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
     // 조건에 가장 잘 일치하는 단일 데이터 행 찾기
-    let matchedRow = selectedProdRows.find(row => {
-        if (!row.options) return true;
-        for (let k of optionKeys) {
-            if (feeTableState.selectedOptions[k] && row.options[k] !== feeTableState.selectedOptions[k]) {
-                return false;
-            }
-        }
-        return true;
-    });
-
-    if (!matchedRow && selectedProdRows.length > 0) {
-        matchedRow = selectedProdRows[0];
-    }
+    const matchedRow = findMatchedFeeRow(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
     // 수수료율 및 원화 금액 계산
     const currentRate = getEffectiveFeeRate();
@@ -411,40 +540,9 @@ function renderFeeTableView() {
                         </div>
                     </div>
 
-                    <!-- Dynamic Option Selector Chips (만기, 납기, 구분 등) -->
+                    <!-- Dynamic Option Selector Chips (만기, 납기, 구분 등 연쇄 필터링) -->
                     <div id="ft-options-container">
-                        ${optionKeys.length > 0 ? `
-                        <div class="pt-2.5 border-t border-slate-100 space-y-2">
-                            ${optionKeys.map(optKey => {
-                                const valSet = [];
-                                selectedProdRows.forEach(r => {
-                                    if (r.options && r.options[optKey]) {
-                                        const val = r.options[optKey];
-                                        if (!valSet.includes(val)) valSet.push(val);
-                                    }
-                                });
-                                if (valSet.length === 0) return '';
-                                
-                                const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
-
-                                return `
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
-                                        <div class="flex flex-wrap gap-1">
-                                            ${valSet.map(v => {
-                                                const selected = (v === curVal);
-                                                return `
-                                                    <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
-                                                        ${v}
-                                                    </button>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                        ` : ''}
+                        ${renderOptionChipsHtml(selectedProdRows, optionKeys, feeTableState.selectedOptions)}
                     </div>
                 </div>
 
@@ -485,69 +583,69 @@ function renderFeeTableView() {
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 ${isLife ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 sm:gap-4">
                     
-                    <!-- Card 1: 1회차 (익월) -->
-                    <div class="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between hover:border-slate-200 transition">
+                    <!-- Card 1: 1회차 (익월) - 월차 수수료 (블루 계열) -->
+                    <div class="bg-gradient-to-br from-blue-50/60 to-indigo-50/30 rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between hover:border-blue-200 transition">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-extrabold text-slate-500">1회차 (익월)</span>
-                            <span class="w-6 h-6 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-bold">1</span>
+                            <span class="text-xs font-extrabold text-blue-900">1회차 (익월)</span>
+                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-first">${calcRates.first.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-first">${calcRates.first.toFixed(1)}</span><span class="text-sm font-bold text-blue-400 ml-0.5">%</span></p>
                             <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1"><span id="ft-amt-first">${calcAmounts.first.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
-                    <!-- Card 2: 1차년도 합계 -->
-                    <div class="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between hover:border-slate-200 transition">
+                    <!-- Card 2: 1차년도 합계 - 연도 합계 (오렌지 계열 연하게) -->
+                    <div class="bg-gradient-to-br from-orange-50/70 to-amber-50/40 rounded-3xl p-5 border border-orange-200/80 shadow-sm flex flex-col justify-between hover:border-orange-300 transition">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-extrabold text-slate-500">1차년도 합계</span>
-                            <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold">Y1</span>
+                            <span class="text-xs font-extrabold text-orange-900">1차년도 합계</span>
+                            <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year1">${calcRates.year1.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-indigo-600 mt-1"><span id="ft-amt-year1">${calcAmounts.year1.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year1">${calcRates.year1.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year1">${calcAmounts.year1.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
-                    <!-- Card 3: 13차월 (★ 2차년도 앞 추가!) -->
-                    <div class="bg-gradient-to-br from-amber-50/50 to-orange-50/30 rounded-3xl p-5 border border-orange-100 shadow-sm flex flex-col justify-between hover:border-orange-200 transition">
+                    <!-- Card 3: 13차월 - 월차 수수료 (1회차와 동일한 블루 계열) -->
+                    <div class="bg-gradient-to-br from-blue-50/60 to-indigo-50/30 rounded-3xl p-5 border border-blue-100 shadow-sm flex flex-col justify-between hover:border-blue-200 transition">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-extrabold text-orange-800">13차월</span>
-                            <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">13M</span>
+                            <span class="text-xs font-extrabold text-blue-900">13차월</span>
+                            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">13M</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-m13">${calcRates.m13.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-orange-600 mt-1"><span id="ft-amt-m13">${calcAmounts.m13.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-m13">${calcRates.m13.toFixed(1)}</span><span class="text-sm font-bold text-blue-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1"><span id="ft-amt-m13">${calcAmounts.m13.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
-                    <!-- Card 4: 2차년도 합계 -->
-                    <div class="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between hover:border-slate-200 transition">
+                    <!-- Card 4: 2차년도 합계 - 연도 합계 (오렌지 계열 연하게) -->
+                    <div class="bg-gradient-to-br from-orange-50/70 to-amber-50/40 rounded-3xl p-5 border border-orange-200/80 shadow-sm flex flex-col justify-between hover:border-orange-300 transition">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-extrabold text-slate-500">2차년도 합계</span>
-                            <span class="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-[10px] font-bold">Y2</span>
+                            <span class="text-xs font-extrabold text-orange-900">2차년도 합계</span>
+                            <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y2</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year2">${calcRates.year2.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-purple-600 mt-1"><span id="ft-amt-year2">${calcAmounts.year2.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year2">${calcRates.year2.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year2">${calcAmounts.year2.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
 
-                    <!-- Card 5: 3차년도 합계 (생보사 전용) -->
+                    <!-- Card 5: 3차년도 합계 (생보사 전용) - 연도 합계 (오렌지 계열 연하게) -->
                     ${isLife ? `
-                    <div class="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex flex-col justify-between hover:border-slate-200 transition">
+                    <div class="bg-gradient-to-br from-orange-50/70 to-amber-50/40 rounded-3xl p-5 border border-orange-200/80 shadow-sm flex flex-col justify-between hover:border-orange-300 transition">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-xs font-extrabold text-slate-500">3차년도 합계</span>
-                            <span class="w-6 h-6 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] font-bold">Y3</span>
+                            <span class="text-xs font-extrabold text-orange-900">3차년도 합계</span>
+                            <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y3</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight"><span id="ft-rate-year3">${calcRates.year3.toFixed(1)}</span><span class="text-sm font-bold text-slate-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-emerald-600 mt-1"><span id="ft-amt-year3">${calcAmounts.year3.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year3">${calcRates.year3.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
+                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year3">${calcAmounts.year3.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
                         </div>
                     </div>
                     ` : ''}
 
-                    <!-- Card 6: 총계 (강조 카드) -->
+                    <!-- Card 6: 총 수령액 합계 (강조 카드 - 선명한 오렌지 그라데이션 메인) -->
                     <div class="bg-gradient-to-tr from-primary to-orange-400 rounded-3xl p-5 text-white shadow-lg shadow-orange-500/25 flex flex-col justify-between ${!isLife ? 'col-span-2 sm:col-span-1' : ''}">
                         <div class="flex items-center justify-between mb-3">
                             <span class="text-xs font-black uppercase tracking-wider text-orange-100">총 수령액 합계</span>
@@ -628,34 +726,18 @@ function updateFeeCalculations() {
     const productMap = {};
     currentRows.forEach(row => {
         if (row.product) {
-            if (!productMap[row.product]) productMap[row.product] = [];
-            productMap[row.product].push(row);
+            const p = row.product.trim();
+            if (/수수료\s*타입|수수료타입/.test(p)) return;
+            if (!productMap[p]) productMap[p] = [];
+            productMap[p].push(row);
         }
     });
 
     const selectedProdRows = feeTableState.selectedProduct ? (productMap[feeTableState.selectedProduct] || []) : [];
-    const optionKeys = [];
-    selectedProdRows.forEach(row => {
-        if (row.options) {
-            Object.keys(row.options).forEach(k => {
-                if (!optionKeys.includes(k)) optionKeys.push(k);
-            });
-        }
-    });
+    const optionKeys = getProductOptionKeys(selectedProdRows);
+    reconcileFeeSelectedOptions(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
-    let matchedRow = selectedProdRows.find(row => {
-        if (!row.options) return true;
-        for (let k of optionKeys) {
-            if (feeTableState.selectedOptions[k] && row.options[k] !== feeTableState.selectedOptions[k]) {
-                return false;
-            }
-        }
-        return true;
-    });
-
-    if (!matchedRow && selectedProdRows.length > 0) {
-        matchedRow = selectedProdRows[0];
-    }
+    const matchedRow = findMatchedFeeRow(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
     const currentRate = getEffectiveFeeRate();
     const multiplier = currentRate / 100.0;
@@ -713,7 +795,7 @@ function updateFeeCalculations() {
 }
 
 /**
- * 옵션 선택 칩 부분 렌더링
+ * 옵션 선택 칩 부분 렌더링 (연쇄 필터링 반영)
  */
 function updateFeeOptionsUI() {
     const container = document.getElementById('ft-options-container');
@@ -724,67 +806,16 @@ function updateFeeOptionsUI() {
     const productMap = {};
     currentRows.forEach(row => {
         if (row.product) {
-            if (!productMap[row.product]) productMap[row.product] = [];
-            productMap[row.product].push(row);
+            const p = row.product.trim();
+            if (/수수료\s*타입|수수료타입/.test(p)) return;
+            if (!productMap[p]) productMap[p] = [];
+            productMap[p].push(row);
         }
     });
 
     const selectedProdRows = feeTableState.selectedProduct ? (productMap[feeTableState.selectedProduct] || []) : [];
-    const optionKeys = [];
-    selectedProdRows.forEach(row => {
-        if (row.options) {
-            Object.keys(row.options).forEach(k => {
-                if (!optionKeys.includes(k)) optionKeys.push(k);
-            });
-        }
-    });
-
-    if (selectedProdRows.length > 0) {
-        optionKeys.forEach(k => {
-            if (!feeTableState.selectedOptions[k]) {
-                const firstVal = selectedProdRows[0].options ? selectedProdRows[0].options[k] : '';
-                if (firstVal) feeTableState.selectedOptions[k] = firstVal;
-            }
-        });
-    }
-
-    if (optionKeys.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
-
-    container.innerHTML = `
-        <div class="pt-2.5 border-t border-slate-100 space-y-2">
-            ${optionKeys.map(optKey => {
-                const valSet = [];
-                selectedProdRows.forEach(r => {
-                    if (r.options && r.options[optKey]) {
-                        const val = r.options[optKey];
-                        if (!valSet.includes(val)) valSet.push(val);
-                    }
-                });
-                if (valSet.length === 0) return '';
-                
-                const curVal = feeTableState.selectedOptions[optKey] || valSet[0];
-
-                return `
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-[11px] font-bold text-slate-400 w-14 flex-shrink-0">${optKey}:</span>
-                        <div class="flex flex-wrap gap-1">
-                            ${valSet.map(v => {
-                                const selected = (v === curVal);
-                                return `
-                                    <button onclick="setFeeOption('${optKey}', '${v}')" class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${selected ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/80'}">
-                                        ${v}
-                                    </button>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
+    const optionKeys = getProductOptionKeys(selectedProdRows);
+    container.innerHTML = renderOptionChipsHtml(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 }
 
 /**
@@ -806,8 +837,10 @@ function handleFeeProductSearch(val) {
     const productMap = {};
     currentRows.forEach(row => {
         if (row.product) {
-            if (!productMap[row.product]) productMap[row.product] = [];
-            productMap[row.product].push(row);
+            const p = row.product.trim();
+            if (/수수료\s*타입|수수료타입/.test(p)) return;
+            if (!productMap[p]) productMap[p] = [];
+            productMap[p].push(row);
         }
     });
     const productList = Object.keys(productMap);
@@ -1080,28 +1113,25 @@ function parseFeeWorkbook(workbook, category) {
         const maxCol = 35; // A to AI
         for (let ci = 1; ci <= maxCol; ci++) {
             const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
+            const hCell = cellMap[`${colLetter}${headerRow}`] || '';
+            const prevHCell = headerRow > 1 ? (cellMap[`${colLetter}${headerRow - 1}`] || '') : '';
             let combHeader = '';
-            for (let rh = Math.max(10, headerRow - 1); rh <= (headerRow + 3); rh++) {
-                if (cellMap[`${colLetter}${rh}`]) {
-                    combHeader += ' ' + cellMap[`${colLetter}${rh}`];
-                }
+            if (prevHCell && !/^[■※]|수수료타입/.test(prevHCell)) combHeader = prevHCell;
+            if (hCell && !/^[■※]|수수료타입/.test(hCell)) {
+                combHeader = combHeader ? (combHeader + ' ' + hCell) : hCell;
             }
             combHeader = combHeader.trim();
             if (combHeader) colHeaders[colLetter] = combHeader;
         }
 
         let prodCol = 'A';
-        const optCols = [];
         const rateColMap = { first: null, year1: null, m13: null, year2: null, year3: null, total: null };
 
         for (let col in colHeaders) {
             const hText = colHeaders[col];
             if (/상품명|상품 명/.test(hText) && prodCol === 'A') {
                 prodCol = col;
-            } else if (/구분|종별|만기|납기|납입|담보|종 구분|형 구분|만기구분|보종|보험종목/.test(hText) && !rateColMap.total && col !== prodCol) {
-                optCols.push({ col: col, title: hText.split(' ')[0] });
             }
-
             if (/총계|총수수료|총 수수료|합계계/.test(hText)) rateColMap.total = col;
             if (/1차년도 합계|1차년도합계|1차년계|1차년計|1차년 計/.test(hText)) rateColMap.year1 = col;
             if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) rateColMap.year2 = col;
@@ -1116,6 +1146,33 @@ function parseFeeWorkbook(workbook, category) {
 
         if (cellMap[`B${headerRow + 2}`] && !cellMap[`A${headerRow + 2}`]) {
             prodCol = 'B';
+        }
+
+        const rateCols = Object.values(rateColMap).filter(Boolean);
+        const optCols = [];
+
+        for (let col in colHeaders) {
+            const hText = colHeaders[col];
+            const isOpt = /납기|납입기간|납입주기|만기|종형|담보|가입금액|구좌|보종|특약유형|구분|종별/.test(hText) &&
+                          !/장기유지|계약유지|유지수수료|환산율|환산초회|환산월초|환산\(TP\)|성과|수수료|비고|수정율|수정률/.test(hText) &&
+                          !rateCols.includes(col) && col !== prodCol;
+            if (isOpt) {
+                let t = hText.split(' ')[0];
+                if (/종형/.test(hText)) t = '종형';
+                else if (/담보별/.test(hText)) t = '담보별';
+                else if (/담보구분|담보/.test(hText)) t = '담보';
+                else if (/가입금액/.test(hText)) t = '가입금액';
+                else if (/납입기간|납기/.test(hText)) t = '납기';
+                else if (/만기구분/.test(hText)) t = '만기구분';
+                else if (/만기/.test(hText)) t = '만기';
+                else if (/납입주기/.test(hText)) t = '납입주기';
+                else if (/형 구분/.test(hText)) t = '형 구분';
+                else if (/종 구분/.test(hText)) t = '종 구분';
+                else if (/보종구분/.test(hText)) t = '보종구분';
+                else if (/특약유형/.test(hText)) t = '특약유형';
+                else if (/구분/.test(hText)) t = '구분';
+                optCols.push({ col: col, title: t });
+            }
         }
 
         // 5. 데이터 행 파싱
@@ -1150,8 +1207,14 @@ function parseFeeWorkbook(workbook, category) {
 
         for (let r = headerRow + 1; r <= maxRow; r++) {
             const pVal = cellMap[`${prodCol}${r}`] || '';
-            if (/수수료타입|합계|비고|※|업적|기준/.test(pVal)) continue;
-            if (pVal) lastProduct = pVal;
+            // 수수료 타입 변경 안내문 또는 합계/비고 행 제외
+            if (/수수료\s*타입|수수료타입|합계|비고|※|업적|기준/.test(pVal)) continue;
+
+            // 상품 변경 시 lastOpts 완전 초기화 (한화생명 등 빈 셀 상속 버그 차단)
+            if (pVal && pVal !== lastProduct) {
+                lastProduct = pVal;
+                for (let k in lastOpts) delete lastOpts[k];
+            }
             if (!lastProduct) continue;
 
             const totVal = rateColMap.total ? cellMap[`${rateColMap.total}${r}`] : null;
