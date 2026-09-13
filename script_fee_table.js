@@ -7,13 +7,15 @@
  * ==============================================================================
  */
 
-var FEE_TABLE_DATA = (typeof window !== 'undefined' && window.FEE_TABLE_DATA) ? window.FEE_TABLE_DATA : (typeof FEE_TABLE_DATA !== 'undefined' ? FEE_TABLE_DATA : null);
-var feeTableAvailableMonths = (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? [FEE_TABLE_DATA.month] : [];
+if (typeof window !== 'undefined' && typeof window.FEE_TABLE_DATA === 'undefined') {
+    window.FEE_TABLE_DATA = null;
+}
+var feeTableAvailableMonths = (typeof window !== 'undefined' && window.FEE_TABLE_DATA && window.FEE_TABLE_DATA.month) ? [window.FEE_TABLE_DATA.month] : [];
 var feeTableLoading = false;
 var feeTableLoadAttempted = false;
 
 var feeTableState = {
-    month: (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? FEE_TABLE_DATA.month : '2026.09', // 현재 선택된 기준월 (예: '2026.09')
+    month: (typeof window !== 'undefined' && window.FEE_TABLE_DATA && window.FEE_TABLE_DATA.month) ? window.FEE_TABLE_DATA.month : '2026.09', // 현재 선택된 기준월 (예: '2026.09')
     category: '손해보험', // '손해보험' | '생명보험'
     company: '한화손보',
     searchKeyword: '',
@@ -351,19 +353,19 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
         }
 
         if (dataRes && dataRes.success && dataRes.data) {
-            FEE_TABLE_DATA = dataRes.data;
+            window.FEE_TABLE_DATA = dataRes.data;
             feeTableState.month = dataRes.month || monthParam;
             if (dataRes.rates && state.user) {
                 if (dataRes.rates.nonLifeRate) state.user.nonLifeRate = dataRes.rates.nonLifeRate;
                 if (dataRes.rates.lifeRate) state.user.lifeRate = dataRes.rates.lifeRate;
             }
         } else {
-            FEE_TABLE_DATA = null;
+            window.FEE_TABLE_DATA = null;
             console.warn('Fee table data not found for month:', monthParam, dataRes);
         }
     } catch (err) {
         console.error('loadFeeTableData error:', err);
-        FEE_TABLE_DATA = null;
+        window.FEE_TABLE_DATA = null;
     } finally {
         feeTableLoading = false;
         renderFeeTableView();

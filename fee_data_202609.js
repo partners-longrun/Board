@@ -1,4 +1,4 @@
-﻿const FEE_TABLE_DATA = {
+﻿window.FEE_TABLE_DATA = {
     "month":  "2026.09",
     "updatedAt":  "2026-09-13 23:25:11",
     "categories":  {
