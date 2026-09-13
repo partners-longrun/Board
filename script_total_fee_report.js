@@ -192,10 +192,15 @@ function getDefaultRewardPolicies(month) {
     return list;
 }
 
+var totalFeeReportTargetContainer = null;
+
 /**
  * 초기화 및 데이터 로드
  */
-async function initTotalFeeReport() {
+async function initTotalFeeReport(targetContainer) {
+    if (targetContainer) {
+        totalFeeReportTargetContainer = targetContainer;
+    }
     if (typeof feeTableState !== 'undefined' && feeTableState.month) {
         totalFeeReportState.month = feeTableState.month;
     }
@@ -216,7 +221,7 @@ async function initTotalFeeReport() {
     await fetchRewardPolicyData(totalFeeReportState.month);
 
     // 3. UI 렌더링
-    renderTotalFeeReportView();
+    renderTotalFeeReportView(targetContainer);
 }
 
 /**
@@ -350,8 +355,8 @@ function findFeeDataRow(category, company, productName, payPeriod) {
 /**
  * 화면 전체 렌더링 (메인 진입점)
  */
-function renderTotalFeeReportView() {
-    const content = document.getElementById('main-view') || document.getElementById('content');
+function renderTotalFeeReportView(targetContainer) {
+    const content = targetContainer || totalFeeReportTargetContainer || document.getElementById('main-view');
     if (!content) return;
 
     const state = totalFeeReportState;

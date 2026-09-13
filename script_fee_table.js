@@ -10,6 +10,7 @@
 var FEE_TABLE_DATA = (typeof window !== 'undefined' && window.FEE_TABLE_DATA) ? window.FEE_TABLE_DATA : (typeof FEE_TABLE_DATA !== 'undefined' ? FEE_TABLE_DATA : null);
 var feeTableAvailableMonths = (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? [FEE_TABLE_DATA.month] : [];
 var feeTableLoading = false;
+var feeTableLoadAttempted = false;
 
 var feeTableState = {
     month: (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? FEE_TABLE_DATA.month : '2026.09', // 현재 선택된 기준월 (예: '2026.09')
@@ -322,6 +323,9 @@ function getEffectiveFeeRate() {
  * 구글 드라이브로부터 수수료 예시표 데이터 비동기 로드
  */
 async function loadFeeTableData(targetMonth = null, forceReload = false) {
+    if (forceReload) {
+        feeTableLoadAttempted = false;
+    }
     const monthParam = targetMonth || feeTableState.month || '';
 
     // 이미 데이터가 있고 강제 새로고침이 아니며, 대상 월이 동일하거나 미지정인 경우 캐시 유지
@@ -369,33 +373,35 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
 /**
  * 수수료 예시표 메인 뷰 렌더링
  */
-function renderFeeTableView() {
-    const container = document.getElementById('main-view');
+function renderFeeTableView(targetContainer) {
+    const container = targetContainer || document.getElementById('main-view');
     if (!container) return;
 
-    // 1. 로딩 중 상태
-    if (feeTableLoading) {
-        container.innerHTML = `
-            <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 max-w-md mx-auto mt-16 animate-fadeIn">
-                <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+    try {
+        // 1. 로딩 중 상태
+        if (feeTableLoading) {
+            container.innerHTML = `
+                <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 max-w-md mx-auto mt-16 animate-fadeIn">
+                    <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </div>
+                    <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 수수료 데이터를 불러오는 중입니다.</h3>
                 </div>
-                <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 수수료 데이터를 불러오는 중입니다.</h3>
-            </div>
-        `;
-        return;
-    }
-
-    // 2. 데이터가 아직 로드되지 않은 초기 상태
-    if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
-        // 아직 로딩 중이 아니라면 자동으로 데이터 로드 시도
-        if (!feeTableLoading) {
-            setTimeout(() => {
-                loadFeeTableData();
-            }, 50);
+            `;
+            return;
         }
 
-        const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+        // 2. 데이터가 아직 로드되지 않은 초기 상태
+        if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
+            // 아직 로딩 중이 아니고 자동 시도를 아직 안 했다면 1회 시도
+            if (!feeTableLoading && !feeTableLoadAttempted) {
+                feeTableLoadAttempted = true;
+                setTimeout(() => {
+                    loadFeeTableData();
+                }, 50);
+            }
+
+            const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
         const isBranchRep = (role1 === '지사대표');
         container.innerHTML = `
             <div class="bg-white rounded-3xl p-8 text-center shadow-sm border border-slate-100 max-w-lg mx-auto mt-12 animate-fadeIn">
@@ -499,7 +505,9 @@ function renderFeeTableView() {
     const isLife = (feeTableState.category === '생명보험');
     const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
     const isSimAllowed = ['지사대표', '운영진', '관리자'].includes(role1);
-    const isManager = isBranchRepAny() || isAdminAny() || isOpsAny();
+    const isManager = (typeof isBranchRepAny === 'function' && isBranchRepAny()) || 
+                      (typeof isAdminAny === 'function' && isAdminAny()) || 
+                      (typeof isOpsAny === 'function' && isOpsAny());
 
     container.innerHTML = `
         <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
@@ -789,6 +797,24 @@ function renderFeeTableView() {
     scrollToActiveCompany();
     requestAnimationFrame(scrollToActiveCompany);
     setTimeout(scrollToActiveCompany, 50);
+    } catch (err) {
+        console.error('renderFeeTableView error:', err);
+        container.innerHTML = `
+            <div class="bg-white rounded-3xl p-8 text-center shadow-sm border border-red-100 max-w-lg mx-auto mt-12 animate-fadeIn">
+                <div class="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="font-bold text-slate-800 text-lg mb-2">수수료 예시표를 불러오는 중 문제가 발생했습니다</h3>
+                <p class="text-xs text-slate-500 mb-6 leading-relaxed">
+                    ${err && err.message ? err.message : '일시적인 오류가 발생했습니다.'}
+                </p>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="renderFeeTableView()" class="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs sm:text-sm hover:bg-primaryHover transition">화면 새로고침</button>
+                    <button onclick="loadFeeTableData(null, true)" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-slate-200 transition">데이터 다시 로드</button>
+                </div>
+            </div>
+        `;
+    }
 }
 
 /**

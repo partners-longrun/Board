@@ -1387,8 +1387,8 @@
             else if (state.currentView === 'performanceAnalysis') main.appendChild(createPerformanceAnalysisView());
             else if (state.currentView === 'totalAllowanceForecast') main.appendChild(createTotalAllowanceForecastView());
             else if (state.currentView === 'rewardAdjust') main.appendChild(createRewardAdjustView());
-            else if (state.currentView === 'feeTable') renderFeeTableView();
-            else if (state.currentView === 'totalFeeReport') initTotalFeeReport();
+            else if (state.currentView === 'feeTable') renderFeeTableView(main);
+            else if (state.currentView === 'totalFeeReport') initTotalFeeReport(main);
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -7963,9 +7963,13 @@
             else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
             else if (state.currentView === 'totalAllowanceForecast') fetchTotalAllowanceForecastData();
             else if (state.currentView === 'feeTable') {
-                if (typeof loadFeeTableData === 'function') {
-                    if (typeof FEE_TABLE_DATA === 'undefined' || !FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
+                if (typeof FEE_TABLE_DATA === 'undefined' || !FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
+                    if (typeof loadFeeTableData === 'function') {
                         loadFeeTableData();
+                    }
+                } else {
+                    if (typeof renderFeeTableView === 'function') {
+                        renderFeeTableView();
                     }
                 }
             }
