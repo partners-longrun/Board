@@ -522,6 +522,10 @@ function renderFeeTableView() {
                                         <svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                         엑셀 업로드
                                     </button>
+                                    <button onclick="navigate('totalFeeReport')" class="px-2.5 py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                                        총수당 예시표 PDF
+                                    </button>
                                 ` : ''}
                             </div>
                             <p class="text-[11px] text-slate-400">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>

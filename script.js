@@ -194,9 +194,9 @@
         };
 
         function navigate(view, push = true) {
-            if (view === 'feeTable') {
+            if (view === 'feeTable' || view === 'totalFeeReport') {
                 if (!state.user || (state.user.role !== '지사대표' && state.user.role !== '운영진')) {
-                    alert('수수료 예시표는 현재 지사대표 및 운영진 권한 사용자에게 오픈되어 있습니다.');
+                    alert('해당 메뉴는 지사대표 및 운영진 권한 사용자에게 오픈되어 있습니다.');
                     return;
                 }
             }
@@ -1168,7 +1168,8 @@
                 bondAdmin: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>',
                 totalAllowanceForecast: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>',
                 rewardAdjust: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>',
-                feeTable: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>'
+                feeTable: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                totalFeeReport: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>'
             };
 
             container.innerHTML = `
@@ -1191,6 +1192,7 @@
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                              ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
+                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('totalFeeReport', '총수당 예시표 PDF', icons.totalFeeReport) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1322,6 +1324,9 @@
                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
                             </a>` : ''}
+                            ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="totalFeeReport" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'totalFeeReport' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                                <span class="mr-4">${icons.totalFeeReport}</span> 총수당 예시표 PDF
+                            </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
                             ${(isBranchRepAny() || isOpsAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.admin}</span> 관리자
@@ -1387,6 +1392,7 @@
             else if (state.currentView === 'totalAllowanceForecast') main.appendChild(createTotalAllowanceForecastView());
             else if (state.currentView === 'rewardAdjust') main.appendChild(createRewardAdjustView());
             else if (state.currentView === 'feeTable') renderFeeTableView();
+            else if (state.currentView === 'totalFeeReport') initTotalFeeReport();
 
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
@@ -7965,6 +7971,11 @@
                     if (typeof FEE_TABLE_DATA === 'undefined' || !FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
                         loadFeeTableData();
                     }
+                }
+            }
+            else if (state.currentView === 'totalFeeReport') {
+                if (typeof initTotalFeeReport === 'function') {
+                    initTotalFeeReport();
                 }
             }
         }

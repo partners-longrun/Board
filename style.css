@@ -207,3 +207,84 @@
                 width: 30%;
             }
         }
+
+        /* ==========================================================================
+           총수당 예시표 A4 인쇄 / PDF 출력 전용 스타일
+           ========================================================================== */
+        .a4-page {
+            width: 210mm;
+            min-height: 297mm;
+            box-sizing: border-box;
+            margin: 0 auto 24px auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            page-break-after: always;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* 화면 UI 요소 숨기기 */
+            .sidebar-fixed,
+            nav,
+            header,
+            .mobile-fab-container,
+            #loading,
+            #login-splash,
+            #pw-modal,
+            #reward-policy-modal-container,
+            .no-print,
+            button {
+                display: none !important;
+            }
+
+            /* 인쇄 영역만 풀사이즈 표시 */
+            .main-content-area,
+            #content,
+            #app {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            #print-area-wrapper {
+                background: transparent !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .report-a4-page-container {
+                width: 210mm !important;
+                margin: 0 auto !important;
+            }
+
+            .a4-page {
+                width: 210mm !important;
+                height: 297mm !important;
+                min-height: 297mm !important;
+                max-height: 297mm !important;
+                margin: 0 !important;
+                padding: 12mm 14mm !important;
+                box-shadow: none !important;
+                border: none !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                break-after: page !important;
+                break-inside: avoid !important;
+                overflow: hidden !important;
+            }
+        }
