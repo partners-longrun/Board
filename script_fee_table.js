@@ -91,7 +91,8 @@ function getAdjustedBaseRates(rates, companyName) {
 const FEE_OPTION_PRIORITY = [
     '특약유형', '보종구분', '보종', '형 구분', '구분', 
     '종형', '종 구분', '종별', '담보별', '담보구분', '담보', 
-    '유형', '만기구분', '만기', '납입주기', '납기', '납입기간', '가입금액'
+    '유형', '만기구분', '만기', '납입주기', '납기', '납입기간', 
+    '보험료', '월납보험료', '최초보험료', '가입금액'
 ];
 
 /**
@@ -262,17 +263,24 @@ function getEffectiveFeeRate() {
 /**
  * 구글 드라이브로부터 수수료 예시표 데이터 비동기 로드
  */
-async function loadFeeTableData(targetMonth = null) {
+async function loadFeeTableData(targetMonth = null, forceReload = false) {
+    const monthParam = targetMonth || feeTableState.month || '';
+
+    // 이미 데이터가 있고 강제 새로고침이 아니며, 대상 월이 동일하거나 미지정인 경우 캐시 유지
+    if (!forceReload && FEE_TABLE_DATA && FEE_TABLE_DATA.categories && (!targetMonth || targetMonth === feeTableState.month)) {
+        renderFeeTableView();
+        return;
+    }
+
     if (feeTableLoading) return;
     feeTableLoading = true;
     renderFeeTableView(); // 로딩 스피너 표시
 
     try {
         const staffId = (state.user && state.user.staffId) ? state.user.staffId : (state.user ? state.user.id : '');
-        const monthParam = targetMonth || feeTableState.month || '';
 
         const [monthsRes, dataRes] = await Promise.all([
-            (feeTableAvailableMonths.length === 0) ? callApi('getAvailableFeeMonths') : Promise.resolve({ success: true, months: feeTableAvailableMonths }),
+            (feeTableAvailableMonths.length === 0 || forceReload) ? callApi('getAvailableFeeMonths') : Promise.resolve({ success: true, months: feeTableAvailableMonths }),
             callApi('getFeeTableData', staffId, monthParam)
         ]);
 
@@ -314,8 +322,7 @@ function renderFeeTableView() {
                 <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </div>
-                <h3 class="font-extrabold text-slate-900 text-lg mb-1">수수료 예시표 데이터를 불러오는 중입니다...</h3>
-                <p class="text-xs text-slate-400">구글 드라이브에서 최신 수수료 규정을 동기화하고 있습니다.</p>
+                <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 수수료 데이터를 불러오는 중입니다.</h3>
             </div>
         `;
         return;
@@ -323,7 +330,7 @@ function renderFeeTableView() {
 
     // 2. 데이터가 아직 로드되지 않은 초기 상태
     if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
-        const isManager = isBranchRepAny() || isAdminAny();
+        const isManager = isBranchRepAny() || isAdminAny() || isOpsAny();
         container.innerHTML = `
             <div class="bg-white rounded-3xl p-8 text-center shadow-sm border border-slate-100 max-w-lg mx-auto mt-12 animate-fadeIn">
                 <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
@@ -335,7 +342,7 @@ function renderFeeTableView() {
                     ${isManager ? '손보/생보 엑셀 파일을 업로드하여 데이터를 등록해 주세요.' : '관리자에게 수수료 데이터 업로드를 요청해 주세요.'}
                 </p>
                 <div class="flex items-center justify-center gap-3">
-                    <button onclick="loadFeeTableData()" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-slate-200 transition">다시 시도</button>
+                    <button onclick="loadFeeTableData(null, true)" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-slate-200 transition">다시 시도</button>
                     ${isManager ? `
                         <button onclick="openFeeExcelUploadModal()" class="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 hover:bg-primaryHover transition flex items-center gap-1.5">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -424,7 +431,9 @@ function renderFeeTableView() {
     };
 
     const isLife = (feeTableState.category === '생명보험');
-    const isManager = isBranchRepAny() || isAdminAny();
+    const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+    const isSimAllowed = ['지사대표', '운영진', '관리자'].includes(role1);
+    const isManager = isBranchRepAny() || isAdminAny() || isOpsAny();
 
     container.innerHTML = `
         <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
@@ -441,7 +450,7 @@ function renderFeeTableView() {
                                 <h2 class="text-xl font-black tracking-tight text-slate-900">수수료 예시표</h2>
                                 <!-- 기준월 선택 셀렉트박스 -->
                                 <div class="relative inline-flex items-center">
-                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
+                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value, true)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
                                         ${(feeTableAvailableMonths.length > 0 ? feeTableAvailableMonths : [FEE_TABLE_DATA.month || '2026.09']).map(m => `
                                             <option value="${m}" ${m === feeTableState.month ? 'selected' : ''}>${m} 기준</option>
                                         `).join('')}
@@ -462,13 +471,13 @@ function renderFeeTableView() {
                     </div>
                 </div>
 
-                <!-- 관리자/지사대표 전용 지급율 조정 컨트롤 (일반 사용자에게는 완전히 숨김!) -->
-                ${isManager ? `
+                <!-- 지급율 시뮬레이션 카드 (권한1: 지사대표, 운영진, 관리자 전용) -->
+                ${isSimAllowed ? `
                 <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 w-full lg:w-auto min-w-[300px] shadow-2xs">
                     <div class="flex justify-between items-center mb-1.5">
                         <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                            지급율 시뮬레이션 <span class="text-[9px] font-normal text-slate-400">(관리자)</span>
+                            지급율 시뮬레이션
                         </span>
                         <span class="text-xs font-black text-primary" id="ft-payout-display">${currentRate.toFixed(1)}%</span>
                     </div>
@@ -671,8 +680,8 @@ function renderFeeTableView() {
         </div>
     `;
 
-    // 이벤트 리스너 바인딩 (관리자 슬라이더)
-    if (isManager) {
+    // 이벤트 리스너 바인딩 (시뮬레이션 슬라이더)
+    if (isSimAllowed) {
         const slider = document.getElementById('ft-payout-slider');
         const input = document.getElementById('ft-payout-input');
         if (slider) {
@@ -1153,8 +1162,8 @@ function parseFeeWorkbook(workbook, category) {
 
         for (let col in colHeaders) {
             const hText = colHeaders[col];
-            const isOpt = /납기|납입기간|납입주기|만기|종형|담보|가입금액|구좌|보종|특약유형|구분|종별/.test(hText) &&
-                          !/장기유지|계약유지|유지수수료|환산율|환산초회|환산월초|환산\(TP\)|성과|수수료|비고|수정율|수정률/.test(hText) &&
+            const isOpt = /납기|납입기간|납입주기|만기|종형|담보|가입금액|구좌|보종|특약유형|구분|종별|보험료|월납/.test(hText) &&
+                          !/장기유지|계약유지|유지수수료|환산|성과|수수료|비고|수정율|수정률|월납대비|기준|[X×%]|지급|산출|초회보험료의/.test(hText) &&
                           !rateCols.includes(col) && col !== prodCol;
             if (isOpt) {
                 let t = hText.split(' ')[0];
@@ -1162,6 +1171,9 @@ function parseFeeWorkbook(workbook, category) {
                 else if (/담보별/.test(hText)) t = '담보별';
                 else if (/담보구분|담보/.test(hText)) t = '담보';
                 else if (/가입금액/.test(hText)) t = '가입금액';
+                else if (/최초보험료/.test(hText)) t = '최초보험료';
+                else if (/월납보험료/.test(hText)) t = '월납보험료';
+                else if (/보험료/.test(hText)) t = '보험료';
                 else if (/납입기간|납기/.test(hText)) t = '납기';
                 else if (/만기구분/.test(hText)) t = '만기구분';
                 else if (/만기/.test(hText)) t = '만기';
@@ -1362,7 +1374,7 @@ async function executeFeeExcelUpload() {
                 closeFeeExcelUploadModal();
                 feeTableState.month = month;
                 feeTableAvailableMonths = []; // 캐시 초기화
-                loadFeeTableData(month);
+                loadFeeTableData(month, true);
             }, 1200);
         } else {
             throw new Error(res?.message || '구글 드라이브 저장에 실패했습니다.');

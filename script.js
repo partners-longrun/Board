@@ -1190,7 +1190,7 @@
                              ${!hasRole('실장') ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
-                             ${(state.user && state.user.role === '지사대표') ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
+                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1319,7 +1319,7 @@
                             ${(state.user.isRecruiter && !hasRole('실장')) ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
                             </a>` : ''}
-                            ${(state.user && state.user.role === '지사대표') ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
@@ -7961,7 +7961,11 @@
             else if (state.currentView === 'performanceAnalysis') fetchPerformanceAnalysisData();
             else if (state.currentView === 'totalAllowanceForecast') fetchTotalAllowanceForecastData();
             else if (state.currentView === 'feeTable') {
-                if (typeof loadFeeTableData === 'function') loadFeeTableData();
+                if (typeof loadFeeTableData === 'function') {
+                    if (typeof FEE_TABLE_DATA === 'undefined' || !FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
+                        loadFeeTableData();
+                    }
+                }
             }
         }
 
