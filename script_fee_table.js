@@ -1256,15 +1256,34 @@ function parseFeeWorkbook(workbook, category) {
             if (/상품명|상품 명/.test(hText) && prodCol === 'A') {
                 prodCol = col;
             }
+            if (/비고/.test(hText)) continue;
             if (/총계|총수수료|총 수수료|합계계/.test(hText)) rateColMap.total = col;
             if (/1차년도 합계|1차년도합계|1차년계|1차년計|1차년 計/.test(hText)) rateColMap.year1 = col;
             if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) rateColMap.year2 = col;
             if (/3차년도 합계|3차년도합계|3차년계|3차년計|3차년 計/.test(hText)) rateColMap.year3 = col;
-            if (/1회차|익월計|익월계|1회 지급\(1회차\)|성과수수료 \(1회차\)|장기성과수수료 \(1회차\)|신계약기본수수료 \(1회차\)|장기선급성과|GA성과수수료 \(1회차\)|모집수수료 \(1회차\)|신계약성과수수료 1회|모집수수료1/.test(hText)) {
-                if (!rateColMap.first) rateColMap.first = col;
+
+            // 1회차 수수료 컬럼 매칭: 1순위는 '익월' 또는 '1회차' 또는 '1회 지급' (여부/대상 제외)
+            if (/익월|1회차|1회\s*지급/.test(hText) && !/여부|대상/.test(hText)) {
+                rateColMap.first = col;
+            } else if (!rateColMap.first && !/여부|대상/.test(hText)) {
+                if (/신계약기본수수료|신계약비례수수료|신계약성과수수료|신계약수수료|선지급유지수수료|장기선급성과|GA성과수수료|모집수수료|모집수수료1/.test(hText)) {
+                    rateColMap.first = col;
+                } else if (category === '손해보험' && /성과수수료|장기성과수수료/.test(hText)) {
+                    rateColMap.first = col;
+                }
             }
+
             if (/13차월|13회차|13~14회차|13~15회차|13~24회차|13-24회차|13회 計|13회계|13회|13~18회/.test(hText)) {
                 if (!rateColMap.m13) rateColMap.m13 = col;
+            }
+        }
+
+        // 손해보험: m13 컬럼이 특정되지 않은 경우 1차년도 합계 다음 컬럼을 m13으로 자동 매핑
+        if (category === '손해보험' && !rateColMap.m13 && rateColMap.year1) {
+            const y1Code = rateColMap.year1.charCodeAt(0);
+            const nextCol = String.fromCharCode(y1Code + 1);
+            if (colHeaders[nextCol]) {
+                rateColMap.m13 = nextCol;
             }
         }
 
@@ -1442,7 +1461,11 @@ function parseFeeWorkbook(workbook, category) {
 
             // 회사별 수수료 지급 정책 정밀 계산
             if (category === '생명보험') {
-                if (sName === '한화생명' || sName === 'KB라이프') {
+                if (sName === '한화생명') {
+                    // 1차년계 전체 익월 선지급, 2차년계 전체 13차월 선지급
+                    rFirst = rY1;
+                    rM13 = rY2;
+                } else if (sName === 'KB라이프') {
                     // 2차년계 전체를 13차월에 선지급
                     rM13 = rY2;
                 } else if (sName === '교보생명') {
@@ -1564,6 +1587,8 @@ function parseFeeWorkbook(workbook, category) {
                     if (rM13 > 0) rM13 = Math.round((rM13 / 2.0) * 100) / 100;
                 } else if (sName === '농협손보' || sName === '삼성화재' || sName === '현대해상' || sName === '흥국화재') {
                     if (rM13 > 0) rM13 = Math.round((rM13 / 3.0) * 100) / 100;
+                } else if (sName === '한화손보' || sName === '메리츠') {
+                    if (rM13 > 0) rM13 = Math.round((rM13 / 6.0) * 100) / 100;
                 }
                 if (rM13 === 0 && rY2 > 0) {
                     rM13 = Math.round((rY2 / 12.0) * 100) / 100;
