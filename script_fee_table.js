@@ -1506,7 +1506,12 @@ function parseFeeWorkbook(workbook, category) {
                     const valN = getNormRate(mCol, r);
                     const valO = getNormRate(bCol, r);
                     rM13 = Math.round((valO + (valN / 12.0)) * 100) / 100;
-                } else if (sName === 'IBK연금' || sName === 'KDB생명') {
+                } else if (sName === 'IBK연금') {
+                    // 2차년계를 13~24회차까지 균등 분할 분급
+                    if (rY2 > 0) rM13 = Math.round((rY2 / 12.0) * 100) / 100;
+                } else if (sName === 'KDB생명') {
+                    // 익월計 / 1차년계 전체를 1회차(익월)에 지급
+                    rFirst = rY1;
                     // 2차년계를 13~24회차까지 균등 분할 분급
                     if (rY2 > 0) rM13 = Math.round((rY2 / 12.0) * 100) / 100;
                 }
