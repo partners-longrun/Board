@@ -208,8 +208,8 @@ async function initTotalFeeReport() {
     }
 
     // 1. 수수료 엑셀 데이터 준비 확인
-    if (typeof loadFeeTableMonthData === 'function' && (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories)) {
-        await loadFeeTableMonthData(totalFeeReportState.month);
+    if (typeof loadFeeTableData === 'function' && (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories)) {
+        await loadFeeTableData(totalFeeReportState.month);
     }
 
     // 2. 구글 시트 '월별시상' 정책 로드 시도
@@ -351,7 +351,7 @@ function findFeeDataRow(category, company, productName, payPeriod) {
  * 화면 전체 렌더링 (메인 진입점)
  */
 function renderTotalFeeReportView() {
-    const content = document.getElementById('content');
+    const content = document.getElementById('main-view') || document.getElementById('content');
     if (!content) return;
 
     const state = totalFeeReportState;

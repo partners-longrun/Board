@@ -7,12 +7,12 @@
  * ==============================================================================
  */
 
-var FEE_TABLE_DATA = null;
-var feeTableAvailableMonths = [];
+var FEE_TABLE_DATA = (typeof window !== 'undefined' && window.FEE_TABLE_DATA) ? window.FEE_TABLE_DATA : (typeof FEE_TABLE_DATA !== 'undefined' ? FEE_TABLE_DATA : null);
+var feeTableAvailableMonths = (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? [FEE_TABLE_DATA.month] : [];
 var feeTableLoading = false;
 
 var feeTableState = {
-    month: '', // 현재 선택된 기준월 (예: '2026.09')
+    month: (FEE_TABLE_DATA && FEE_TABLE_DATA.month) ? FEE_TABLE_DATA.month : '2026.09', // 현재 선택된 기준월 (예: '2026.09')
     category: '손해보험', // '손해보험' | '생명보험'
     company: '한화손보',
     searchKeyword: '',
@@ -388,7 +388,15 @@ function renderFeeTableView() {
 
     // 2. 데이터가 아직 로드되지 않은 초기 상태
     if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
-        const isManager = isBranchRepAny() || isAdminAny() || isOpsAny();
+        // 아직 로딩 중이 아니라면 자동으로 데이터 로드 시도
+        if (!feeTableLoading) {
+            setTimeout(() => {
+                loadFeeTableData();
+            }, 50);
+        }
+
+        const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+        const isBranchRep = (role1 === '지사대표');
         container.innerHTML = `
             <div class="bg-white rounded-3xl p-8 text-center shadow-sm border border-slate-100 max-w-lg mx-auto mt-12 animate-fadeIn">
                 <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
@@ -397,11 +405,11 @@ function renderFeeTableView() {
                 <h3 class="font-bold text-slate-800 text-lg mb-2">등록된 수수료 예시표가 없습니다</h3>
                 <p class="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
                     구글 드라이브에 등록된 수수료 데이터가 없습니다.<br>
-                    ${isManager ? '손보/생보 엑셀 파일을 업로드하여 데이터를 등록해 주세요.' : '관리자에게 수수료 데이터 업로드를 요청해 주세요.'}
+                    ${isBranchRep ? '손보/생보 엑셀 파일을 업로드하여 데이터를 등록해 주세요.' : '지사대표에게 수수료 데이터 업로드를 요청해 주세요.'}
                 </p>
                 <div class="flex items-center justify-center gap-3">
                     <button onclick="loadFeeTableData(null, true)" class="px-5 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm hover:bg-slate-200 transition">다시 시도</button>
-                    ${isManager ? `
+                    ${isBranchRep ? `
                         <button onclick="openFeeExcelUploadModal()" class="px-5 py-2.5 bg-primary text-white font-bold rounded-xl text-xs sm:text-sm shadow-md shadow-orange-500/20 hover:bg-primaryHover transition flex items-center gap-1.5">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                             수수료 엑셀 업로드
@@ -517,14 +525,10 @@ function renderFeeTableView() {
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                 </div>
-                                ${isManager ? `
+                                ${(role1 === '지사대표') ? `
                                     <button onclick="openFeeExcelUploadModal()" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition">
                                         <svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                                         엑셀 업로드
-                                    </button>
-                                    <button onclick="navigate('totalFeeReport')" class="px-2.5 py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                                        총수당 예시표 PDF
                                     </button>
                                 ` : ''}
                             </div>
@@ -738,6 +742,16 @@ function renderFeeTableView() {
                     본 수수료 예시표는 제휴 보험사별 대표 상품의 참고용 지급률 데이터입니다. 실제 입금되는 수수료는 계약 유지 여부, 실효/연체, 시책 및 개인 업적 달성 구간에 따라 차이가 발생할 수 있습니다.
                 </p>
             </div>
+
+            <!-- 8. Bottom Action Button: 총수당 예시표 출력하기 (권한1: 지사대표 또는 운영진) -->
+            ${(role1 === '지사대표' || role1 === '운영진') ? `
+            <div class="flex justify-end pt-2">
+                <button onclick="navigate('totalFeeReport')" class="px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    총수당 예시표 출력하기
+                </button>
+            </div>
+            ` : ''}
 
         </div>
     `;

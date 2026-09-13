@@ -1192,7 +1192,6 @@
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
                              ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
-                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('totalFeeReport', '총수당 예시표 PDF', icons.totalFeeReport) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1323,9 +1322,6 @@
                             </a>` : ''}
                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
-                            </a>` : ''}
-                            ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="totalFeeReport" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'totalFeeReport' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
-                                <span class="mr-4">${icons.totalFeeReport}</span> 총수당 예시표 PDF
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
                             ${(isBranchRepAny() || isOpsAny() || isAdminAny()) ? `<a href="#" data-nav="admin" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'admin' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
