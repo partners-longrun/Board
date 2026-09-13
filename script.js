@@ -195,8 +195,8 @@
 
         function navigate(view, push = true) {
             if (view === 'feeTable') {
-                if (!state.user || state.user.role !== '지사대표') {
-                    alert('수수료 예시표는 현재 개발 및 검증 단계로, 지사대표 권한 사용자에게만 오픈되어 있습니다.');
+                if (!state.user || (state.user.role !== '지사대표' && state.user.role !== '운영진')) {
+                    alert('수수료 예시표는 현재 지사대표 및 운영진 권한 사용자에게 오픈되어 있습니다.');
                     return;
                 }
             }
