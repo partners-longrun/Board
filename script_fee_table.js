@@ -70,18 +70,9 @@ function sortInsuranceCompanies(list, category) {
  */
 function getAdjustedBaseRates(rates, companyName) {
     if (!rates) return { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
-    const r = { ...rates };
-    const comp = companyName || '';
-
-    // 1/2로 계산할 회사 (DB손보, KB손보)
-    if (comp.includes('DB') || comp.includes('KB')) {
-        r.m13 = Math.round((r.m13 / 2.0) * 100) / 100;
-    }
-    // 1/3로 계산할 회사 (농협손보, 삼성화재, 현대해상, 흥국화재)
-    else if (comp.includes('농협') || comp.includes('삼성') || comp.includes('현대') || comp.includes('흥국')) {
-        r.m13 = Math.round((r.m13 / 3.0) * 100) / 100;
-    }
-    return r;
+    // 파싱 및 빌드 시점에 모든 손보/생보사의 고유 정책(선지급, 분급, 분할 합산 등)이
+    // 이미 정확한 13차월 수치(rates.m13)로 계산되어 있으므로 추가 분할 없이 그대로 사용합니다.
+    return { ...rates };
 }
 
 /**
@@ -1197,17 +1188,17 @@ function parseFeeWorkbook(workbook, category) {
             }
         }
 
-        // 4. 열 매핑
+        // 4. 열 매핑 (headerRow-1 ~ headerRow+2 다중 행 결합)
         const colHeaders = {};
         const maxCol = 35; // A to AI
         for (let ci = 1; ci <= maxCol; ci++) {
             const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
-            const hCell = cellMap[`${colLetter}${headerRow}`] || '';
-            const prevHCell = headerRow > 1 ? (cellMap[`${colLetter}${headerRow - 1}`] || '') : '';
             let combHeader = '';
-            if (prevHCell && !/^[■※]|수수료타입/.test(prevHCell)) combHeader = prevHCell;
-            if (hCell && !/^[■※]|수수료타입/.test(hCell)) {
-                combHeader = combHeader ? (combHeader + ' ' + hCell) : hCell;
+            for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
+                const cellVal = cellMap[`${colLetter}${hr}`] || '';
+                if (cellVal && !/^[■※]|수수료타입|\(참고\)/.test(cellVal)) {
+                    combHeader += ' ' + cellVal;
+                }
             }
             combHeader = combHeader.trim();
             if (combHeader) colHeaders[colLetter] = combHeader;
@@ -1297,6 +1288,49 @@ function parseFeeWorkbook(workbook, category) {
             }
         }
 
+        // 동적 컬럼 탐색 (삼성생명, 농협생명, DB생명 등)
+        const samsungBonusCols = [];
+        const samsungMgmtCols = [];
+        let nhPerfCol = null;
+        let nhMgmtCol = null;
+        let dbBonusCol = null;
+        let dbMgmtCol = null;
+
+        if (sName === '삼성생명') {
+            let y2Start = false;
+            Object.keys(colHeaders).sort().forEach(col => {
+                const hText = colHeaders[col];
+                if (/2차년도/.test(hText)) y2Start = true;
+                if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) y2Start = false;
+                if (/고능률보너스/.test(hText)) samsungBonusCols.push(col);
+                if (y2Start && !/고능률보너스/.test(hText) && /계약관리|일반보장성|경영인정기|정기\/단체|연금\/저축|건강상해/.test(hText)) {
+                    samsungMgmtCols.push(col);
+                }
+            });
+        } else if (sName === '농협생명') {
+            let y2Start = false;
+            Object.keys(colHeaders).sort().forEach(col => {
+                const hText = colHeaders[col];
+                if (/2차년도/.test(hText)) y2Start = true;
+                if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) y2Start = false;
+                if (y2Start) {
+                    if (/성과수수료/.test(hText)) nhPerfCol = col;
+                    if (/계약관리수수료|계약관리/.test(hText)) nhMgmtCol = col;
+                }
+            });
+        } else if (sName === 'DB생명') {
+            let y2Start = false;
+            Object.keys(colHeaders).sort().forEach(col => {
+                const hText = colHeaders[col];
+                if (/2차년도/.test(hText)) y2Start = true;
+                if (/2차년도 합계|2차년도합계|2차년계|2차년計|2차년 計/.test(hText)) y2Start = false;
+                if (y2Start) {
+                    if (/성과보너스/.test(hText)) dbBonusCol = col;
+                    if (/신계약관리수수료|계약관리/.test(hText)) dbMgmtCol = col;
+                }
+            });
+        }
+
         // 5. 데이터 행 파싱
         let maxRow = 0;
         for (let k in cellMap) {
@@ -1378,13 +1412,15 @@ function parseFeeWorkbook(workbook, category) {
                         rTot = Math.round((rY1 + rY2 + rY3) * 100) / 100;
                     }
                 } else if (sName === '농협생명') {
-                    // 성과수수료(Col M) + 계약관리수수료(Col L) * 0.5
-                    const rL = getNormRate('L', r);
-                    const rM = getNormRate('M', r);
+                    // 성과수수료(Col M) 13차월 지급 + 계약관리수수료(Col L) 50% 13차월 선지급
+                    const pCol = nhPerfCol || 'M';
+                    const mCol = nhMgmtCol || 'L';
+                    const rM = getNormRate(pCol, r);
+                    const rL = getNormRate(mCol, r);
                     rM13 = Math.round((rM + (rL * 0.5)) * 100) / 100;
                 } else if (sName === '동양생명') {
-                    // 2차년계 분할 분급
-                    if (rY2 > 0) rM13 = Math.round((rY2 / 12.0) * 100) / 100;
+                    // 2차년계의 50%는 13차월에 선지급, 나머지 50%는 19~24회차 분급
+                    if (rY2 > 0) rM13 = Math.round((rY2 * 0.5) * 100) / 100;
                 } else if (sName === '라이나생명') {
                     // 계약관리(H or I) / 12 + 유지성과(J) / 6
                     const rH = getNormRate('H', r);
@@ -1398,14 +1434,27 @@ function parseFeeWorkbook(workbook, category) {
                     const rQ = getNormRate('Q', r);
                     rM13 = Math.round((rP + (rQ / 12.0)) * 100) / 100;
                 } else if (sName === '삼성생명') {
-                    // 고능률보너스(V or W) + 계약관리(Q~U 중 0 초과) * 0.5
-                    const rV = getNormRate('V', r);
-                    const rW = getNormRate('W', r);
-                    const rBonus = rW > 0 ? rW : rV;
+                    // 고능률보너스(헤더 탐색, 없으면 V/W) + 계약관리커미션(헤더 탐색, 없으면 Q~U) * 0.5
+                    let rBonus = 0.0;
+                    samsungBonusCols.forEach(bc => {
+                        const val = getNormRate(bc, r);
+                        if (val > 0) rBonus += val;
+                    });
+                    if (rBonus === 0) {
+                        const valW = getNormRate('W', r);
+                        const valV = getNormRate('V', r);
+                        rBonus = valW > 0 ? valW : valV;
+                    }
                     let rMgmt = 0.0;
-                    for (let mc of ['Q', 'R', 'S', 'T', 'U']) {
+                    for (let mc of samsungMgmtCols) {
                         const val = getNormRate(mc, r);
                         if (val > 0) { rMgmt = val; break; }
+                    }
+                    if (rMgmt === 0) {
+                        for (let mc of ['Q', 'R', 'S', 'T', 'U']) {
+                            const val = getNormRate(mc, r);
+                            if (val > 0) { rMgmt = val; break; }
+                        }
                     }
                     rM13 = Math.round((rBonus + (rMgmt * 0.5)) * 100) / 100;
                 } else if (sName === '신한라이프') {
@@ -1437,7 +1486,7 @@ function parseFeeWorkbook(workbook, category) {
                         rowOpts['납기'] = `${rowOpts['납기']}년납`;
                     }
                 } else if (sName === '흥국생명') {
-                    // 2차년계 균등 분급
+                    // 2차년계를 13~24회차까지 균등 분할 분급
                     if (rY2 > 0) rM13 = Math.round((rY2 / 12.0) * 100) / 100;
                 } else if (sName === 'ABL생명') {
                     // 13차월은 2차년계 균등 분급
@@ -1451,12 +1500,14 @@ function parseFeeWorkbook(workbook, category) {
                         rTot = Math.round((rY1 + rY2 + rY3) * 100) / 100;
                     }
                 } else if (sName === 'DB생명') {
-                    // 성과보너스(O) + 신계약관리(N) / 12
-                    const valN = getNormRate('N', r);
-                    const valO = getNormRate('O', r);
+                    // 성과보너스(Col O) 13차월 선지급 + 신계약관리(Col N) 13~24회차 분급
+                    const bCol = dbBonusCol || 'O';
+                    const mCol = dbMgmtCol || 'N';
+                    const valN = getNormRate(mCol, r);
+                    const valO = getNormRate(bCol, r);
                     rM13 = Math.round((valO + (valN / 12.0)) * 100) / 100;
                 } else if (sName === 'IBK연금' || sName === 'KDB생명') {
-                    // 2차년계 균등 분급
+                    // 2차년계를 13~24회차까지 균등 분할 분급
                     if (rY2 > 0) rM13 = Math.round((rY2 / 12.0) * 100) / 100;
                 }
             } else if (category === '손해보험') {
