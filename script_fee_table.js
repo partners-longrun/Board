@@ -7,8 +7,25 @@
  * ==============================================================================
  */
 
-if (typeof window !== 'undefined' && typeof window.FEE_TABLE_DATA === 'undefined') {
-    window.FEE_TABLE_DATA = null;
+if (typeof window !== 'undefined') {
+    if (typeof window.FEE_TABLE_DATA === 'undefined' || !window.FEE_TABLE_DATA) {
+        window.FEE_TABLE_DATA = null;
+        try {
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const k = sessionStorage.key(i);
+                if (k && k.startsWith('DATA_FEE_TABLE_')) {
+                    const saved = sessionStorage.getItem(k);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (parsed && parsed.categories) {
+                            window.FEE_TABLE_DATA = parsed;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+    }
 }
 var feeTableAvailableMonths = (typeof window !== 'undefined' && window.FEE_TABLE_DATA && window.FEE_TABLE_DATA.month) ? [window.FEE_TABLE_DATA.month] : [];
 var feeTableLoading = false;
@@ -336,40 +353,73 @@ function renderOptionChipsHtml(selectedProdRows, optionKeys, selectedOptions) {
  * 현재 적용되는 지급율 계산
  * - 관리자/지사대표가 임의 조정한 경우 overrideRate 반환
  * - 일반 사용자는 본인의 사용자정보 시트 상 지급율 (손보/생보) 자동 적용
+ * - 지급율이 등록되지 않은 경우 null 반환 (임의 기본값 사용 엄격 금지!)
  */
 function getEffectiveFeeRate() {
     if (feeTableState.overrideRate !== null && !isNaN(feeTableState.overrideRate)) {
         return parseFloat(feeTableState.overrideRate);
     }
-    if (!state.user) return 84.0;
+    if (!state.user) return null;
     
     if (feeTableState.category === '생명보험') {
         const r = parseFloat(state.user.lifeRate);
-        return (!isNaN(r) && r > 0) ? r : 82.0;
+        return (!isNaN(r) && r > 0) ? r : null;
     } else {
         const r = parseFloat(state.user.nonLifeRate);
-        return (!isNaN(r) && r > 0) ? r : 84.0;
+        return (!isNaN(r) && r > 0) ? r : null;
     }
 }
 
 /**
  * 구글 드라이브로부터 수수료 예시표 데이터 비동기 로드
+ * @param {string|null} targetMonth - 조회 대상 마감월 (예: '2026.09')
+ * @param {boolean} forceReload - 강제 새로고침 여부
+ * @param {boolean} isBackground - 백그라운드 프리페치 여부 (true인 경우 로딩 스피너 미표시)
  */
-async function loadFeeTableData(targetMonth = null, forceReload = false) {
+async function loadFeeTableData(targetMonth = null, forceReload = false, isBackground = false) {
     if (forceReload) {
         feeTableLoadAttempted = false;
     }
     const monthParam = targetMonth || feeTableState.month || '';
+    const cleanMonth = monthParam ? monthParam.replace(/\./g, '') : '';
+    const cacheKey = 'DATA_FEE_TABLE_' + cleanMonth;
 
-    // 이미 데이터가 있고 강제 새로고침이 아니며, 대상 월이 동일하거나 미지정인 경우 캐시 유지
+    // 1. 이미 메모리에 데이터가 있고 강제 새로고침이 아니며, 대상 월이 동일하거나 미지정인 경우 즉시 반환
     if (!forceReload && FEE_TABLE_DATA && FEE_TABLE_DATA.categories && (!targetMonth || targetMonth === feeTableState.month)) {
-        renderFeeTableView();
+        if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+            renderFeeTableView();
+        }
         return;
+    }
+
+    // 2. 세션 스토리지(sessionStorage) 캐시 확인 (0.00초 즉시 렌더링)
+    if (!forceReload && cleanMonth) {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                if (parsed && parsed.categories) {
+                    window.FEE_TABLE_DATA = parsed;
+                    feeTableState.month = parsed.month || monthParam;
+                    if (!feeTableAvailableMonths.includes(feeTableState.month)) {
+                        feeTableAvailableMonths.unshift(feeTableState.month);
+                    }
+                    if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+                        renderFeeTableView();
+                    }
+                    return;
+                }
+            } catch (e) {
+                sessionStorage.removeItem(cacheKey);
+            }
+        }
     }
 
     if (feeTableLoading) return;
     feeTableLoading = true;
-    renderFeeTableView(); // 로딩 스피너 표시
+    if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+        renderFeeTableView(); // 로딩 스피너 표시
+    }
 
     try {
         const staffId = (state.user && state.user.staffId) ? state.user.staffId : (state.user ? state.user.id : '');
@@ -391,8 +441,22 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
                 if (dataRes.rates.nonLifeRate) state.user.nonLifeRate = dataRes.rates.nonLifeRate;
                 if (dataRes.rates.lifeRate) state.user.lifeRate = dataRes.rates.lifeRate;
             }
+            // 세션 스토리지에 캐시 보관 (다음번 0초 즉시 렌더링 지원)
+            const saveMonth = (feeTableState.month || monthParam || '').replace(/\./g, '');
+            if (saveMonth) {
+                try {
+                    sessionStorage.setItem('DATA_FEE_TABLE_' + saveMonth, JSON.stringify(dataRes.data));
+                } catch (sErr) {
+                    console.warn('[FeeTable] sessionStorage write error:', sErr);
+                }
+            }
+            if (!feeTableAvailableMonths.includes(feeTableState.month)) {
+                feeTableAvailableMonths.unshift(feeTableState.month);
+            }
         } else {
-            window.FEE_TABLE_DATA = null;
+            if (!isBackground) {
+                window.FEE_TABLE_DATA = null;
+            }
             console.warn('Fee table data not found for month:', monthParam, dataRes);
         }
 
@@ -409,10 +473,14 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
         }
     } catch (err) {
         console.error('loadFeeTableData error:', err);
-        window.FEE_TABLE_DATA = null;
+        if (!isBackground) {
+            window.FEE_TABLE_DATA = null;
+        }
     } finally {
         feeTableLoading = false;
-        renderFeeTableView();
+        if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+            renderFeeTableView();
+        }
     }
 }
 
@@ -520,32 +588,33 @@ function renderFeeTableView(targetContainer) {
     // 조건에 가장 잘 일치하는 단일 데이터 행 찾기
     const matchedRow = findMatchedFeeRow(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
-    // 수수료율 및 원화 금액 계산
+    // 수수료율 및 원화 금액 계산 (미등록 시 null 유지)
     const currentRate = getEffectiveFeeRate();
-    const multiplier = currentRate / 100.0;
+    const hasRate = (currentRate !== null && !isNaN(currentRate) && currentRate > 0);
+    const multiplier = hasRate ? (currentRate / 100.0) : 0;
     const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
 
     const rawBaseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
     const baseRates = getAdjustedBaseRates(rawBaseRates, feeTableState.company);
     
-    // 계산된 수수료율 (지급율 반영)
+    // 계산된 수수료율 (지급율 반영, 미등록 시 null)
     const calcRates = {
-        first: Math.round(baseRates.first * multiplier * 10) / 10,
-        year1: Math.round(baseRates.year1 * multiplier * 10) / 10,
-        m13:   Math.round(baseRates.m13 * multiplier * 10) / 10,
-        year2: Math.round(baseRates.year2 * multiplier * 10) / 10,
-        year3: Math.round((baseRates.year3 || 0) * multiplier * 10) / 10,
-        total: Math.round(baseRates.total * multiplier * 10) / 10
+        first: hasRate ? Math.round(baseRates.first * multiplier * 10) / 10 : null,
+        year1: hasRate ? Math.round(baseRates.year1 * multiplier * 10) / 10 : null,
+        m13:   hasRate ? Math.round(baseRates.m13 * multiplier * 10) / 10 : null,
+        year2: hasRate ? Math.round(baseRates.year2 * multiplier * 10) / 10 : null,
+        year3: hasRate ? Math.round((baseRates.year3 || 0) * multiplier * 10) / 10 : null,
+        total: hasRate ? Math.round(baseRates.total * multiplier * 10) / 10 : null
     };
 
-    // 실수령 원화 환산
+    // 실수령 원화 환산 (미등록 시 null)
     const calcAmounts = {
-        first: Math.round(premium * (calcRates.first / 100.0)),
-        year1: Math.round(premium * (calcRates.year1 / 100.0)),
-        m13:   Math.round(premium * (calcRates.m13 / 100.0)),
-        year2: Math.round(premium * (calcRates.year2 / 100.0)),
-        year3: Math.round(premium * (calcRates.year3 / 100.0)),
-        total: Math.round(premium * (calcRates.total / 100.0))
+        first: hasRate ? Math.round(premium * (calcRates.first / 100.0)) : null,
+        year1: hasRate ? Math.round(premium * (calcRates.year1 / 100.0)) : null,
+        m13:   hasRate ? Math.round(premium * (calcRates.m13 / 100.0)) : null,
+        year2: hasRate ? Math.round(premium * (calcRates.year2 / 100.0)) : null,
+        year3: hasRate ? Math.round(premium * (calcRates.year3 / 100.0)) : null,
+        total: hasRate ? Math.round(premium * (calcRates.total / 100.0)) : null
     };
 
     const isLife = (feeTableState.category === '생명보험');
@@ -599,11 +668,11 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
                             지급율 시뮬레이션
                         </span>
-                        <span class="text-xs font-black text-primary" id="ft-payout-display">${currentRate.toFixed(1)}%</span>
+                        <span class="text-xs font-black text-primary" id="ft-payout-display">${hasRate ? currentRate.toFixed(1) + '%' : '미등록 (시뮬레이션 필요)'}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <input type="range" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-slider" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                        <input type="number" min="50" max="100" step="0.5" value="${currentRate}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
+                        <input type="range" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-slider" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
+                        <input type="number" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
                     </div>
                     <div class="flex items-center justify-between gap-1 mt-1.5">
                         <button onclick="setFeePayoutRate(75)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 75 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">75%</button>
@@ -707,8 +776,29 @@ function renderFeeTableView(targetContainer) {
                         <span class="w-2 h-4 bg-primary rounded-full inline-block"></span>
                         예상 수수료율 및 실수령 금액 요약
                     </h4>
-                    <span class="text-xs text-slate-400 font-medium">단위: % / 원</span>
+                    <span class="text-xs text-slate-400 font-medium">${hasRate ? '단위: % / 원' : '지급율 등록 필요'}</span>
                 </div>
+
+                ${!hasRate ? `
+                <!-- 지급율 미등록 시 명확한 경고 및 등록 요청 안내 배너 -->
+                <div class="bg-amber-50 border-2 border-dashed border-amber-300 rounded-3xl p-6 sm:p-7 text-center mb-5 animate-fadeIn shadow-xs">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <h4 class="font-extrabold text-amber-900 text-base sm:text-lg mb-1.5">
+                        ${(state.user && (state.user.name || state.user.staffId)) ? `${state.user.name || state.user.staffId} 님의 ` : ''}${feeTableState.category} 지급율 정보가 등록되어 있지 않습니다.
+                    </h4>
+                    <p class="text-xs sm:text-sm text-amber-800 leading-relaxed max-w-lg mx-auto">
+                        개인별 지급율이 등록되지 않은 상태에서 임의 기본 수치를 보여주면 오해가 발생할 수 있어 계산 금액을 표시하지 않습니다.<br>
+                        정확한 수수료 계산을 위해 관리자 또는 지사대표에게 <strong>'사용자정보' 시트의 ${feeTableState.category === '생명보험' ? '생보지급율' : '손보지급율'}</strong> 등록을 요청해 주세요.
+                    </p>
+                    ${isSimAllowed ? `
+                    <div class="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100/70 border border-amber-300 text-amber-800 rounded-lg text-xs font-semibold">
+                        <span>💡 관리자/지사대표 권한으로 우측 상단의 '지급율 시뮬레이션' 슬라이더를 조정하여 임의 비율로 확인하실 수 있습니다.</span>
+                    </div>
+                    ` : ''}
+                </div>
+                ` : ''}
 
                 <div class="grid grid-cols-2 sm:grid-cols-3 ${isLife ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3 sm:gap-4">
                     
@@ -719,8 +809,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-first">${calcRates.first.toFixed(1)}</span><span class="text-sm font-bold text-blue-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1"><span id="ft-amt-first">${calcAmounts.first.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-first">${hasRate ? calcRates.first.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-blue-400 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-blue-600' : 'text-amber-700'} mt-1"><span id="ft-amt-first">${hasRate ? calcAmounts.first.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
                     </div>
 
@@ -731,8 +821,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y1</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year1">${calcRates.year1.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year1">${calcAmounts.year1.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year1">${hasRate ? calcRates.year1.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year1">${hasRate ? calcAmounts.year1.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
                     </div>
 
@@ -743,8 +833,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">13M</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-m13">${calcRates.m13.toFixed(1)}</span><span class="text-sm font-bold text-blue-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-blue-600 mt-1"><span id="ft-amt-m13">${calcAmounts.m13.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-m13">${hasRate ? calcRates.m13.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-blue-400 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-blue-600' : 'text-amber-700'} mt-1"><span id="ft-amt-m13">${hasRate ? calcAmounts.m13.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
                     </div>
 
@@ -755,8 +845,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y2</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year2">${calcRates.year2.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year2">${calcAmounts.year2.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year2">${hasRate ? calcRates.year2.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year2">${hasRate ? calcAmounts.year2.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
                     </div>
 
@@ -768,8 +858,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y3</span>
                         </div>
                         <div>
-                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year3">${calcRates.year3.toFixed(1)}</span><span class="text-sm font-bold text-orange-400 ml-0.5">%</span></p>
-                            <p class="text-xs sm:text-sm font-bold text-orange-700 mt-1"><span id="ft-amt-year3">${calcAmounts.year3.toLocaleString('ko-KR')}</span> <span class="text-[10px] text-slate-400">원</span></p>
+                            <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year3">${hasRate ? calcRates.year3.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year3">${hasRate ? calcAmounts.year3.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
                     </div>
                     ` : ''}
@@ -781,8 +871,8 @@ function renderFeeTableView(targetContainer) {
                             <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">TOTAL</span>
                         </div>
                         <div>
-                            <p class="text-2xl sm:text-3xl font-black tracking-tight"><span id="ft-rate-total">${calcRates.total.toFixed(1)}</span><span class="text-base font-bold text-orange-100 ml-0.5">%</span></p>
-                            <p class="text-sm sm:text-base font-black text-white mt-1 drop-shadow-xs"><span id="ft-amt-total">${calcAmounts.total.toLocaleString('ko-KR')}</span> <span class="text-xs font-medium text-orange-100">원</span></p>
+                            <p class="text-2xl sm:text-3xl font-black tracking-tight"><span id="ft-rate-total">${hasRate ? calcRates.total.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-base font-bold text-orange-100 ml-0.5">%</span>' : ''}</p>
+                            <p class="text-sm sm:text-base font-black text-white mt-1 drop-shadow-xs"><span id="ft-amt-total">${hasRate ? calcAmounts.total.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-xs font-medium text-orange-100">원</span>' : ''}</p>
                         </div>
                     </div>
 
@@ -910,58 +1000,59 @@ function updateFeeCalculations() {
     const matchedRow = findMatchedFeeRow(selectedProdRows, optionKeys, feeTableState.selectedOptions);
 
     const currentRate = getEffectiveFeeRate();
-    const multiplier = currentRate / 100.0;
+    const hasRate = (currentRate !== null && !isNaN(currentRate) && currentRate > 0);
+    const multiplier = hasRate ? (currentRate / 100.0) : 0;
     const premium = (feeTableState.premium !== undefined && feeTableState.premium !== null) ? feeTableState.premium : 150000;
     const rawBaseRates = matchedRow ? matchedRow.rates : { first: 0, year1: 0, m13: 0, year2: 0, year3: 0, total: 0 };
     const baseRates = getAdjustedBaseRates(rawBaseRates, feeTableState.company);
 
     const calcRates = {
-        first: Math.round(baseRates.first * multiplier * 10) / 10,
-        year1: Math.round(baseRates.year1 * multiplier * 10) / 10,
-        m13:   Math.round(baseRates.m13 * multiplier * 10) / 10,
-        year2: Math.round(baseRates.year2 * multiplier * 10) / 10,
-        year3: Math.round((baseRates.year3 || 0) * multiplier * 10) / 10,
-        total: Math.round(baseRates.total * multiplier * 10) / 10
+        first: hasRate ? Math.round(baseRates.first * multiplier * 10) / 10 : null,
+        year1: hasRate ? Math.round(baseRates.year1 * multiplier * 10) / 10 : null,
+        m13:   hasRate ? Math.round(baseRates.m13 * multiplier * 10) / 10 : null,
+        year2: hasRate ? Math.round(baseRates.year2 * multiplier * 10) / 10 : null,
+        year3: hasRate ? Math.round((baseRates.year3 || 0) * multiplier * 10) / 10 : null,
+        total: hasRate ? Math.round(baseRates.total * multiplier * 10) / 10 : null
     };
 
     const calcAmounts = {
-        first: Math.round(premium * (calcRates.first / 100.0)),
-        year1: Math.round(premium * (calcRates.year1 / 100.0)),
-        m13:   Math.round(premium * (calcRates.m13 / 100.0)),
-        year2: Math.round(premium * (calcRates.year2 / 100.0)),
-        year3: Math.round(premium * (calcRates.year3 / 100.0)),
-        total: Math.round(premium * (calcRates.total / 100.0))
+        first: hasRate ? Math.round(premium * (calcRates.first / 100.0)) : null,
+        year1: hasRate ? Math.round(premium * (calcRates.year1 / 100.0)) : null,
+        m13:   hasRate ? Math.round(premium * (calcRates.m13 / 100.0)) : null,
+        year2: hasRate ? Math.round(premium * (calcRates.year2 / 100.0)) : null,
+        year3: hasRate ? Math.round(premium * (calcRates.year3 / 100.0)) : null,
+        total: hasRate ? Math.round(premium * (calcRates.total / 100.0)) : null
     };
 
     const rateFirst = document.getElementById('ft-rate-first');
     const amtFirst = document.getElementById('ft-amt-first');
-    if (rateFirst) rateFirst.innerText = calcRates.first.toFixed(1);
-    if (amtFirst) amtFirst.innerText = calcAmounts.first.toLocaleString('ko-KR');
+    if (rateFirst) rateFirst.innerText = hasRate ? calcRates.first.toFixed(1) : '-';
+    if (amtFirst) amtFirst.innerText = hasRate ? calcAmounts.first.toLocaleString('ko-KR') : '지급율 미등록';
 
     const rateY1 = document.getElementById('ft-rate-year1');
     const amtY1 = document.getElementById('ft-amt-year1');
-    if (rateY1) rateY1.innerText = calcRates.year1.toFixed(1);
-    if (amtY1) amtY1.innerText = calcAmounts.year1.toLocaleString('ko-KR');
+    if (rateY1) rateY1.innerText = hasRate ? calcRates.year1.toFixed(1) : '-';
+    if (amtY1) amtY1.innerText = hasRate ? calcAmounts.year1.toLocaleString('ko-KR') : '지급율 미등록';
 
     const rateM13 = document.getElementById('ft-rate-m13');
     const amtM13 = document.getElementById('ft-amt-m13');
-    if (rateM13) rateM13.innerText = calcRates.m13.toFixed(1);
-    if (amtM13) amtM13.innerText = calcAmounts.m13.toLocaleString('ko-KR');
+    if (rateM13) rateM13.innerText = hasRate ? calcRates.m13.toFixed(1) : '-';
+    if (amtM13) amtM13.innerText = hasRate ? calcAmounts.m13.toLocaleString('ko-KR') : '지급율 미등록';
 
     const rateY2 = document.getElementById('ft-rate-year2');
     const amtY2 = document.getElementById('ft-amt-year2');
-    if (rateY2) rateY2.innerText = calcRates.year2.toFixed(1);
-    if (amtY2) amtY2.innerText = calcAmounts.year2.toLocaleString('ko-KR');
+    if (rateY2) rateY2.innerText = hasRate ? calcRates.year2.toFixed(1) : '-';
+    if (amtY2) amtY2.innerText = hasRate ? calcAmounts.year2.toLocaleString('ko-KR') : '지급율 미등록';
 
     const rateY3 = document.getElementById('ft-rate-year3');
     const amtY3 = document.getElementById('ft-amt-year3');
-    if (rateY3) rateY3.innerText = calcRates.year3.toFixed(1);
-    if (amtY3) amtY3.innerText = calcAmounts.year3.toLocaleString('ko-KR');
+    if (rateY3) rateY3.innerText = hasRate ? calcRates.year3.toFixed(1) : '-';
+    if (amtY3) amtY3.innerText = hasRate ? calcAmounts.year3.toLocaleString('ko-KR') : '지급율 미등록';
 
     const rateTotal = document.getElementById('ft-rate-total');
     const amtTotal = document.getElementById('ft-amt-total');
-    if (rateTotal) rateTotal.innerText = calcRates.total.toFixed(1);
-    if (amtTotal) amtTotal.innerText = calcAmounts.total.toLocaleString('ko-KR');
+    if (rateTotal) rateTotal.innerText = hasRate ? calcRates.total.toFixed(1) : '-';
+    if (amtTotal) amtTotal.innerText = hasRate ? calcAmounts.total.toLocaleString('ko-KR') : '지급율 미등록';
 }
 
 /**
@@ -1743,11 +1834,17 @@ async function executeFeeExcelUpload() {
         }
 
         if (finalRes && finalRes.success) {
-            // 업로드 성공 즉시 메모리 상태에 파싱된 최신 데이터 반영 (드라이브 지연과 무관하게 즉시 화면 표시)
+            // 업로드 성공 즉시 메모리 및 세션 스토리지에 파싱된 최신 데이터 반영 (드라이브 지연과 무관하게 즉시 화면 표시)
             window.FEE_TABLE_DATA = payload;
             feeTableState.month = month;
             if (!feeTableAvailableMonths.includes(month)) {
                 feeTableAvailableMonths.unshift(month);
+            }
+            try {
+                const mClean = month.replace(/\./g, '');
+                sessionStorage.setItem('DATA_FEE_TABLE_' + mClean, JSON.stringify(payload));
+            } catch (e) {
+                console.warn('[FeeTable] sessionStorage write error:', e);
             }
 
             let warnHtml = '';
