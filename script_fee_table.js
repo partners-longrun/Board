@@ -1371,7 +1371,8 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
 
         // 4. 열 매핑 (headerRow-1 ~ headerRow+2 다중 행 결합)
         const colHeaders = {};
-        const maxCol = 35; // A to AI
+        const colHeadersNorm = {}; // 공백 및 줄바꿈 완전 제거된 정규화 헤더 맵
+        const maxCol = 52; // A to AZ (넓은 시트 대응 확장)
         for (let ci = 1; ci <= maxCol; ci++) {
             const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
             let combHeader = '';
@@ -1382,7 +1383,10 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                 }
             }
             combHeader = combHeader.trim();
-            if (combHeader) colHeaders[colLetter] = combHeader;
+            if (combHeader) {
+                colHeaders[colLetter] = combHeader;
+                colHeadersNorm[colLetter] = combHeader.replace(/\s+/g, '');
+            }
         }
 
         // 회사별 규칙 조회 (구글 시트 동적 룰 우선, 없으면 기본 내장 룰)
@@ -1392,18 +1396,39 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
         let prodCol = 'A';
         const rateColMap = { first: null, year1: null, m13: null, year2: null, year3: null, year4: null, total: null };
 
-        // 헬퍼: 키워드 목록으로 컬럼 탐색
+        // 헬퍼: 키워드 또는 헤더명정리 정의어로 컬럼 탐색 (공백/줄바꿈 완전 무시 매칭)
         function matchCol(keywordStr, excludePattern) {
             if (!keywordStr) return null;
+            const cleanTarget = String(keywordStr).replace(/\s+/g, '');
+            if (!cleanTarget) return null;
+
+            // 1순위: 특정 행(headerRow, headerRow-1 등)의 셀 내용과 완전 일치 (공백 무시)
+            for (let col in colHeadersNorm) {
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
+                for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
+                    const cVal = String(cellMap[`${col}${hr}`] || '').replace(/\s+/g, '');
+                    if (cVal && cVal === cleanTarget) return col;
+                }
+            }
+
+            // 2순위: 결합 헤더(colHeadersNorm)에 대상 단어가 온전히 일치하거나 포함되어 있는 경우
+            for (let col in colHeadersNorm) {
+                const hNorm = colHeadersNorm[col];
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
+                if (hNorm === cleanTarget || hNorm.includes(cleanTarget)) return col;
+            }
+
+            // 3순위: 세부 키워드 분할 탐색 (fallback)
             const kwList = keywordStr.split(/[\s,+/|()]+/).filter(k => k && k.length > 1 && !/회차|분급|지급|기준/.test(k));
-            for (let col in colHeaders) {
-                const h = colHeaders[col];
-                if (excludePattern && excludePattern.test(h)) continue;
-                if (/비고/.test(h)) continue;
-                // 전체 일치 또는 키워드 포함 확인
-                if (h.includes(keywordStr)) return col;
+            for (let col in colHeadersNorm) {
+                const hNorm = colHeadersNorm[col];
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
                 for (let kw of kwList) {
-                    if (h.includes(kw)) return col;
+                    const kClean = kw.replace(/\s+/g, '');
+                    if (kClean && hNorm.includes(kClean)) return col;
                 }
             }
             return null;
@@ -1416,15 +1441,23 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
             }
         }
 
-        // 수수료 컬럼 매핑 (시트 규칙 기반)
-        // 1. 총수령액합계
-        rateColMap.total = matchCol(rule.rTotal) || matchCol('총계 총수수료 합계계 총 수수료');
+        // 수수료 컬럼 매핑 ('수수료예시표헤더명정리' 시트 정의 100% 최우선 준수)
+        // 1. 총수령액합계 (생명보험사는 사용자 지침에 따라 무조건 '총수수료' 열 우선!)
+        if (category === '생명보험') {
+            rateColMap.total = matchCol(rule.rTotal) || matchCol('총수수료') || matchCol('총계 총수수료 합계계 총 수수료');
+        } else {
+            rateColMap.total = matchCol(rule.rTotal) || matchCol('총계 총수수료 합계계 총 수수료');
+        }
+
         // 2. 1차년도합계
         rateColMap.year1 = matchCol(rule.rY1) || matchCol('1차년도합계 1차년도 합계 1차년계 1차년計 1차년 計');
+
         // 3. 2차년도합계
         rateColMap.year2 = matchCol(rule.rY2) || matchCol('2차년도합계 2차년도 합계 2차년계 2차년計 2차년 計');
+
         // 4. 3차년도합계
         rateColMap.year3 = matchCol(rule.rY3) || matchCol('3차년도합계 3차년도 합계 3차년계 3차년計 3차년 計');
+
         // 5. 4차년도합계
         rateColMap.year4 = matchCol(rule.rY4) || matchCol('4차년도합계 4차년계 4차년計 4~5차년計');
 
@@ -1455,6 +1488,28 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                 rateColMap.m13 = nextCol;
             }
         }
+
+        // 헤더명정리 시트에 명시되었으나 엑셀에서 찾지 못한 필수 수수료 열 경고 수집
+        const checkItems = [
+            { key: 'rTotal', label: '총수령액합계', col: rateColMap.total },
+            { key: 'rY1', label: '1차년도합계', col: rateColMap.year1 },
+            { key: 'rY2', label: '2차년도합계', col: rateColMap.year2 },
+            { key: 'rM13', label: '13차월', col: rateColMap.m13 },
+            { key: 'rFirst', label: '1회차(익월)', col: rateColMap.first }
+        ];
+        checkItems.forEach(ci => {
+            const definedName = rule[ci.key];
+            if (definedName && !ci.col) {
+                if (Array.isArray(warningsList)) {
+                    warningsList.push({
+                        company: sName,
+                        option: `[${ci.label}] 시트지정 헤더 '${definedName}'`,
+                        type: '수수료카드'
+                    });
+                }
+                console.warn(`[수수료 엑셀 헤더 불일치] [${sName}] ${ci.label}에 지정된 '${definedName}' 열을 엑셀에서 찾을 수 없습니다.`);
+            }
+        });
 
         if (cellMap[`B${headerRow + 2}`] && !cellMap[`A${headerRow + 2}`]) {
             prodCol = 'B';
@@ -1852,9 +1907,9 @@ async function executeFeeExcelUpload() {
                 warnHtml = `
                     <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 text-left max-h-48 overflow-y-auto">
                         <div class="font-bold mb-1 text-amber-800">⚠️ 시트 헤더 불일치 안내 (${parseWarnings.length}건)</div>
-                        <p class="text-[11px] text-amber-700 mb-1.5 leading-snug">스프레드시트의 '수수료예시표헤더명정리' 시트에 적힌 이름과 엑셀 열 이름이 일치하지 않아 건너뛴 항목입니다:</p>
+                        <p class="text-[11px] text-amber-700 mb-1.5 leading-snug">스프레드시트의 '수수료예시표헤더명정리' 시트에 적힌 이름과 엑셀 열 이름이 일치하지 않는 항목입니다:</p>
                         <ul class="space-y-0.5 list-disc list-inside">
-                            ${parseWarnings.map(w => `<li><span class="font-semibold text-slate-800">[${w.company}]</span> '${w.option}' 열을 엑셀에서 찾지 못했습니다.</li>`).join('')}
+                            ${parseWarnings.map(w => `<li><span class="font-semibold text-slate-800">[${w.company}]</span> ${w.option} 열을 엑셀에서 찾지 못했습니다.</li>`).join('')}
                         </ul>
                     </div>
                 `;
