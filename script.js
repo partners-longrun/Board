@@ -1,6 +1,6 @@
         // --- 0. API Configuration ---
-        // 백그라운드 프리페치 활성화 (홈 화면 로드 후 유휴 시간에 다른 메뉴 사전 캐싱)
-        const ENABLE_BACKGROUND_PREFETCH = true;
+        // 백그라운드 프리페치 비활성화 (구글 서버 과부하 및 404 차단 방지)
+        const ENABLE_BACKGROUND_PREFETCH = false;
 
         // Gemini AI Backend 중계 호출 함수 (API 키는 GAS 백엔드에서 안전하게 보관 및 관리)
         async function callGeminiAI(systemInstruction, userPrompt) {

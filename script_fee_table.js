@@ -1670,18 +1670,32 @@ async function executeFeeExcelUpload() {
         const totalNonLife = Object.keys(resultCategories['손해보험'] || {}).length;
         const totalLife = Object.keys(resultCategories['생명보험'] || {}).length;
 
-        setStatus(`구글 드라이브에 저장 중입니다... (손보 ${totalNonLife}개사, 생보 ${totalLife}개사)`);
-
         const payload = {
             month: month,
             updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
             categories: resultCategories
         };
 
-        const res = await callApi('saveFeeTableData', month, payload);
+        const jsonStr = JSON.stringify(payload);
+        // Google Apps Script 2MB 제한을 안전하게 회피하기 위해 400KB(400,000자) 단위로 분할 전송
+        const CHUNK_SIZE = 400000;
+        const totalChunks = Math.ceil(jsonStr.length / CHUNK_SIZE);
+        const uploadId = 'fee_' + Date.now();
 
-        if (res && res.success) {
-            setStatus(`<span class="text-emerald-700 font-bold">✓ ${res.message || '성공적으로 저장되었습니다.'}</span>`);
+        let finalRes = null;
+        for (let i = 0; i < totalChunks; i++) {
+            const chunkProgress = Math.round(((i + 1) / totalChunks) * 100);
+            setStatus(`구글 드라이브에 안전하게 분할 저장 중... (${i + 1}/${totalChunks}, ${chunkProgress}%)`);
+            const chunkData = jsonStr.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+            const res = await callApi('saveFeeTableDataChunk', uploadId, month, i, totalChunks, chunkData);
+            if (!res || !res.success) {
+                throw new Error(res?.message || `구글 드라이브 저장 중 오류가 발생했습니다. (청크 ${i + 1}/${totalChunks})`);
+            }
+            finalRes = res;
+        }
+
+        if (finalRes && finalRes.success) {
+            setStatus(`<span class="text-emerald-700 font-bold">✓ ${finalRes.message || '성공적으로 저장되었습니다.'}</span>`);
             setTimeout(() => {
                 closeFeeExcelUploadModal();
                 feeTableState.month = month;
@@ -1689,7 +1703,7 @@ async function executeFeeExcelUpload() {
                 loadFeeTableData(month, true);
             }, 1200);
         } else {
-            throw new Error(res?.message || '구글 드라이브 저장에 실패했습니다.');
+            throw new Error(finalRes?.message || '구글 드라이브 저장에 실패했습니다.');
         }
     } catch (err) {
         console.error('executeFeeExcelUpload error:', err);
