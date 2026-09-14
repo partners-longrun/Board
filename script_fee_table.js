@@ -1217,7 +1217,7 @@ function closeFeeExcelUploadModal() {
 /**
  * 브라우저에서 SheetJS로 단일 엑셀 워크북 파싱
  */
-function parseFeeWorkbook(workbook, category, customRules) {
+function parseFeeWorkbook(workbook, category, customRules, warningsList) {
     const companyData = {};
     const sheetNames = workbook.SheetNames || [];
 
@@ -1369,19 +1369,53 @@ function parseFeeWorkbook(workbook, category, customRules) {
             targetOptNames.forEach(optName => {
                 const cleanOpt = optName.trim();
                 if (!cleanOpt) return;
-                // colHeaders 중에서 cleanOpt가 포함된 열 찾기 (수수료 컬럼 제외, prodCol 제외)
                 let matchedCol = null;
+                const normOpt = cleanOpt.replace(/\s+/g, '');
+
+                // 1순위: headerRow 셀 텍스트가 시트에 적힌 단어와 정확히 일치하는 경우 (공백 무시)
                 for (let col in colHeaders) {
                     if (rateCols.includes(col) || col === prodCol) continue;
-                    const h = colHeaders[col];
-                    if (/비고|수수료|환산|성과|기준|월납대비|지급/.test(h)) continue;
-                    if (h.includes(cleanOpt) || cleanOpt.includes(h.split(' ')[0])) {
+                    const cellVal = (cellMap[`${col}${headerRow}`] || '').trim();
+                    if (cellVal.replace(/\s+/g, '') === normOpt) {
                         matchedCol = col;
                         break;
                     }
                 }
+
+                // 2순위: headerRow 셀 텍스트에 시트 단어가 온전히 포함되어 있는 경우
+                if (!matchedCol) {
+                    for (let col in colHeaders) {
+                        if (rateCols.includes(col) || col === prodCol) continue;
+                        const cellVal = (cellMap[`${col}${headerRow}`] || '').trim();
+                        if (cellVal && (cellVal.includes(cleanOpt) || cleanOpt.includes(cellVal))) {
+                            matchedCol = col;
+                            break;
+                        }
+                    }
+                }
+
+                // 3순위: 결합 헤더(colHeaders)에서 시트 단어가 정확히 포함된 열 탐색 (수수료/비고 제외)
+                if (!matchedCol) {
+                    for (let col in colHeaders) {
+                        if (rateCols.includes(col) || col === prodCol) continue;
+                        const h = colHeaders[col];
+                        if (/비고|총계|1차년도\s*합계|2차년도\s*합계|3차년도\s*합계|총수령/.test(h)) continue;
+                        if (h.includes(cleanOpt)) {
+                            matchedCol = col;
+                            break;
+                        }
+                    }
+                }
+
                 if (matchedCol && !optCols.some(oc => oc.col === matchedCol)) {
                     optCols.push({ col: matchedCol, title: cleanOpt });
+                } else if (!matchedCol) {
+                    // 시트에 명시된 헤더를 엑셀에서 찾지 못한 경우 경고 목록에 수집
+                    const warnItem = { company: sName, option: cleanOpt, type: '선택사항' };
+                    if (Array.isArray(warningsList)) {
+                        warningsList.push(warnItem);
+                    }
+                    console.warn(`[수수료 엑셀 헤더 불일치] [${sName}] 시트에 정의된 선택사항 '${cleanOpt}' 열을 엑셀에서 찾을 수 없습니다.`);
                 }
             });
         }
@@ -1650,13 +1684,14 @@ async function executeFeeExcelUpload() {
 
         setStatus('수수료 기준 헤더 규칙을 동기화하고 있습니다...');
         const rules = await fetchFeeHeaderRules();
+        const parseWarnings = [];
 
         // 1. 손해보험 파싱
         if (hasNonLife) {
             setStatus('손해보험 엑셀 파일을 분석하고 있습니다...');
             const buf = await readFileAsArrayBuffer(nonLifeFileInput.files[0]);
             const wb = XLSX.read(buf, { type: 'array' });
-            resultCategories['손해보험'] = parseFeeWorkbook(wb, '손해보험', rules);
+            resultCategories['손해보험'] = parseFeeWorkbook(wb, '손해보험', rules, parseWarnings);
         }
 
         // 2. 생명보험 파싱
@@ -1664,7 +1699,7 @@ async function executeFeeExcelUpload() {
             setStatus('생명보험 엑셀 파일을 분석하고 있습니다...');
             const buf = await readFileAsArrayBuffer(lifeFileInput.files[0]);
             const wb = XLSX.read(buf, { type: 'array' });
-            resultCategories['생명보험'] = parseFeeWorkbook(wb, '생명보험', rules);
+            resultCategories['생명보험'] = parseFeeWorkbook(wb, '생명보험', rules, parseWarnings);
         }
 
         const totalNonLife = Object.keys(resultCategories['손해보험'] || {}).length;
@@ -1695,13 +1730,39 @@ async function executeFeeExcelUpload() {
         }
 
         if (finalRes && finalRes.success) {
-            setStatus(`<span class="text-emerald-700 font-bold">✓ ${finalRes.message || '성공적으로 저장되었습니다.'}</span>`);
-            setTimeout(() => {
-                closeFeeExcelUploadModal();
-                feeTableState.month = month;
-                feeTableAvailableMonths = []; // 캐시 초기화
-                loadFeeTableData(month, true);
-            }, 1200);
+            let warnHtml = '';
+            if (parseWarnings.length > 0) {
+                warnHtml = `
+                    <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 text-left max-h-48 overflow-y-auto">
+                        <div class="font-bold mb-1 text-amber-800">⚠️ 시트 헤더 불일치 안내 (${parseWarnings.length}건)</div>
+                        <p class="text-[11px] text-amber-700 mb-1.5 leading-snug">스프레드시트의 '수수료예시표헤더명정리' 시트에 적힌 이름과 엑셀 열 이름이 일치하지 않아 건너뛴 항목입니다:</p>
+                        <ul class="space-y-0.5 list-disc list-inside">
+                            ${parseWarnings.map(w => `<li><span class="font-semibold text-slate-800">[${w.company}]</span> '${w.option}' 열을 엑셀에서 찾지 못했습니다.</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                setStatus(`
+                    <span class="text-emerald-700 font-bold">✓ ${finalRes.message || '성공적으로 저장되었습니다.'}</span>
+                    ${warnHtml}
+                `);
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                btn.innerText = '확인 및 닫기';
+                btn.onclick = () => {
+                    closeFeeExcelUploadModal();
+                    feeTableState.month = month;
+                    feeTableAvailableMonths = [];
+                    loadFeeTableData(month, true);
+                };
+            } else {
+                setStatus(`<span class="text-emerald-700 font-bold">✓ ${finalRes.message || '성공적으로 저장되었습니다.'}</span>`);
+                setTimeout(() => {
+                    closeFeeExcelUploadModal();
+                    feeTableState.month = month;
+                    feeTableAvailableMonths = []; // 캐시 초기화
+                    loadFeeTableData(month, true);
+                }, 1200);
+            }
         } else {
             throw new Error(finalRes?.message || '구글 드라이브 저장에 실패했습니다.');
         }
