@@ -374,13 +374,14 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
     try {
         const staffId = (state.user && state.user.staffId) ? state.user.staffId : (state.user ? state.user.id : '');
 
-        const [monthsRes, dataRes] = await Promise.all([
-            (feeTableAvailableMonths.length === 0 || forceReload) ? callApi('getAvailableFeeMonths') : Promise.resolve({ success: true, months: feeTableAvailableMonths }),
-            callApi('getFeeTableData', staffId, monthParam)
-        ]);
+        // 1. 수수료 예시표 본문 데이터 요청
+        let dataRes = await callApi('getFeeTableData', staffId, monthParam);
 
-        if (monthsRes && monthsRes.success && Array.isArray(monthsRes.months)) {
-            feeTableAvailableMonths = monthsRes.months;
+        // 일시적 서버 doGet 폴백 또는 딜레이 발생 시 1회 재시도 (최대 1.5초 대기)
+        if (dataRes && dataRes.status === 'ok' && !dataRes.data) {
+            console.warn('[FeeTable] 일시적 서버 지연 감지, 1.5초 후 1회 재시도합니다...');
+            await new Promise(r => setTimeout(r, 1500));
+            dataRes = await callApi('getFeeTableData', staffId, monthParam);
         }
 
         if (dataRes && dataRes.success && dataRes.data) {
@@ -393,6 +394,18 @@ async function loadFeeTableData(targetMonth = null, forceReload = false) {
         } else {
             window.FEE_TABLE_DATA = null;
             console.warn('Fee table data not found for month:', monthParam, dataRes);
+        }
+
+        // 2. 가용 마감월 목록 조회 (GAS 동시 요청 충돌을 방지하기 위해 순차 조회)
+        if (feeTableAvailableMonths.length === 0 || forceReload) {
+            try {
+                const monthsRes = await callApi('getAvailableFeeMonths');
+                if (monthsRes && monthsRes.success && Array.isArray(monthsRes.months)) {
+                    feeTableAvailableMonths = monthsRes.months;
+                }
+            } catch (mErr) {
+                console.warn('[FeeTable] 마감월 목록 조회 지연:', mErr);
+            }
         }
     } catch (err) {
         console.error('loadFeeTableData error:', err);
@@ -1730,6 +1743,13 @@ async function executeFeeExcelUpload() {
         }
 
         if (finalRes && finalRes.success) {
+            // 업로드 성공 즉시 메모리 상태에 파싱된 최신 데이터 반영 (드라이브 지연과 무관하게 즉시 화면 표시)
+            window.FEE_TABLE_DATA = payload;
+            feeTableState.month = month;
+            if (!feeTableAvailableMonths.includes(month)) {
+                feeTableAvailableMonths.unshift(month);
+            }
+
             let warnHtml = '';
             if (parseWarnings.length > 0) {
                 warnHtml = `
@@ -1750,17 +1770,13 @@ async function executeFeeExcelUpload() {
                 btn.innerText = '확인 및 닫기';
                 btn.onclick = () => {
                     closeFeeExcelUploadModal();
-                    feeTableState.month = month;
-                    feeTableAvailableMonths = [];
-                    loadFeeTableData(month, true);
+                    renderFeeTableView();
                 };
             } else {
                 setStatus(`<span class="text-emerald-700 font-bold">✓ ${finalRes.message || '성공적으로 저장되었습니다.'}</span>`);
                 setTimeout(() => {
                     closeFeeExcelUploadModal();
-                    feeTableState.month = month;
-                    feeTableAvailableMonths = []; // 캐시 초기화
-                    loadFeeTableData(month, true);
+                    renderFeeTableView();
                 }, 1200);
             }
         } else {
