@@ -23,20 +23,35 @@
                 alert('API URL이 설정되지 않았습니다. backend_scripts.gs를 배포하고 URL을 설정해주세요.');
                 return { error: true, message: 'API URL Not Configured' };
             }
-            try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 'text/plain' avoids CORS preflight OPTIONS in some cases with GAS
-                    body: JSON.stringify({ action: action, args: args })
-                });
 
-                if (!response.ok) throw new Error('Network response was not ok');
+            const maxRetries = 2; // 일시적 404/리디렉션 실패 시 최대 2회 재시도
+            let attempt = 0;
 
-                const data = await response.json();
-                return data;
-            } catch (e) {
-                console.error('API Error:', e);
-                return { error: true, message: e.toString() };
+            while (attempt <= maxRetries) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 'text/plain' avoids CORS preflight OPTIONS in some cases with GAS
+                        body: JSON.stringify({ action: action, args: args })
+                    });
+
+                    if (!response.ok) {
+                        // 404 또는 500대 일시적 네트워크/서버 에러 시 재시도 진행
+                        throw new Error(`HTTP_${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    return data;
+                } catch (e) {
+                    attempt++;
+                    if (attempt <= maxRetries) {
+                        console.warn(`[callApi] ${action} 일시적 오류 발생 (${e.message || e}), ${attempt * 800}ms 후 재시도 (${attempt}/${maxRetries})...`);
+                        await new Promise(res => setTimeout(res, attempt * 800));
+                    } else {
+                        console.error('API Error:', e);
+                        return { error: true, message: e.toString() };
+                    }
+                }
             }
         }
 
