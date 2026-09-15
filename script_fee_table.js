@@ -1414,17 +1414,18 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
             }
         }
 
-        // 4. 열 매핑 (headerRow-1 ~ headerRow+2 다중 행 결합)
+        // 4. 열 매핑 (헤더 행 결합: 데이터 행 및 숫자 제외)
         const colHeaders = {};
         const colHeadersNorm = {}; // 공백 및 줄바꿈 완전 제거된 정규화 헤더 맵
         const maxCol = 52; // A to AZ (넓은 시트 대응 확장)
         for (let ci = 1; ci <= maxCol; ci++) {
             const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
             let combHeader = '';
-            for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
-                const cellVal = cellMap[`${colLetter}${hr}`] || '';
-                if (cellVal && !/^[■※]|수수료타입|\(참고\)/.test(cellVal)) {
-                    combHeader += ' ' + cellVal;
+            for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+                const rawCell = cellMap[`${colLetter}${hr}`] || '';
+                // 숫자 셀이나 안내문/비고/기호는 헤더 명칭 결합에서 제외
+                if (rawCell && isNaN(Number(rawCell)) && !/^[■※]|수수료타입|\(참고\)/.test(rawCell)) {
+                    combHeader += ' ' + rawCell;
                 }
             }
             combHeader = combHeader.trim();
@@ -1451,58 +1452,17 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
             total: null
         };
 
-        // 헬퍼: 키워드로 컬럼(들) 탐색 - 병합 셀 및 복수 하위 열 완벽 지원
+        // 헬퍼: 키워드로 컬럼(들) 탐색 - 계층적 엄격 매칭 & 병합 셀 지원
         function matchCols(keywordStr, excludePattern) {
             if (!keywordStr) return null;
-            const cleanTarget = String(keywordStr).replace(/\s+/g, '');
+            const cleanTarget = String(keywordStr).replace(/[\s\r\n\t]+/g, '');
             if (!cleanTarget) return null;
 
-            const matchedCols = [];
-
-            // 1순위: 특정 행 셀 내용과 일치
-            for (let col in colHeadersNorm) {
-                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
-                if (/비고/.test(colHeaders[col])) continue;
-                for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
-                    const cVal = String(cellMap[`${col}${hr}`] || '').replace(/\s+/g, '');
-                    if (cVal && (cVal === cleanTarget || cVal.includes(cleanTarget) || cleanTarget.includes(cVal))) {
-                        if (!matchedCols.includes(col)) matchedCols.push(col);
-                    }
-                }
-            }
-
-            // 2순위: 결합 헤더 포함
-            if (matchedCols.length === 0) {
-                for (let col in colHeadersNorm) {
-                    if (excludePattern && excludePattern.test(colHeaders[col])) continue;
-                    if (/비고/.test(colHeaders[col])) continue;
-                    const hNorm = colHeadersNorm[col];
-                    if (hNorm === cleanTarget || hNorm.includes(cleanTarget)) {
-                        if (!matchedCols.includes(col)) matchedCols.push(col);
-                    }
-                }
-            }
-
-            // 3순위: 세부 키워드 분할 탐색
-            if (matchedCols.length === 0) {
-                const kwList = keywordStr.split(/[\s,+/|()]+/).filter(k => k && k.length > 1 && !/회차|분급|지급|기준/.test(k));
-                for (let col in colHeadersNorm) {
-                    if (excludePattern && excludePattern.test(colHeaders[col])) continue;
-                    if (/비고/.test(colHeaders[col])) continue;
-                    const hNorm = colHeadersNorm[col];
-                    for (let kw of kwList) {
-                        const kClean = kw.replace(/\s+/g, '');
-                        if (kClean && hNorm.includes(kClean)) {
-                            if (!matchedCols.includes(col)) matchedCols.push(col);
-                        }
-                    }
-                }
-            }
-
-            // 병합 셀(!merges) 범위 확장: 매칭된 첫 열이 병합 셀의 시작이라면 해당 병합 범위의 모든 열 포함
-            if (matchedCols.length > 0 && Array.isArray(ws['!merges'])) {
-                const expanded = [...matchedCols];
-                matchedCols.forEach(col => {
+            function expandMerges(cols) {
+                if (!cols || cols.length === 0) return null;
+                if (!Array.isArray(ws['!merges'])) return cols;
+                const expanded = [...cols];
+                cols.forEach(col => {
                     let colIdx = 0;
                     for (let i = 0; i < col.length; i++) {
                         colIdx = colIdx * 26 + (col.charCodeAt(i) - 64);
@@ -1510,7 +1470,7 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     colIdx -= 1;
 
                     ws['!merges'].forEach(m => {
-                        if (m.s.c <= colIdx && colIdx <= m.e.c && m.s.r >= headerRow - 3 && m.e.r <= headerRow + 3) {
+                        if (m.s.c <= colIdx && colIdx <= m.e.c && m.s.r >= headerRow - 3 && m.e.r <= headerRow + 1) {
                             for (let ci = m.s.c; ci <= m.e.c; ci++) {
                                 const cLetter = ci < 26 ? String.fromCharCode(65 + ci) : 'A' + String.fromCharCode(65 + ci - 26);
                                 if (!expanded.includes(cLetter) && colHeaders[cLetter] && !/비고/.test(colHeaders[cLetter])) {
@@ -1523,7 +1483,84 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                 return expanded;
             }
 
-            return matchedCols.length > 0 ? matchedCols : null;
+            // [1단계: 완전 일치 (Exact Match) - 최우선]
+            // 1-1. 특정 헤더 행(headerRow-1 ~ headerRow+1)의 단일 셀 내용과 정규화 완전 일치
+            const exactCellCols = [];
+            for (let col in colHeaders) {
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
+                for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+                    const rawVal = cellMap[`${col}${hr}`];
+                    if (!rawVal || !isNaN(Number(rawVal))) continue;
+                    const cVal = String(rawVal).replace(/[\s\r\n\t]+/g, '');
+                    if (cVal === cleanTarget) {
+                        if (!exactCellCols.includes(col)) exactCellCols.push(col);
+                    }
+                }
+            }
+            if (exactCellCols.length > 0) return expandMerges(exactCellCols);
+
+            // 1-2. 결합 헤더(colHeadersNorm)와 정규화 완전 일치
+            const exactCombCols = [];
+            for (let col in colHeadersNorm) {
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
+                if (colHeadersNorm[col] === cleanTarget) {
+                    if (!exactCombCols.includes(col)) exactCombCols.push(col);
+                }
+            }
+            if (exactCombCols.length > 0) return expandMerges(exactCombCols);
+
+            // [2단계: 포함 일치 (Contains Match) - 헤더가 검색 대상을 포함하는 경우]
+            // 2-1. 특정 헤더 행 단일 셀 내용이 cleanTarget을 온전히 포함하는 경우
+            if (cleanTarget.length >= 2) {
+                const containsCellCols = [];
+                for (let col in colHeaders) {
+                    if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                    if (/비고/.test(colHeaders[col])) continue;
+                    for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+                        const rawVal = cellMap[`${col}${hr}`];
+                        if (!rawVal || !isNaN(Number(rawVal))) continue;
+                        const cVal = String(rawVal).replace(/[\s\r\n\t]+/g, '');
+                        if (cVal && cVal.includes(cleanTarget)) {
+                            if (!containsCellCols.includes(col)) containsCellCols.push(col);
+                        }
+                    }
+                }
+                if (containsCellCols.length > 0) return expandMerges(containsCellCols);
+            }
+
+            // 2-2. 결합 헤더(colHeadersNorm)가 cleanTarget을 온전히 포함하는 경우
+            const containsCombCols = [];
+            for (let col in colHeadersNorm) {
+                if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                if (/비고/.test(colHeaders[col])) continue;
+                const hNorm = colHeadersNorm[col];
+                if (hNorm.includes(cleanTarget)) {
+                    if (!containsCombCols.includes(col)) containsCombCols.push(col);
+                }
+            }
+            if (containsCombCols.length > 0) return expandMerges(containsCombCols);
+
+            // [3단계: 세부 단어 분할 매칭]
+            const kwList = keywordStr.split(/[\s,+/|()]+/).filter(k => k && k.length >= 2 && !/회차|분급|지급|기준/.test(k));
+            if (kwList.length > 0) {
+                const kwCols = [];
+                for (let col in colHeadersNorm) {
+                    if (excludePattern && excludePattern.test(colHeaders[col])) continue;
+                    if (/비고/.test(colHeaders[col])) continue;
+                    const hNorm = colHeadersNorm[col];
+                    for (let kw of kwList) {
+                        const kClean = kw.replace(/[\s\r\n\t]+/g, '');
+                        if (kClean && hNorm.includes(kClean)) {
+                            if (!kwCols.includes(col)) kwCols.push(col);
+                        }
+                    }
+                }
+                if (kwCols.length > 0) return expandMerges(kwCols);
+            }
+
+            return null;
         }
 
         function matchCol(keywordStr, excludePattern) {
@@ -1658,7 +1695,7 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     for (let col in colHeaders) {
                         if (rateCols.includes(col) || col === prodCol) continue;
                         const cellVal = (cellMap[`${col}${headerRow}`] || '').trim();
-                        if (cellVal && (cellVal.includes(cleanOpt) || cleanOpt.includes(cellVal))) {
+                        if (cellVal && (cellVal.includes(cleanOpt) || (cellVal.length >= 2 && cleanOpt.length >= 3 && cleanOpt.includes(cellVal)))) {
                             matchedCol = col;
                             break;
                         }
