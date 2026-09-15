@@ -1469,8 +1469,10 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     }
                     colIdx -= 1;
 
+                    // 오직 해당 열에서 가로 병합이 '시작'되는 셀(m.s.c === colIdx && m.e.c > m.s.c)만 확장!
+                    // 상위 대분류 병합(예: 교보생명 2차년도 전체 병합 등)에 의해 하위 단일 열이 통째로 묶이는 버그 원천 차단
                     ws['!merges'].forEach(m => {
-                        if (m.s.c <= colIdx && colIdx <= m.e.c && m.s.r >= headerRow - 3 && m.e.r <= headerRow + 1) {
+                        if (m.s.c === colIdx && m.e.c > m.s.c && m.s.r >= headerRow - 3 && m.e.r <= headerRow + 2) {
                             for (let ci = m.s.c; ci <= m.e.c; ci++) {
                                 const cLetter = ci < 26 ? String.fromCharCode(65 + ci) : 'A' + String.fromCharCode(65 + ci - 26);
                                 if (!expanded.includes(cLetter) && colHeaders[cLetter] && !/비고/.test(colHeaders[cLetter])) {
