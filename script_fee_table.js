@@ -1414,14 +1414,14 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
             }
         }
 
-        // 4. 열 매핑 (헤더 행 결합: 데이터 행 및 숫자 제외)
+        // 4. 열 매핑 (헤더 행 결합: 데이터 행 및 숫자 제외, 4단계 헤더까지 포섭하도록 +2 확장)
         const colHeaders = {};
         const colHeadersNorm = {}; // 공백 및 줄바꿈 완전 제거된 정규화 헤더 맵
         const maxCol = 52; // A to AZ (넓은 시트 대응 확장)
         for (let ci = 1; ci <= maxCol; ci++) {
             const colLetter = ci <= 26 ? String.fromCharCode(64 + ci) : 'A' + String.fromCharCode(64 + ci - 26);
             let combHeader = '';
-            for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+            for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
                 const rawCell = cellMap[`${colLetter}${hr}`] || '';
                 // 숫자 셀이나 안내문/비고/기호는 헤더 명칭 결합에서 제외
                 if (rawCell && isNaN(Number(rawCell)) && !/^[■※]|수수료타입|\(참고\)/.test(rawCell)) {
@@ -1453,12 +1453,12 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
         };
 
         // 헬퍼: 키워드로 컬럼(들) 탐색 - 계층적 엄격 매칭 & 병합 셀 지원
-        function matchCols(keywordStr, excludePattern) {
+        function matchCols(keywordStr, excludePattern, preferRange) {
             if (!keywordStr) return null;
             const cleanTarget = String(keywordStr).replace(/[\s\r\n\t]+/g, '');
             if (!cleanTarget) return null;
 
-            function expandMerges(cols) {
+            function expandMerges(cols, targetHr) {
                 if (!cols || cols.length === 0) return null;
                 if (!Array.isArray(ws['!merges'])) return cols;
                 const expanded = [...cols];
@@ -1469,10 +1469,22 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     }
                     colIdx -= 1;
 
-                    // 오직 해당 열에서 가로 병합이 '시작'되는 셀(m.s.c === colIdx && m.e.c > m.s.c)만 확장!
-                    // 상위 대분류 병합(예: 교보생명 2차년도 전체 병합 등)에 의해 하위 단일 열이 통째로 묶이는 버그 원천 차단
+                    // 해당 열에서 가로 병합이 시작되는 셀 검사
                     ws['!merges'].forEach(m => {
-                        if (m.s.c === colIdx && m.e.c > m.s.c && m.s.r >= headerRow - 3 && m.e.r <= headerRow + 2) {
+                        if (m.s.c === colIdx && m.e.c > m.s.c) {
+                            if (m.s.r < headerRow - 3 || m.e.r > headerRow + 3) return;
+                            if (targetHr !== undefined && targetHr !== null && targetHr >= 0) {
+                                if (m.s.r > targetHr - 1 || m.e.r < targetHr - 1) return;
+                            }
+
+                            // 상위 대분류 병합(2차년도, 1차년도, 총수수료, 합계 등)에 의해 하위 세부 열이 묶이는 버그 원천 차단!
+                            const topCol = m.s.c < 26 ? String.fromCharCode(65 + m.s.c) : 'A' + String.fromCharCode(65 + m.s.c - 26);
+                            const topRow = m.s.r + 1;
+                            const topVal = String(cellMap[`${topCol}${topRow}`] || '').replace(/[\s\r\n\t]+/g, '');
+                            if (/^[1-5]차년|차년도|^총수수료|^총계|^합계|^구분|^상품명|^보종/.test(topVal)) {
+                                return;
+                            }
+
                             for (let ci = m.s.c; ci <= m.e.c; ci++) {
                                 const cLetter = ci < 26 ? String.fromCharCode(65 + ci) : 'A' + String.fromCharCode(65 + ci - 26);
                                 if (!expanded.includes(cLetter) && colHeaders[cLetter] && !/비고/.test(colHeaders[cLetter])) {
@@ -1485,22 +1497,37 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                 return expanded;
             }
 
+            function applyPreferRange(cols) {
+                if (!preferRange || !cols || cols.length <= 1) return cols;
+                const inRange = cols.filter(c => {
+                    let cIdx = 0;
+                    for (let i = 0; i < c.length; i++) cIdx = cIdx * 26 + (c.charCodeAt(i) - 64);
+                    return cIdx > preferRange.min && cIdx <= preferRange.max;
+                });
+                return inRange.length > 0 ? inRange : cols;
+            }
+
             // [1단계: 완전 일치 (Exact Match) - 최우선]
-            // 1-1. 특정 헤더 행(headerRow-1 ~ headerRow+1)의 단일 셀 내용과 정규화 완전 일치
+            // 1-1. 특정 헤더 행(headerRow-1 ~ headerRow+2)의 단일 셀 내용과 정규화 완전 일치
             const exactCellCols = [];
+            let exactCellHr = -1;
             for (let col in colHeaders) {
                 if (excludePattern && excludePattern.test(colHeaders[col])) continue;
                 if (/비고/.test(colHeaders[col])) continue;
-                for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+                for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
                     const rawVal = cellMap[`${col}${hr}`];
                     if (!rawVal || !isNaN(Number(rawVal))) continue;
                     const cVal = String(rawVal).replace(/[\s\r\n\t]+/g, '');
                     if (cVal === cleanTarget) {
                         if (!exactCellCols.includes(col)) exactCellCols.push(col);
+                        if (exactCellHr === -1) exactCellHr = hr;
                     }
                 }
             }
-            if (exactCellCols.length > 0) return expandMerges(exactCellCols);
+            if (exactCellCols.length > 0) {
+                const filtered = applyPreferRange(exactCellCols);
+                return expandMerges(filtered, exactCellHr);
+            }
 
             // 1-2. 결합 헤더(colHeadersNorm)와 정규화 완전 일치
             const exactCombCols = [];
@@ -1511,25 +1538,33 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     if (!exactCombCols.includes(col)) exactCombCols.push(col);
                 }
             }
-            if (exactCombCols.length > 0) return expandMerges(exactCombCols);
+            if (exactCombCols.length > 0) {
+                const filtered = applyPreferRange(exactCombCols);
+                return expandMerges(filtered);
+            }
 
             // [2단계: 포함 일치 (Contains Match) - 헤더가 검색 대상을 포함하는 경우]
             // 2-1. 특정 헤더 행 단일 셀 내용이 cleanTarget을 온전히 포함하는 경우
             if (cleanTarget.length >= 2) {
                 const containsCellCols = [];
+                let containsCellHr = -1;
                 for (let col in colHeaders) {
                     if (excludePattern && excludePattern.test(colHeaders[col])) continue;
                     if (/비고/.test(colHeaders[col])) continue;
-                    for (let hr = headerRow - 1; hr <= headerRow + 1; hr++) {
+                    for (let hr = headerRow - 1; hr <= headerRow + 2; hr++) {
                         const rawVal = cellMap[`${col}${hr}`];
                         if (!rawVal || !isNaN(Number(rawVal))) continue;
                         const cVal = String(rawVal).replace(/[\s\r\n\t]+/g, '');
                         if (cVal && cVal.includes(cleanTarget)) {
                             if (!containsCellCols.includes(col)) containsCellCols.push(col);
+                            if (containsCellHr === -1) containsCellHr = hr;
                         }
                     }
                 }
-                if (containsCellCols.length > 0) return expandMerges(containsCellCols);
+                if (containsCellCols.length > 0) {
+                    const filtered = applyPreferRange(containsCellCols);
+                    return expandMerges(filtered, containsCellHr);
+                }
             }
 
             // 2-2. 결합 헤더(colHeadersNorm)가 cleanTarget을 온전히 포함하는 경우
@@ -1542,7 +1577,10 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                     if (!containsCombCols.includes(col)) containsCombCols.push(col);
                 }
             }
-            if (containsCombCols.length > 0) return expandMerges(containsCombCols);
+            if (containsCombCols.length > 0) {
+                const filtered = applyPreferRange(containsCombCols);
+                return expandMerges(filtered);
+            }
 
             // [3단계: 세부 단어 분할 매칭]
             const kwList = keywordStr.split(/[\s,+/|()]+/).filter(k => k && k.length >= 2 && !/회차|분급|지급|기준/.test(k));
@@ -1559,14 +1597,17 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
                         }
                     }
                 }
-                if (kwCols.length > 0) return expandMerges(kwCols);
+                if (kwCols.length > 0) {
+                    const filtered = applyPreferRange(kwCols);
+                    return expandMerges(filtered);
+                }
             }
 
             return null;
         }
 
-        function matchCol(keywordStr, excludePattern) {
-            const cols = matchCols(keywordStr, excludePattern);
+        function matchCol(keywordStr, excludePattern, preferRange) {
+            const cols = matchCols(keywordStr, excludePattern, preferRange);
             return cols && cols.length > 0 ? cols[0] : null;
         }
 
@@ -1609,20 +1650,33 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
             }
         }
 
+        // 2차년도 범위(year1 < col <= year2) 계산 (생명보험사 13차월 탐색 시 우선순위 부여)
+        let y2Range = null;
+        if (rateColMap.year1 && rateColMap.year2) {
+            const y1Str = Array.isArray(rateColMap.year1) ? rateColMap.year1[0] : rateColMap.year1;
+            const y2Str = Array.isArray(rateColMap.year2) ? rateColMap.year2[0] : rateColMap.year2;
+            let y1Idx = 0; for (let i = 0; i < y1Str.length; i++) y1Idx = y1Idx * 26 + (y1Str.charCodeAt(i) - 64);
+            let y2Idx = 0; for (let i = 0; i < y2Str.length; i++) y2Idx = y2Idx * 26 + (y2Str.charCodeAt(i) - 64);
+            if (y2Idx > y1Idx) {
+                y2Range = { min: y1Idx, max: y2Idx };
+            }
+        }
+
         // 7. 13차월(1)
         if (rule.rM13_1) {
-            rateColMap.m13_1 = matchCols(rule.rM13_1, /여부|대상/);
+            rateColMap.m13_1 = matchCols(rule.rM13_1, /여부|대상/, y2Range);
         }
         if (!rateColMap.m13_1 && rule.rM13) {
-            rateColMap.m13_1 = matchCols(rule.rM13, /여부|대상/);
+            rateColMap.m13_1 = matchCols(rule.rM13, /여부|대상/, y2Range);
         }
         if (!rateColMap.m13_1) {
-            rateColMap.m13_1 = matchCols('13차월 13회차 13~14회차 13~15회차 13~24회차 13회 計 13회계 13회 13~18회', /여부|대상/);
+            rateColMap.m13_1 = matchCols('13차월 13회차 13~14회차 13~15회차 13~24회차 13회 計 13회계 13회 13~18회', /여부|대상/, y2Range);
         }
         if (category === '손해보험' && (!rateColMap.m13_1 || rateColMap.m13_1.length === 0) && rateColMap.year1) {
             const y1Col = Array.isArray(rateColMap.year1) ? rateColMap.year1[0] : rateColMap.year1;
-            const y1Code = y1Col.charCodeAt(0);
-            const nextCol = String.fromCharCode(y1Code + 1);
+            let y1Code = 0;
+            for (let i = 0; i < y1Col.length; i++) y1Code = y1Code * 26 + (y1Col.charCodeAt(i) - 64);
+            const nextCol = (y1Code + 1 <= 26) ? String.fromCharCode(64 + y1Code + 1) : 'A' + String.fromCharCode(64 + y1Code + 1 - 26);
             if (colHeaders[nextCol]) {
                 rateColMap.m13_1 = [nextCol];
             }
@@ -1630,7 +1684,14 @@ function parseFeeWorkbook(workbook, category, customRules, warningsList) {
 
         // 8. 13차월(2)
         if (rule.rM13_2) {
-            rateColMap.m13_2 = matchCols(rule.rM13_2, /여부|대상/);
+            rateColMap.m13_2 = matchCols(rule.rM13_2, /여부|대상/, y2Range);
+        }
+
+        // 신한라이프 건강상품 분급(T열) 보정
+        if (sName.includes('신한') && rateColMap.m13_2) {
+            if (colHeaders['T'] && !rateColMap.m13_2.includes('T')) {
+                rateColMap.m13_2.push('T');
+            }
         }
 
         // 헤더명정리 시트에 명시되었으나 엑셀에서 찾지 못한 필수 수수료 열 경고 수집
