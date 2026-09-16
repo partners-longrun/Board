@@ -544,7 +544,7 @@ function renderFeeTableView(targetContainer) {
                     <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                     </div>
-                    <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 수수료 데이터를 불러오는 중입니다.</h3>
+                    <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 데이터 로딩중...</h3>
                 </div>
             `;
             return;
@@ -664,10 +664,10 @@ function renderFeeTableView(targetContainer) {
 
     const isLife = (feeTableState.category === '생명보험');
     const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
-    const isSimAllowed = ['지사대표', '운영진', '관리자'].includes(role1);
-    const isManager = (typeof isBranchRepAny === 'function' && isBranchRepAny()) || 
-                      (typeof isAdminAny === 'function' && isAdminAny()) || 
-                      (typeof isOpsAny === 'function' && isOpsAny());
+    // 권한1 기반 기능별 권한 제어 (다른 권한열 무시)
+    const isExcelUploadAllowed = (role1 === '지사대표');
+    const isTotalReportAllowed = (role1 === '지사대표' || role1 === '운영자' || role1 === '운영진');
+    const isSimAllowed = (role1 === '지사대표' || role1 === '운영자' || role1 === '운영진' || role1 === '관리자');
 
     container.innerHTML = `
         <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
@@ -681,7 +681,7 @@ function renderFeeTableView(targetContainer) {
                         </div>
                         <div>
                             <div class="flex items-center gap-2 flex-wrap">
-                                <h2 class="text-xl font-black tracking-tight text-slate-900">수수료 예시표</h2>
+                                <h2 class="text-xl font-black tracking-tight text-slate-900">수수료 예시표 조회</h2>
                                 <!-- 기준월 선택 셀렉트박스 -->
                                 <div class="relative inline-flex items-center">
                                     <select id="ft-month-select" onchange="loadFeeTableData(this.value, true)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
@@ -693,12 +693,6 @@ function renderFeeTableView(targetContainer) {
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                 </div>
-                                ${(role1 === '지사대표') ? `
-                                    <button onclick="openFeeExcelUploadModal()" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md text-[11px] font-bold flex items-center gap-1 shadow-xs transition">
-                                        <svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                        엑셀 업로드
-                                    </button>
-                                ` : ''}
                             </div>
                             <p class="text-[11px] text-slate-400">보험사 및 상품별 실수령 수수료율과 예상 수령액을 실시간으로 확인하세요.</p>
                         </div>
@@ -853,7 +847,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-extrabold text-blue-900">1회차 (익월)</span>
                             <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">1</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-first">${hasRate ? calcRates.first.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-blue-400 ml-0.5">%</span>' : ''}</p>
                             <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-blue-600' : 'text-amber-700'} mt-1"><span id="ft-amt-first">${hasRate ? calcAmounts.first.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
@@ -865,7 +859,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-extrabold text-orange-900">1차년도 합계</span>
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y1</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year1">${hasRate ? calcRates.year1.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
                             <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year1">${hasRate ? calcAmounts.year1.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
@@ -877,7 +871,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-extrabold text-blue-900">13차월</span>
                             <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">13M</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-xl sm:text-2xl font-black text-blue-950 tracking-tight"><span id="ft-rate-m13">${hasRate ? calcRates.m13.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-blue-400 ml-0.5">%</span>' : ''}</p>
                             <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-blue-600' : 'text-amber-700'} mt-1"><span id="ft-amt-m13">${hasRate ? calcAmounts.m13.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
@@ -889,7 +883,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-extrabold text-orange-900">2차년도 합계</span>
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y2</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year2">${hasRate ? calcRates.year2.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
                             <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year2">${hasRate ? calcAmounts.year2.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
@@ -902,7 +896,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-extrabold text-orange-900">3차년도 합계</span>
                             <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-bold">Y3</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-xl sm:text-2xl font-black text-orange-950 tracking-tight"><span id="ft-rate-year3">${hasRate ? calcRates.year3.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-sm font-bold text-orange-400 ml-0.5">%</span>' : ''}</p>
                             <p class="text-xs sm:text-sm font-bold ${hasRate ? 'text-orange-700' : 'text-amber-700'} mt-1"><span id="ft-amt-year3">${hasRate ? calcAmounts.year3.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-[10px] text-slate-400">원</span>' : ''}</p>
                         </div>
@@ -915,7 +909,7 @@ function renderFeeTableView(targetContainer) {
                             <span class="text-xs font-black uppercase tracking-wider text-orange-100">총 수령액 합계</span>
                             <span class="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold">TOTAL</span>
                         </div>
-                        <div>
+                        <div class="text-center py-1">
                             <p class="text-2xl sm:text-3xl font-black tracking-tight"><span id="ft-rate-total">${hasRate ? calcRates.total.toFixed(1) : '-'}</span>${hasRate ? '<span class="text-base font-bold text-orange-100 ml-0.5">%</span>' : ''}</p>
                             <p class="text-sm sm:text-base font-black text-white mt-1 drop-shadow-xs"><span id="ft-amt-total">${hasRate ? calcAmounts.total.toLocaleString('ko-KR') : '지급율 미등록'}</span> ${hasRate ? '<span class="text-xs font-medium text-orange-100">원</span>' : ''}</p>
                         </div>
@@ -932,13 +926,21 @@ function renderFeeTableView(targetContainer) {
                 </p>
             </div>
 
-            <!-- 8. Bottom Action Button: 총수당 예시표 출력하기 (권한1: 지사대표 또는 운영진) -->
-            ${(role1 === '지사대표' || role1 === '운영진') ? `
-            <div class="flex justify-end pt-2">
-                <button onclick="navigate('totalFeeReport')" class="px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                    총수당 예시표 출력하기
-                </button>
+            <!-- 8. Bottom Action Buttons: 엑셀 업로드 (권한1: 지사대표) & 총수당 예시표 출력하기 (권한1: 지사대표, 운영진) -->
+            ${(isExcelUploadAllowed || isTotalReportAllowed) ? `
+            <div class="flex justify-end items-center gap-3 pt-2">
+                ${isExcelUploadAllowed ? `
+                    <button onclick="openFeeExcelUploadModal()" class="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        엑셀 업로드
+                    </button>
+                ` : ''}
+                ${isTotalReportAllowed ? `
+                    <button onclick="navigate('totalFeeReport')" class="px-5 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-sm rounded-2xl shadow-lg shadow-orange-500/25 flex items-center gap-2.5 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                        총수당 예시표 출력하기
+                    </button>
+                ` : ''}
             </div>
             ` : ''}
 
@@ -1277,6 +1279,12 @@ function resetFeePayoutRate() {
  * 엑셀 업로드 모달 열기
  */
 function openFeeExcelUploadModal() {
+    const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+    if (role1 !== '지사대표') {
+        alert('수수료 예시표 엑셀 업로드는 지사대표 권한 사용자만 가능합니다.');
+        return;
+    }
+
     const modalId = 'fee-excel-upload-modal';
     let modal = document.getElementById(modalId);
     if (!modal) {

@@ -209,8 +209,9 @@
         };
 
         function navigate(view, push = true) {
-            if (view === 'feeTable' || view === 'totalFeeReport') {
-                if (!state.user || (state.user.role !== '지사대표' && state.user.role !== '운영진')) {
+            if (view === 'totalFeeReport') {
+                const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+                if (role1 !== '지사대표' && role1 !== '운영진') {
                     alert('해당 메뉴는 지사대표 및 운영진 권한 사용자에게 오픈되어 있습니다.');
                     return;
                 }
@@ -295,6 +296,7 @@
                         state.currentView = (hash && hash !== 'login') ? hash : 'home';
                         resetSessionTimer();
                         setTimeout(prefetchAllBackground, 500); // [OPTIMIZATION] Trigger background prefetching immediately
+                        setTimeout(prefetchFeeTableInBackground, 1200);
                         return true;
                     }
                 } catch (e) { console.error('Restore failed', e); }
@@ -1206,7 +1208,7 @@
                              ${!hasRole('실장') ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
-                             ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
+                             ${state.user ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1335,7 +1337,7 @@
                             ${(state.user.isRecruiter && !hasRole('실장')) ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
                             </a>` : ''}
-                            ${(state.user && (state.user.role === '지사대표' || state.user.role === '운영진')) ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${state.user ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
@@ -7914,6 +7916,7 @@
                 if (!state.prefetchTriggered) {
                     state.prefetchTriggered = true;
                     setTimeout(prefetchAllBackground, 800);
+                    setTimeout(prefetchFeeTableInBackground, 1200);
                 }
                 return;
             }
@@ -9469,6 +9472,17 @@
                     triggerNextPrefetch();
                 }
             }, 600);
+        }
+
+        function prefetchFeeTableInBackground() {
+            if (!state.user) return;
+            const currentM = state.currentMonth ? (state.currentMonth.substring(0, 4) + '.' + state.currentMonth.substring(4)) : '';
+            const cleanM = (state.currentMonth || '').replace(/\./g, '');
+            const cacheKey = 'DATA_FEE_TABLE_' + cleanM;
+            if (sessionStorage.getItem(cacheKey)) return;
+            if (typeof loadFeeTableData === 'function') {
+                loadFeeTableData(currentM, false, true); // isBackground = true
+            }
         }
 
         function prefetchAllBackground() {
