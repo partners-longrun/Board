@@ -21,6 +21,12 @@ var totalFeeReportState = {
     nonLifeRate: 84, // 손보 지급율 (%)
     lifeRate: 79,    // 생보 지급율 (%)
     sortBy: 'nextMonth', // 'nextMonth' (익월합계순) | 'total' (총합계순)
+    sortBys: {
+        '손해보험': 'nextMonth',
+        '종신보험': 'nextMonth',
+        '단기납종신': 'nextMonth',
+        '경영인정기': 'nextMonth'
+    },
     outputMode: 'tablesOnly', // 'tablesOnly' | 'fullBrochure'
     activeTab: '손해보험', // '손해보험' | '종신보험' | '단기납종신' | '경영인정기'
     titles: {
@@ -201,6 +207,26 @@ async function initTotalFeeReport(targetContainer) {
     if (targetContainer) {
         totalFeeReportTargetContainer = targetContainer;
     }
+    const container = targetContainer || totalFeeReportTargetContainer || document.getElementById('main-view');
+
+    // [로딩 표시] 데이터 조회 동안 사용자에게 로딩 중임을 명확히 표시
+    if (container) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center min-h-[480px] py-24 text-center animate-fadeIn">
+                <div class="relative w-14 h-14 mb-5">
+                    <div class="absolute inset-0 rounded-full border-4 border-orange-200 animate-pulse"></div>
+                    <div class="w-14 h-14 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <h3 class="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight mb-1.5">
+                    총수당 예시표 데이터를 불러오는 중입니다
+                </h3>
+                <p class="text-xs text-gray-500 max-w-sm leading-relaxed">
+                    수수료 규정 및 월별 보험사 시상금 정책 데이터를 조회하고 있습니다. 잠시만 기다려 주세요.
+                </p>
+            </div>
+        `;
+    }
+
     if (typeof feeTableState !== 'undefined' && feeTableState.month) {
         totalFeeReportState.month = feeTableState.month;
     }
@@ -312,11 +338,28 @@ function onReportTitleChange(catKey, newTitle) {
 }
 
 /**
- * 정렬 기준 변경
+ * 정렬 기준 변경 (전체 일괄)
  */
 function setReportSortBy(sortBy) {
     totalFeeReportState.sortBy = sortBy;
-    updateReportTablesOnly();
+    if (!totalFeeReportState.sortBys) {
+        totalFeeReportState.sortBys = {};
+    }
+    ['손해보험', '종신보험', '단기납종신', '경영인정기'].forEach(k => {
+        totalFeeReportState.sortBys[k] = sortBy;
+    });
+    renderTotalFeeReportView();
+}
+
+/**
+ * 정렬 기준 변경 (출력물 종류별 개별)
+ */
+function setCategorySortBy(catKey, sortBy) {
+    if (!totalFeeReportState.sortBys) {
+        totalFeeReportState.sortBys = {};
+    }
+    totalFeeReportState.sortBys[catKey] = sortBy;
+    renderTotalFeeReportView();
 }
 
 /**
@@ -393,11 +436,11 @@ function renderTotalFeeReportView(targetContainer) {
                     ` : ''}
                     <button onclick="triggerPrintReport('tablesOnly')" class="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-orange-200">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                        📄 총수당 예시표만 PDF 출력
+                        예시표만 출력
                     </button>
                     <button onclick="triggerPrintReport('fullBrochure')" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-200">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                        📘 전체 브로슈어 책자 PDF 출력
+                        브로슈어 출력
                     </button>
                 </div>
             </div>
@@ -440,42 +483,49 @@ function renderTotalFeeReportView(targetContainer) {
                         </div>
                     </div>
 
-                    <!-- 3. 기준 주차 문구 및 정렬 기준 -->
+                    <!-- 3. 기준 주차 문구 및 전체 일괄 정렬 기준 -->
                     <div class="flex items-center gap-3">
                         <div class="flex items-center gap-1.5">
                             <span class="text-xs font-semibold text-gray-500">기준주차:</span>
                             <input type="text" value="${state.weekText}" onchange="totalFeeReportState.weekText = this.value; updateReportTablesOnly();" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 w-36 outline-none focus:border-orange-400">
                         </div>
-                        <div class="inline-flex p-0.5 bg-gray-100 rounded-lg">
-                            <button onclick="setReportSortBy('nextMonth')" class="px-2.5 py-1 rounded text-xs font-bold transition ${state.sortBy === 'nextMonth' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'}">
-                                익월합계순
-                            </button>
-                            <button onclick="setReportSortBy('total')" class="px-2.5 py-1 rounded text-xs font-bold transition ${state.sortBy === 'total' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500'}">
-                                총합계순
-                            </button>
+                        <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200/80 px-2.5 py-1 rounded-xl">
+                            <span class="text-[11px] font-bold text-gray-500">일괄정렬:</span>
+                            <div class="inline-flex p-0.5 bg-gray-200/70 rounded-lg">
+                                <button onclick="setReportSortBy('nextMonth')" class="px-2 py-0.5 rounded text-xs font-bold transition ${state.sortBy === 'nextMonth' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}">
+                                    익월합계순
+                                </button>
+                                <button onclick="setReportSortBy('total')" class="px-2 py-0.5 rounded text-xs font-bold transition ${state.sortBy === 'total' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-800'}">
+                                    총합계순
+                                </button>
+                            </div>
                         </div>
                     </div>
 
                 </div>
 
-                <!-- 4. 실시간 예시표 제목(타이틀) 수정 바 -->
+                <!-- 4. 실시간 예시표 제목 및 종류별 개별 정렬 기준 바 -->
                 <div class="pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1">손보 예시표 제목 수정</label>
-                        <input type="text" value="${state.titles['손해보험']}" oninput="onReportTitleChange('손해보험', this.value)" class="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-orange-400 outline-none font-semibold text-gray-800">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1">종신(20년) 예시표 제목 수정</label>
-                        <input type="text" value="${state.titles['종신보험']}" oninput="onReportTitleChange('종신보험', this.value)" class="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-orange-400 outline-none font-semibold text-gray-800">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1">단기납(7년) 예시표 제목 수정</label>
-                        <input type="text" value="${state.titles['단기납종신']}" oninput="onReportTitleChange('단기납종신', this.value)" class="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-orange-400 outline-none font-semibold text-gray-800">
-                    </div>
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-500 mb-1">경영인정기 예시표 제목 수정</label>
-                        <input type="text" value="${state.titles['경영인정기']}" oninput="onReportTitleChange('경영인정기', this.value)" class="w-full px-2.5 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-orange-400 outline-none font-semibold text-gray-800">
-                    </div>
+                    ${[
+                        { key: '손해보험', label: '1. 손보 (종합건강)', inputLabel: '손보 예시표 제목' },
+                        { key: '종신보험', label: '2. 종신보험 (20년)', inputLabel: '종신(20년) 예시표 제목' },
+                        { key: '단기납종신', label: '3. 단기납 종신 (7년)', inputLabel: '단기납(7년) 예시표 제목' },
+                        { key: '경영인정기', label: '4. 경영인정기 (20년+)', inputLabel: '경영인정기 예시표 제목' }
+                    ].map(cat => {
+                        const curSort = (state.sortBys && state.sortBys[cat.key]) || state.sortBy || 'nextMonth';
+                        return `
+                            <div class="p-3 bg-gray-50/80 border border-gray-200/80 rounded-xl space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-extrabold text-gray-800">${cat.label}</span>
+                                    <div class="inline-flex p-0.5 bg-gray-200/70 rounded-md text-[10px]">
+                                        <button onclick="setCategorySortBy('${cat.key}', 'nextMonth')" class="px-1.5 py-0.5 rounded font-bold transition ${curSort === 'nextMonth' ? 'bg-orange-500 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'}">익월순</button>
+                                        <button onclick="setCategorySortBy('${cat.key}', 'total')" class="px-1.5 py-0.5 rounded font-bold transition ${curSort === 'total' ? 'bg-orange-500 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'}">총합순</button>
+                                    </div>
+                                </div>
+                                <input type="text" value="${state.titles[cat.key]}" oninput="onReportTitleChange('${cat.key}', this.value)" class="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:border-orange-400 outline-none font-semibold text-gray-800" placeholder="${cat.inputLabel}">
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
 
@@ -836,8 +886,9 @@ function buildNonLifeTablePages() {
         };
     });
 
-    // 정렬 적용
-    if (state.sortBy === 'total') {
+    // 정렬 적용 (손해보험 개별 정렬 기준)
+    const nonLifeSort = (state.sortBys && state.sortBys['손해보험']) || state.sortBy || 'nextMonth';
+    if (nonLifeSort === 'total') {
         items.sort((a, b) => b.grandTotal - a.grandTotal);
     } else {
         items.sort((a, b) => b.nextMonthTotal - a.nextMonthTotal);
@@ -872,7 +923,7 @@ function buildNonLifeTablePages() {
                     </div>
                     <div class="text-right">
                         <div class="font-bold text-gray-800">※ ${state.weekText}</div>
-                        <div class="text-gray-500 text-[10px]">(${state.sortBy === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                        <div class="text-gray-500 text-[10px]">(${nonLifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
                     </div>
                 </div>
 
@@ -1008,7 +1059,9 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
         };
     });
 
-    if (state.sortBy === 'total') {
+    // 정렬 적용 (보종별 개별 정렬 기준)
+    const lifeSort = (state.sortBys && state.sortBys[catKey]) || state.sortBy || 'nextMonth';
+    if (lifeSort === 'total') {
         items.sort((a, b) => b.grandTotal - a.grandTotal);
     } else {
         items.sort((a, b) => b.nextMonthTotal - a.nextMonthTotal);
@@ -1046,7 +1099,7 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                     </div>
                     <div class="text-right">
                         <div class="font-bold text-gray-800">※ ${state.weekText}</div>
-                        <div class="text-gray-500 text-[10px]">(${state.sortBy === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                        <div class="text-gray-500 text-[10px]">(${lifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
                     </div>
                 </div>
 
@@ -1527,83 +1580,113 @@ function triggerPrintReport(mode) {
  * 관리자용: 시상금 및 대표상품 관리 모달 열기
  */
 function openRewardPolicyModal() {
-    const modalContainer = document.getElementById('reward-policy-modal-container');
-    if (!modalContainer) return;
+    // 기존에 열려 있는 모달이 있으면 제거
+    const oldModal = document.getElementById('reward-policy-modal');
+    if (oldModal) oldModal.remove();
 
     const state = totalFeeReportState;
     const curTab = state.activeTab || '손해보험';
 
-    modalContainer.innerHTML = `
-        <div class="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 fade-in">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200">
-                
-                <!-- 모달 헤더 -->
-                <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-                    <div>
-                        <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                            월별 보험사 시상금 및 대표상품 설정 관리
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-0.5">
-                            스프레드시트 '월별시상' 시트와 연동되어 매월 대표상품, 납입기간, 표시상품명, 시상금을 설정합니다.
-                        </p>
-                    </div>
+    document.body.classList.add('modal-open');
 
-                    <div class="flex items-center gap-3">
-                        <button onclick="copyPreviousMonthPolicyData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                            전월 데이터 복사
-                        </button>
-                        <button onclick="closeRewardPolicyModal()" class="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        </button>
-                    </div>
+    const modal = document.createElement('div');
+    modal.id = 'reward-policy-modal';
+    modal.className = "fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn";
+    
+    // 모달 바깥 배경 클릭 시 닫기
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeRewardPolicyModal();
+        }
+    });
+
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200" onclick="event.stopPropagation()">
+            
+            <!-- 모달 헤더 -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                        월별 보험사 시상금 및 대표상품 설정 관리
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        스프레드시트 '월별시상' 시트와 연동되어 매월 대표상품, 납입기간, 표시상품명, 시상금을 설정합니다.
+                    </p>
                 </div>
 
-                <!-- 탭 바: 보종 구분 -->
-                <div class="px-6 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2 overflow-x-auto">
-                    ${['손해보험', '종신보험', '단기납종신', '경영인정기'].map(tabKey => {
-                        const labels = {
-                            '손해보험': '1. 손해보험 (종합건강)',
-                            '종신보험': '2. 생보 - 종신보험 (20년)',
-                            '단기납종신': '3. 생보 - 단기납 종신 (7년)',
-                            '경영인정기': '4. 생보 - 경영인정기'
-                        };
-                        const isActive = curTab === tabKey;
-                        return `
-                            <button onclick="switchRewardPolicyTab('${tabKey}')" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${isActive ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}">
-                                ${labels[tabKey] || tabKey}
-                            </button>
-                        `;
-                    }).join('')}
+                <div class="flex items-center gap-3">
+                    <button onclick="copyPreviousMonthPolicyData()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                        전월 데이터 복사
+                    </button>
+                    <button onclick="closeRewardPolicyModal()" class="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
                 </div>
-
-                <!-- 설정 테이블 그리드 영역 -->
-                <div class="p-6 overflow-y-auto flex-1 space-y-4">
-                    <div id="reward-policy-grid-container">
-                        ${buildPolicyGridHtml(curTab)}
-                    </div>
-                </div>
-
-                <!-- 모달 푸터 액션 -->
-                <div class="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                    <span class="text-xs text-gray-500">
-                        * 수수료 엑셀에 등록된 실제 상품과 납입기간 옵션이 드롭다운으로 자동 연동됩니다.
-                    </span>
-                    <div class="flex items-center gap-2.5">
-                        <button onclick="closeRewardPolicyModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition">
-                            닫기
-                        </button>
-                        <button onclick="saveRewardPolicyToDb()" id="save-reward-policy-btn" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200 transition flex items-center gap-1.5">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            시상금 DB에 저장하기
-                        </button>
-                    </div>
-                </div>
-
             </div>
+
+            <!-- 탭 바: 보종 구분 -->
+            <div id="reward-policy-modal-tabs" class="px-6 py-2.5 bg-gray-50 border-b border-gray-200 flex items-center gap-2 overflow-x-auto">
+                ${buildPolicyTabsHtml(curTab)}
+            </div>
+
+            <!-- 설정 테이블 그리드 영역 -->
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div id="reward-policy-grid-container">
+                    ${buildPolicyGridHtml(curTab)}
+                </div>
+            </div>
+
+            <!-- 모달 푸터 액션 -->
+            <div class="px-6 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                <span class="text-xs text-gray-500">
+                    * 수수료 엑셀에 등록된 실제 상품과 납입기간 옵션이 드롭다운으로 자동 연동됩니다.
+                </span>
+                <div class="flex items-center gap-2.5">
+                    <button onclick="closeRewardPolicyModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition">
+                        닫기
+                    </button>
+                    <button onclick="saveRewardPolicyToDb()" id="save-reward-policy-btn" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        시상금 DB에 저장하기
+                    </button>
+                </div>
+            </div>
+
         </div>
     `;
+
+    document.body.appendChild(modal);
+
+    // ESC 키로 모달 닫기
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeRewardPolicyModal();
+            window.removeEventListener('keydown', escHandler);
+        }
+    };
+    window.addEventListener('keydown', escHandler);
+}
+
+/**
+ * 모달 탭 버튼 HTML 빌드
+ */
+function buildPolicyTabsHtml(curTab) {
+    return ['손해보험', '종신보험', '단기납종신', '경영인정기'].map(tabKey => {
+        const labels = {
+            '손해보험': '1. 손해보험 (종합건강)',
+            '종신보험': '2. 생보 - 종신보험 (20년)',
+            '단기납종신': '3. 생보 - 단기납 종신 (7년)',
+            '경영인정기': '4. 생보 - 경영인정기'
+        };
+        const isActive = curTab === tabKey;
+        return `
+            <button onclick="switchRewardPolicyTab('${tabKey}')" class="px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${isActive ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}">
+                ${labels[tabKey] || tabKey}
+            </button>
+        `;
+    }).join('');
 }
 
 /**
@@ -1611,6 +1694,10 @@ function openRewardPolicyModal() {
  */
 function switchRewardPolicyTab(tabKey) {
     totalFeeReportState.activeTab = tabKey;
+    const tabsBar = document.getElementById('reward-policy-modal-tabs');
+    if (tabsBar) {
+        tabsBar.innerHTML = buildPolicyTabsHtml(tabKey);
+    }
     const gridContainer = document.getElementById('reward-policy-grid-container');
     if (gridContainer) {
         gridContainer.innerHTML = buildPolicyGridHtml(tabKey);
@@ -1796,10 +1883,15 @@ function onPolicyProductSelect(selectEl, company, tabKey) {
  * 모달 닫기
  */
 function closeRewardPolicyModal() {
+    const modal = document.getElementById('reward-policy-modal');
+    if (modal) {
+        modal.remove();
+    }
     const modalContainer = document.getElementById('reward-policy-modal-container');
     if (modalContainer) {
         modalContainer.innerHTML = '';
     }
+    document.body.classList.remove('modal-open');
 }
 
 /**
