@@ -929,11 +929,17 @@ function renderFeeTableView(targetContainer) {
             </div>
 
             <!-- 7. Information Notice -->
-            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs text-slate-500 flex items-start gap-2.5">
-                <span class="text-orange-500 font-bold mt-0.5">※</span>
-                <p class="leading-relaxed">
-                    본 수수료 예시표는 제휴 보험사별 대표 상품의 참고용 지급률 데이터입니다. 실제 입금되는 수수료는 계약 유지 여부, 실효/연체, 시책 및 개인 업적 달성 구간에 따라 차이가 발생할 수 있습니다.
+            <div class="p-4 sm:p-5 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs text-slate-600">
+                <p class="font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <span class="text-orange-500 font-black">※</span> 본 수수료 예시표는
                 </p>
+                <ul class="space-y-1.5 pl-4 list-disc text-slate-500 leading-relaxed marker:text-slate-400">
+                    <li>제휴 보험사별 대표 상품의 참고용 자료로, 실제 지급되는 수수료와는 상이할 수 있습니다.</li>
+                    <li>보험사의 수수료 규정 변경 또는 당사 업적 변동 시 변경될 수 있습니다.</li>
+                    <li>전월 업적(대리점 전체)을 기준으로 작성되었으며, 전체 실적/유지율/수금율 등 조건 충족 여부에 따라 매월 가감될 수 있습니다.</li>
+                    <li>주계약 수정률 기준으로 작성되었으며, 특약, 납기, 고객연령, 할인적용 여부 등에 따라 실수령 금액은 달라질 수 있습니다.</li>
+                    <li>13회차 이후 지급수수료는 전월 신규 수정P 실적을 기준으로 산정된 참고 수치이며, 향후 업적 변동 시 실제 지급 금액이 달라질 수 있습니다.</li>
+                </ul>
             </div>
 
             <!-- 8. Bottom Action Buttons: 엑셀 업로드 (권한1: 지사대표) & 총수당 예시표 출력하기 (권한1: 지사대표, 운영진) -->
