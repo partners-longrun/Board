@@ -431,7 +431,7 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
 
     // 1. 이미 메모리에 데이터가 있고 강제 새로고침이 아니며, 대상 월이 동일하거나 미지정인 경우 즉시 반환
     if (!forceReload && FEE_TABLE_DATA && FEE_TABLE_DATA.categories && (!targetMonth || targetMonth === feeTableState.month)) {
-        if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+        if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
             renderFeeTableView();
         }
         return;
@@ -449,7 +449,7 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
                     if (!feeTableAvailableMonths.includes(feeTableState.month)) {
                         feeTableAvailableMonths.unshift(feeTableState.month);
                     }
-                    if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+                    if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
                         renderFeeTableView();
                     }
                     return;
@@ -460,9 +460,15 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
         }
     }
 
-    if (feeTableLoading) return;
+    if (feeTableLoading) {
+        // 이미 로딩이 진행 중인 경우, 현재 사용자가 feeTable 뷰에 있다면 로딩 화면을 표시하고 대기
+        if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
+            renderFeeTableView();
+        }
+        return;
+    }
     feeTableLoading = true;
-    if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+    if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
         renderFeeTableView(); // 로딩 스피너 표시
     }
 
@@ -499,9 +505,7 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
                 feeTableAvailableMonths.unshift(feeTableState.month);
             }
         } else {
-            if (!isBackground) {
-                window.FEE_TABLE_DATA = null;
-            }
+            window.FEE_TABLE_DATA = null;
             console.warn('Fee table data not found for month:', monthParam, dataRes);
         }
 
@@ -518,12 +522,11 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
         }
     } catch (err) {
         console.error('loadFeeTableData error:', err);
-        if (!isBackground) {
-            window.FEE_TABLE_DATA = null;
-        }
+        window.FEE_TABLE_DATA = null;
     } finally {
         feeTableLoading = false;
-        if (!isBackground && typeof state !== 'undefined' && state.currentView === 'feeTable') {
+        // 핵심: 백그라운드 프리페치 여부와 관계없이 사용자가 현재 'feeTable'을 보고 있다면 무조건 렌더링하여 화면 갱신
+        if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
             renderFeeTableView();
         }
     }
@@ -552,12 +555,19 @@ function renderFeeTableView(targetContainer) {
 
         // 2. 데이터가 아직 로드되지 않은 초기 상태
         if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) {
-            // 아직 로딩 중이 아니고 자동 시도를 아직 안 했다면 1회 시도
+            // 아직 로딩 중이 아니고 자동 시도를 아직 안 했다면 즉시 로드 시작
             if (!feeTableLoading && !feeTableLoadAttempted) {
                 feeTableLoadAttempted = true;
-                setTimeout(() => {
-                    loadFeeTableData();
-                }, 50);
+                container.innerHTML = `
+                    <div class="bg-white rounded-3xl p-12 text-center shadow-sm border border-slate-100 max-w-md mx-auto mt-16 animate-fadeIn">
+                        <div class="w-12 h-12 rounded-2xl bg-orange-50 text-primary flex items-center justify-center mx-auto mb-4 animate-bounce">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        </div>
+                        <h3 class="font-extrabold text-slate-900 text-lg whitespace-nowrap">최신 데이터 로딩중...</h3>
+                    </div>
+                `;
+                loadFeeTableData();
+                return;
             }
 
             const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
