@@ -127,6 +127,19 @@
             return primaryRole === '지사대표' || primaryRole === '운영진';
         }
 
+        // 수수료 예시표 메뉴 접근 권한 확인
+        // - 소속이 '투게더사업단'인 경우: 권한1이 '관리자'인 사용자만 허용
+        // - 그 외 소속 사용자: 모두 허용
+        function isFeeTableAllowed() {
+            if (!state.user) return false;
+            const org1 = String(state.user.organization || '').trim();
+            const role1 = String(state.user.role || '').trim();
+            if (org1 === '투게더사업단' || org1.includes('투게더사업단')) {
+                return role1 === '관리자';
+            }
+            return true;
+        }
+
         var LOGO_TEXT = `<div class="flex items-center gap-2 select-none">
             <span class="text-2xl font-bold text-gray-800 tracking-tight">파트너스 <span class="text-primary">보드</span></span>
         </div>`;
@@ -209,6 +222,12 @@
         };
 
         function navigate(view, push = true) {
+            if (view === 'feeTable') {
+                if (!isFeeTableAllowed()) {
+                    alert('해당 메뉴에 대한 접근 권한이 없습니다.');
+                    return;
+                }
+            }
             if (view === 'totalFeeReport') {
                 const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
                 if (role1 !== '지사대표' && role1 !== '운영진') {
@@ -735,6 +754,7 @@
                     </div>` : ''}
 
                     <!-- 3-1. 수수료 예시표 조회 -->
+                    ${isFeeTableAllowed() ? `
                     <div onclick="navigate('feeTable')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
                         <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
                             <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -743,7 +763,7 @@
                             <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">수수료 예시표 조회</h3>
                             <p class="text-[11px] text-gray-400 mt-0.5">보험사 및 상품별 실수령 수수료율</p>
                         </div>
-                    </div>
+                    </div>` : ''}
 
 
 
@@ -1219,7 +1239,7 @@
                              ${!hasRole('실장') ? sidebarLink('lapse', '계약유지관리', icons.lapse) : ''}
                              ${!hasRole('실장') ? sidebarLink('dashboard', '시상금', icons.dashboard) : ''}
                              ${(state.user.isRecruiter && !hasRole('실장')) ? sidebarLink('recruitment', '증원수당', icons.recruitment) : ''}
-                             ${state.user ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
+                             ${isFeeTableAllowed() ? sidebarLink('feeTable', '수수료 예시표', icons.feeTable) : ''}
                         </div>
 
                         ${(isBranchRepAny() || isAdminAny() || hasRole('실장') || isOpsAny() || isForecastAllowed()) ? `
@@ -1348,7 +1368,7 @@
                             ${(state.user.isRecruiter && !hasRole('실장')) ? `<a href="#" data-nav="recruitment" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'recruitment' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.recruitment}</span> 증원수당
                             </a>` : ''}
-                            ${state.user ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
+                            ${isFeeTableAllowed() ? `<a href="#" data-nav="feeTable" class="flex items-center p-4 rounded-xl text-lg font-bold ${state.currentView === 'feeTable' ? 'bg-primary text-white shadow-lg' : 'text-gray-600 active:bg-gray-100'} transition">
                                 <span class="mr-4">${icons.feeTable}</span> 수수료 예시표
                             </a>` : ''}
                             <div class="h-px bg-gray-100 my-4"></div>
@@ -9486,7 +9506,7 @@
         }
 
         function prefetchFeeTableInBackground() {
-            if (!state.user) return;
+            if (!state.user || !isFeeTableAllowed()) return;
             const currentM = state.currentMonth ? (state.currentMonth.substring(0, 4) + '.' + state.currentMonth.substring(4)) : '';
             const cleanM = (state.currentMonth || '').replace(/\./g, '');
             const cacheKey = 'DATA_FEE_TABLE_' + cleanM;

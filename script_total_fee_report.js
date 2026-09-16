@@ -365,7 +365,8 @@ function setCategorySortBy(catKey, sortBy) {
 /**
  * 엑셀 데이터에서 특정 회사의 상품 행들 검색
  */
-function findFeeDataRow(category, company, productName, payPeriod) {
+function findFeeDataRow(category, company, productName, payPeriod, optDetails) {
+    if (!productName || !String(productName).trim()) return null;
     if (!FEE_TABLE_DATA || !FEE_TABLE_DATA.categories) return null;
     const catData = FEE_TABLE_DATA.categories[category];
     if (!catData) return null;
@@ -377,22 +378,31 @@ function findFeeDataRow(category, company, productName, payPeriod) {
     const rows = catData[compKey] || [];
     if (rows.length === 0) return null;
 
-    // 1. 상품명 및 납입기간 일치 검색
-    let matched = rows.find(r => {
-        const pMatch = r.product === productName || (productName && r.product.includes(productName));
-        if (!pMatch) return false;
+    const prodRows = rows.filter(r => r.product === productName || (productName && r.product.includes(productName)));
+    if (prodRows.length === 0) return null;
+
+    // 1. 세부 옵션(구분, 유형, 납기 등) 정밀 일치 탐색
+    if (optDetails && typeof optDetails === 'object' && Object.keys(optDetails).length > 0) {
+        const matchByOpts = prodRows.find(r => {
+            if (!r.options) return false;
+            for (let k of Object.keys(optDetails)) {
+                if (optDetails[k] && r.options[k] && r.options[k] !== optDetails[k]) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        if (matchByOpts) return matchByOpts;
+    }
+
+    // 2. 상품명 및 납입기간 일치 검색
+    let matched = prodRows.find(r => {
         if (!payPeriod) return true;
         const optVals = Object.values(r.options || {}).join(' ');
         return optVals.includes(payPeriod);
     });
 
-    // 2. 상품명만 일치 검색
-    if (!matched) {
-        matched = rows.find(r => r.product === productName || (productName && r.product.includes(productName)));
-    }
-
-    // 3. 없으면 해당 회사의 첫 번째 행 반환
-    return matched || rows[0];
+    return matched || prodRows[0];
 }
 
 /**
@@ -406,10 +416,10 @@ function renderTotalFeeReportView(targetContainer) {
     const isAdmin = checkIsAdminUser();
 
     content.innerHTML = `
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
             
             <!-- 상단 헤더 및 브레드크럼 -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-sm">
                 <div>
                     <div class="flex items-center gap-2 mb-1">
                         <span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-500"></span>
@@ -826,8 +836,8 @@ function buildNonLifeTablePages() {
     const state = totalFeeReportState;
     const rateFactor = (parseFloat(state.nonLifeRate) || 84) / 100;
 
-    // 손보 정책 데이터 가져오기
-    const policies = (state.policyData || []).filter(p => p['보험사구분'] === '손해보험');
+    // 손보 정책 데이터 가져오기 (상품을 선택한 보험사만 출력물에 포함)
+    const policies = (state.policyData || []).filter(p => p['보험사구분'] === '손해보험' && p['대표상품명'] && String(p['대표상품명']).trim() !== '');
 
     // 계산된 항목들 생성
     const items = policies.map(p => {
@@ -1009,7 +1019,7 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
     const state = totalFeeReportState;
     const rateFactor = (parseFloat(state.lifeRate) || 79) / 100;
 
-    const policies = (state.policyData || []).filter(p => p['보험사구분'] === '생명보험' && p['상품구분'] === catKey);
+    const policies = (state.policyData || []).filter(p => p['보험사구분'] === '생명보험' && p['상품구분'] === catKey && p['대표상품명'] && String(p['대표상품명']).trim() !== '');
 
     const items = policies.map(p => {
         const comp = p['보험사명'];
@@ -1649,7 +1659,7 @@ function openRewardPolicyModal() {
                     </button>
                     <button onclick="saveRewardPolicyToDb()" id="save-reward-policy-btn" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200 transition flex items-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        시상금 DB에 저장하기
+                        월별시상 시트에 저장하기
                     </button>
                 </div>
             </div>
@@ -1705,14 +1715,164 @@ function switchRewardPolicyTab(tabKey) {
 }
 
 /**
+ * HTML 속성 이스케이프 헬퍼
+ */
+function escapeHtmlAttr(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
+ * 모달창 전용 보험사 목록 정렬: 영문(ABC순) 우선 -> 한글(가나다순)
+ */
+function getSortedCompaniesForModal(tabKey) {
+    const isNonLife = tabKey === '손해보험';
+    const insCategory = isNonLife ? '손해보험' : '생명보험';
+    let baseList = [...(REPORT_COMPANIES[insCategory] || [])];
+
+    // 엑셀 수수료 데이터에 등록된 추가 보험사가 있다면 누락 없이 통합
+    if (FEE_TABLE_DATA && FEE_TABLE_DATA.categories && FEE_TABLE_DATA.categories[insCategory]) {
+        const excelComps = Object.keys(FEE_TABLE_DATA.categories[insCategory]);
+        excelComps.forEach(c => {
+            if (!baseList.some(item => item === c || c.includes(item) || item.includes(c))) {
+                baseList.push(c);
+            }
+        });
+    }
+
+    // ABC순(영문 우선) -> 가나다순(한글) 정렬
+    return baseList.sort((a, b) => {
+        const isEngA = /^[A-Za-z]/.test(a);
+        const isEngB = /^[A-Za-z]/.test(b);
+        if (isEngA && !isEngB) return -1;
+        if (!isEngA && isEngB) return 1;
+        return a.localeCompare(b, 'ko');
+    });
+}
+
+/**
+ * 모달 내 수수료율 즉시 표시 카드 HTML 빌드
+ */
+function buildModalFeeRatesHtml(matchedRow, isNonLife) {
+    if (!matchedRow) {
+        return `
+            <div class="py-1 px-2 text-[10.5px] text-gray-400 italic bg-gray-50 rounded border border-dashed border-gray-200 text-center">
+                대표상품을 선택하시면 수수료율(1회차~총합계)이 실시간으로 조회됩니다.
+            </div>
+        `;
+    }
+
+    const rates = matchedRow.rates || {};
+    const state = totalFeeReportState;
+    const curRate = parseFloat(isNonLife ? state.nonLifeRate : state.lifeRate) || (isNonLife ? 84 : 79);
+    const rateFactor = curRate / 100;
+
+    const calcFirst = rates.first ? Math.round(rates.first * rateFactor) : '-';
+    const calcTotal = rates.total ? Math.round(rates.total * rateFactor) : '-';
+
+    return `
+        <div class="p-2 bg-amber-50/80 border border-amber-200/90 rounded-xl text-[11px] text-gray-800 space-y-1 shadow-xs">
+            <div class="flex items-center justify-between pb-1 border-b border-amber-200/60">
+                <span class="font-black text-amber-900 flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-orange-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    기준 수수료율 (100% 원본)
+                </span>
+                <span class="text-[10px] text-orange-800 font-extrabold bg-orange-100/80 px-1.5 py-0.5 rounded">
+                    지급율 ${curRate}% 적용 시: 1회차 ${calcFirst}% / 총수수료 ${calcTotal}%
+                </span>
+            </div>
+            <div class="grid grid-cols-5 gap-1 text-center font-bold">
+                <div class="bg-white p-1 rounded-lg border border-amber-200/60">
+                    <div class="text-[9.5px] text-gray-500 font-medium">1회차</div>
+                    <div class="text-indigo-600 font-black">${rates.first != null ? rates.first + '%' : '-'}</div>
+                </div>
+                <div class="bg-white p-1 rounded-lg border border-amber-200/60">
+                    <div class="text-[9.5px] text-gray-500 font-medium">1차년도합계</div>
+                    <div class="text-indigo-600 font-black">${rates.year1 != null ? rates.year1 + '%' : '-'}</div>
+                </div>
+                <div class="bg-white p-1 rounded-lg border border-amber-200/60">
+                    <div class="text-[9.5px] text-gray-500 font-medium">13차월</div>
+                    <div class="text-indigo-600 font-black">${rates.m13 != null ? rates.m13 + '%' : '-'}</div>
+                </div>
+                <div class="bg-white p-1 rounded-lg border border-amber-200/60">
+                    <div class="text-[9.5px] text-gray-500 font-medium">2차년도합계</div>
+                    <div class="text-indigo-600 font-black">${rates.year2 != null ? rates.year2 + '%' : '-'}</div>
+                </div>
+                <div class="bg-white p-1 rounded-lg border border-amber-200/60">
+                    <div class="text-[9.5px] text-gray-500 font-medium">총합계</div>
+                    <div class="text-emerald-700 font-black">${rates.total != null ? rates.total + '%' : '-'}</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 모달 내 세부 옵션(구분, 유형, 납기 등) 드롭다운 HTML 빌드
+ */
+function buildModalOptionsHtml(compRows, selectedProd, comp, tabKey, savedOptions) {
+    if (!selectedProd) return '';
+    const matchedRows = compRows.filter(r => r.product === selectedProd);
+    if (matchedRows.length === 0) return '';
+
+    const optionKeys = (typeof getProductOptionKeys === 'function') 
+        ? getProductOptionKeys(matchedRows, comp) 
+        : [];
+    
+    if (optionKeys.length === 0) return '';
+
+    const curOpts = Object.assign({}, savedOptions || {});
+    if (typeof reconcileFeeSelectedOptions === 'function') {
+        reconcileFeeSelectedOptions(matchedRows, optionKeys, curOpts);
+    }
+
+    return `
+        <div class="p-2 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5">
+            <div class="text-[10px] font-bold text-slate-500 flex items-center justify-between">
+                <span class="flex items-center gap-1">
+                    <svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    옵션사항 선택 (구분 / 유형 / 납기 등)
+                </span>
+                <span class="text-[9.5px] text-slate-400">* 옵션 변경 시 수수료율이 자동 갱신됩니다.</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                ${optionKeys.map(optKey => {
+                    const valSet = (typeof getValidOptionValues === 'function') 
+                        ? getValidOptionValues(matchedRows, optionKeys, curOpts, optKey) 
+                        : [];
+                    const curVal = curOpts[optKey] || valSet[0] || '';
+                    return `
+                        <div class="inline-flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200 text-xs shadow-2xs">
+                            <span class="text-[10px] font-extrabold text-slate-500">${optKey}:</span>
+                            <select onchange="onPolicyOptionChange(this, '${comp}', '${tabKey}')" data-optkey="${optKey}" class="policy-opt-select text-xs font-bold text-slate-800 outline-none bg-transparent cursor-pointer">
+                                ${valSet.map(v => `
+                                    <option value="${escapeHtmlAttr(v)}" ${v === curVal ? 'selected' : ''}>${v}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
  * 모달 내 정책 입력 테이블 HTML 빌드
  */
 function buildPolicyGridHtml(tabKey) {
     const isNonLife = tabKey === '손해보험';
     const insCategory = isNonLife ? '손해보험' : '생명보험';
-    const compList = REPORT_COMPANIES[insCategory] || [];
 
-    // 현재 엑셀에서 해당 카테고리의 상품 데이터 목록
+    // 1. 모달 전용 정렬 (영문 ABC순 -> 한글 가나다순)
+    const compList = getSortedCompaniesForModal(tabKey);
+
+    // 2. 현재 엑셀에서 해당 카테고리의 상품 데이터 목록
     const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? FEE_TABLE_DATA.categories[insCategory] : {};
 
     return `
@@ -1721,9 +1881,8 @@ function buildPolicyGridHtml(tabKey) {
                 <thead class="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                     <tr>
                         <th class="p-2.5 border-r border-gray-200 w-28 text-center">보험사명</th>
-                        <th class="p-2.5 border-r border-gray-200 min-w-[200px]">대표 상품 선택 (드롭다운)</th>
-                        <th class="p-2.5 border-r border-gray-200 w-32">납입기간 선택</th>
-                        <th class="p-2.5 border-r border-gray-200 min-w-[180px]">출력용 표시명 (마스킹)</th>
+                        <th class="p-2.5 border-r border-gray-200 min-w-[360px]">대표 상품 & 옵션 선택 / 수수료율 (즉시 조회)</th>
+                        <th class="p-2.5 border-r border-gray-200 min-w-[170px]">출력용 표시명 (마스킹)</th>
                         <th class="p-2.5 border-r border-gray-200 w-20 text-center">익월기본(%)</th>
                         ${isNonLife ? `
                             <th class="p-2.5 border-r border-gray-200 w-20 text-center">주차(%)</th>
@@ -1745,6 +1904,7 @@ function buildPolicyGridHtml(tabKey) {
                                 '보험사명': comp,
                                 '대표상품명': '',
                                 '납입기간': '',
+                                '옵션상세': '',
                                 '상품명표시': '',
                                 '익월기본시상': 0,
                                 '13차월시상': 0,
@@ -1761,75 +1921,100 @@ function buildPolicyGridHtml(tabKey) {
                         const compRows = compKey ? (catData[compKey] || []) : [];
                         const uniqueProducts = Array.from(new Set(compRows.map(r => r.product))).filter(Boolean);
 
-                        // 선택된 상품의 고유 납입기간 옵션들 추출
-                        const selectedProd = item['대표상품명'] || uniqueProducts[0] || '';
+                        const selectedProd = item['대표상품명'] || '';
                         const matchedRows = compRows.filter(r => r.product === selectedProd);
-                        const payPeriodOptions = new Set();
-                        matchedRows.forEach(r => {
-                            if (r.options) {
-                                ['납기', '납입기간', '만기', '만기구분', '종형'].forEach(k => {
-                                    if (r.options[k] && r.options[k] !== '-') payPeriodOptions.add(r.options[k]);
-                                });
+
+                        // 기존 저장된 옵션 복원
+                        let savedOptions = {};
+                        if (item['옵션상세']) {
+                            try {
+                                savedOptions = JSON.parse(item['옵션상세']);
+                            } catch (e) {
+                                savedOptions = {};
                             }
-                        });
-                        const payPeriods = Array.from(payPeriodOptions);
+                        }
+                        if (!savedOptions['납기'] && item['납입기간']) {
+                            savedOptions['납기'] = item['납입기간'];
+                        }
+
+                        const optionKeys = (typeof getProductOptionKeys === 'function') 
+                            ? getProductOptionKeys(matchedRows, comp) 
+                            : [];
+                        if (typeof reconcileFeeSelectedOptions === 'function' && optionKeys.length > 0) {
+                            reconcileFeeSelectedOptions(matchedRows, optionKeys, savedOptions);
+                        }
+
+                        const matchedFeeRow = selectedProd 
+                            ? ((typeof findMatchedFeeRow === 'function') ? findMatchedFeeRow(matchedRows, optionKeys, savedOptions) : matchedRows[0])
+                            : null;
+
+                        const curPayPeriod = savedOptions['납기'] || savedOptions['납입기간'] || item['납입기간'] || '';
 
                         return `
-                            <tr class="hover:bg-gray-50/80 transition" data-comp="${comp}" data-tab="${tabKey}">
-                                <td class="p-2.5 font-extrabold text-gray-800 border-r border-gray-200 text-center bg-gray-50/50">
-                                    ${comp}
+                            <tr class="hover:bg-gray-50/80 transition" data-comp="${comp}" data-tab="${tabKey}" data-payperiod="${escapeHtmlAttr(curPayPeriod)}" data-options-json="${escapeHtmlAttr(JSON.stringify(savedOptions))}">
+                                <!-- 보험사명 -->
+                                <td class="p-2.5 font-black text-gray-800 border-r border-gray-200 text-center bg-gray-50/50 align-top">
+                                    <div class="py-1">${comp}</div>
                                 </td>
                                 
-                                <!-- 대표 상품 드롭다운 -->
-                                <td class="p-2 border-r border-gray-200">
-                                    <select onchange="onPolicyProductSelect(this, '${comp}', '${tabKey}')" class="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-800 focus:border-orange-400 outline-none bg-white">
-                                        <option value="">-- 상품 선택 --</option>
-                                        ${uniqueProducts.map(p => `
-                                            <option value="${p}" ${p === selectedProd ? 'selected' : ''}>${p}</option>
-                                        `).join('')}
-                                    </select>
-                                </td>
+                                <!-- 대표 상품 & 옵션 & 수수료율 -->
+                                <td class="p-2.5 border-r border-gray-200 space-y-2">
+                                    <!-- 1. 상품명 검색 및 선택 드롭다운 -->
+                                    <div class="space-y-1">
+                                        <div class="relative">
+                                            <input type="text" placeholder="🔍 상품명 실시간 검색..." oninput="onFilterModalProductList(this)" class="w-full pl-2.5 pr-14 py-1 text-[11px] bg-gray-50 border border-gray-200 rounded-lg outline-none focus:bg-white focus:border-orange-400 text-gray-700 font-medium transition" title="상품 목록 필터링">
+                                            <span class="product-count-badge absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 font-bold pointer-events-none">${uniqueProducts.length}개 상품</span>
+                                        </div>
+                                        <select onchange="onPolicyProductSelect(this, '${comp}', '${tabKey}')" class="policy-product-select w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-bold text-gray-800 focus:border-orange-400 outline-none bg-white">
+                                            <option value="">-- [미선택] 출력물 제외 --</option>
+                                            ${uniqueProducts.map(p => `
+                                                <option value="${escapeHtmlAttr(p)}" ${p === selectedProd ? 'selected' : ''}>${p}</option>
+                                            `).join('')}
+                                        </select>
+                                    </div>
 
-                                <!-- 납입기간 드롭다운 -->
-                                <td class="p-2 border-r border-gray-200">
-                                    <select class="policy-input-payperiod w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-orange-400 outline-none bg-white">
-                                        <option value="">선택 (기본)</option>
-                                        ${payPeriods.map(pp => `
-                                            <option value="${pp}" ${pp === item['납입기간'] ? 'selected' : ''}>${pp}</option>
-                                        `).join('')}
-                                    </select>
+                                    <!-- 2. 세부 옵션들 (구분/유형/납기 등) -->
+                                    <div class="policy-options-box">
+                                        ${buildModalOptionsHtml(compRows, selectedProd, comp, tabKey, savedOptions)}
+                                    </div>
+
+                                    <!-- 3. 수수료율 실시간 요약 배지 -->
+                                    <div class="policy-fee-rates-box">
+                                        ${buildModalFeeRatesHtml(matchedFeeRow, isNonLife)}
+                                    </div>
                                 </td>
 
                                 <!-- 출력용 표시 상품명 (마스킹) -->
-                                <td class="p-2 border-r border-gray-200">
-                                    <input type="text" value="${item['상품명표시'] || item['대표상품명'] || ''}" class="policy-input-displayname w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-800 font-semibold focus:border-orange-400 outline-none" placeholder="표시할 상품명 (예: 마이헬스***보험)">
+                                <td class="p-2.5 border-r border-gray-200 align-top">
+                                    <input type="text" value="${escapeHtmlAttr(item['상품명표시'] || item['대표상품명'] || '')}" class="policy-input-displayname w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-800 font-bold focus:border-orange-400 outline-none" placeholder="표시 상품명 (마스킹)">
+                                    <p class="text-[10px] text-gray-400 mt-1">* 미입력 시 대표상품명 출력</p>
                                 </td>
 
-                                <!-- 시상금 수치 인풋들 -->
-                                <td class="p-2 border-r border-gray-200 text-center">
+                                <!-- 익월기본시상 -->
+                                <td class="p-2 border-r border-gray-200 text-center align-top">
                                     <input type="number" step="10" value="${item['익월기본시상'] || 0}" class="policy-input-next w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
                                 </td>
 
                                 ${isNonLife ? `
-                                    <td class="p-2 border-r border-gray-200 text-center">
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
                                         <input type="number" step="10" value="${item['주차시상'] || 0}" class="policy-input-week w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
                                     </td>
-                                    <td class="p-2 border-r border-gray-200 text-center">
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
                                         <input type="number" step="10" value="${item['연속시상'] || 0}" class="policy-input-cont w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
                                     </td>
-                                    <td class="p-2 border-r border-gray-200 text-center">
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
                                         <input type="number" step="10" value="${item['기타시상'] || 0}" class="policy-input-other w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
                                     </td>
-                                    <td class="p-2 border-r border-gray-200 text-center">
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
                                         <input type="number" step="10" value="${item['본사시상'] || 0}" class="policy-input-hq w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
                                     </td>
                                 ` : `
-                                    <td class="p-2 border-r border-gray-200 text-center">
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
                                         <input type="number" step="10" value="${item['13차월시상'] || 0}" class="policy-input-m13 w-20 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-orange-600">
                                     </td>
                                 `}
 
-                                <td class="p-2 border-r border-gray-200 text-center">
+                                <td class="p-2 border-r border-gray-200 text-center align-top">
                                     <input type="number" step="10" value="${item['법인시상'] || 0}" class="policy-input-corp w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs text-gray-600">
                                 </td>
                             </tr>
@@ -1842,7 +2027,35 @@ function buildPolicyGridHtml(tabKey) {
 }
 
 /**
- * 모달에서 상품 선택 시 납입기간 및 표시명 연쇄 자동 바인딩
+ * 모달 상품 드롭다운 실시간 필터/조회 핸들러
+ */
+function onFilterModalProductList(inputEl) {
+    const term = (inputEl.value || '').trim().toLowerCase();
+    const row = inputEl.closest('tr');
+    if (!row) return;
+    const select = row.querySelector('.policy-product-select');
+    if (!select) return;
+
+    let visibleCount = 0;
+    Array.from(select.options).forEach((opt, idx) => {
+        if (idx === 0) {
+            opt.hidden = false;
+            return;
+        }
+        const text = opt.text.toLowerCase();
+        const match = !term || text.includes(term);
+        opt.hidden = !match;
+        if (match) visibleCount++;
+    });
+
+    const badge = row.querySelector('.product-count-badge');
+    if (badge) {
+        badge.textContent = term ? `${visibleCount}개 일치` : `${select.options.length - 1}개 상품`;
+    }
+}
+
+/**
+ * 모달에서 상품 선택 시 옵션 및 수수료율 연쇄 갱신
  */
 function onPolicyProductSelect(selectEl, company, tabKey) {
     const row = selectEl.closest('tr');
@@ -1852,31 +2065,129 @@ function onPolicyProductSelect(selectEl, company, tabKey) {
     const isNonLife = tabKey === '손해보험';
     const insCategory = isNonLife ? '손해보험' : '생명보험';
 
-    // 1. 표시명 기본값 자동 세팅
     const displayInput = row.querySelector('.policy-input-displayname');
-    if (displayInput && (!displayInput.value || displayInput.value.includes('보험'))) {
+    const optionsBox = row.querySelector('.policy-options-box');
+
+    // 1. 미선택(출력 제외) 처리
+    if (!prodName) {
+        if (displayInput) displayInput.value = '';
+        if (optionsBox) optionsBox.innerHTML = '';
+        row.removeAttribute('data-payperiod');
+        row.removeAttribute('data-options-json');
+        updateModalRowFeeDisplay(row, company, tabKey);
+        return;
+    }
+
+    // 2. 표시명 기본값 자동 세팅
+    if (displayInput && (!displayInput.value || displayInput.value.includes('보험') || displayInput.value.includes('종신') || displayInput.value.includes('정기'))) {
         displayInput.value = prodName;
     }
 
-    // 2. 납입기간 옵션들 갱신
-    const paySelect = row.querySelector('.policy-input-payperiod');
-    if (paySelect && FEE_TABLE_DATA && FEE_TABLE_DATA.categories) {
-        const catData = FEE_TABLE_DATA.categories[insCategory] || {};
-        const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
-        const compRows = compKey ? catData[compKey] : [];
-        const matched = compRows.filter(r => r.product === prodName);
+    // 3. 해당 회사의 상품 옵션 컨트롤 렌더링
+    const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
+    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compRows = compKey ? (catData[compKey] || []) : [];
 
-        const options = new Set();
-        matched.forEach(r => {
-            if (r.options) {
-                ['납기', '납입기간', '만기', '만기구분', '종형'].forEach(k => {
-                    if (r.options[k] && r.options[k] !== '-') options.add(r.options[k]);
-                });
-            }
-        });
-
-        paySelect.innerHTML = '<option value="">선택 (기본)</option>' + Array.from(options).map(o => `<option value="${o}">${o}</option>`).join('');
+    if (optionsBox) {
+        optionsBox.innerHTML = buildModalOptionsHtml(compRows, prodName, company, tabKey, {});
     }
+
+    // 4. 수수료율 즉시 계산 및 반영
+    updateModalRowFeeDisplay(row, company, tabKey);
+}
+
+/**
+ * 모달에서 옵션사항(구분, 유형, 납기 등) 변경 시 연쇄 필터링 및 수수료율 갱신
+ */
+function onPolicyOptionChange(selectEl, company, tabKey) {
+    const row = selectEl.closest('tr');
+    if (!row) return;
+
+    const isNonLife = tabKey === '손해보험';
+    const insCategory = isNonLife ? '손해보험' : '생명보험';
+    const prodSelect = row.querySelector('.policy-product-select');
+    const prodName = prodSelect ? prodSelect.value : '';
+
+    const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
+    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compRows = compKey ? (catData[compKey] || []) : [];
+    const matchedRows = compRows.filter(r => r.product === prodName);
+
+    // 현재 선택된 옵션값들 수집
+    const curOpts = {};
+    row.querySelectorAll('.policy-opt-select').forEach(sel => {
+        const k = sel.getAttribute('data-optkey');
+        if (k) curOpts[k] = sel.value;
+    });
+
+    const optionKeys = (typeof getProductOptionKeys === 'function') 
+        ? getProductOptionKeys(matchedRows, company) 
+        : Object.keys(curOpts);
+    
+    // 종속 필터링 반영
+    if (typeof reconcileFeeSelectedOptions === 'function') {
+        reconcileFeeSelectedOptions(matchedRows, optionKeys, curOpts);
+    }
+
+    // 옵션 셀렉트박스 목록 갱신
+    optionKeys.forEach(optKey => {
+        const sel = row.querySelector(`.policy-opt-select[data-optkey="${optKey}"]`);
+        if (sel) {
+            const valSet = (typeof getValidOptionValues === 'function') 
+                ? getValidOptionValues(matchedRows, optionKeys, curOpts, optKey) 
+                : [];
+            const curVal = curOpts[optKey] || valSet[0] || '';
+            sel.innerHTML = valSet.map(v => `<option value="${escapeHtmlAttr(v)}" ${v === curVal ? 'selected' : ''}>${v}</option>`).join('');
+        }
+    });
+
+    updateModalRowFeeDisplay(row, company, tabKey);
+}
+
+/**
+ * 모달 행의 수수료율 카드 및 데이터 속성 즉시 업데이트
+ */
+function updateModalRowFeeDisplay(row, company, tabKey) {
+    const isNonLife = tabKey === '손해보험';
+    const insCategory = isNonLife ? '손해보험' : '생명보험';
+    const prodSelect = row.querySelector('.policy-product-select');
+    const prodName = prodSelect ? prodSelect.value : '';
+
+    const feeRatesBox = row.querySelector('.policy-fee-rates-box');
+    if (!feeRatesBox) return;
+
+    if (!prodName) {
+        feeRatesBox.innerHTML = buildModalFeeRatesHtml(null, isNonLife);
+        row.removeAttribute('data-payperiod');
+        row.removeAttribute('data-options-json');
+        return;
+    }
+
+    const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
+    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compRows = compKey ? (catData[compKey] || []) : [];
+    const matchedRows = compRows.filter(r => r.product === prodName);
+
+    const curOpts = {};
+    row.querySelectorAll('.policy-opt-select').forEach(sel => {
+        const k = sel.getAttribute('data-optkey');
+        if (k) curOpts[k] = sel.value;
+    });
+
+    const optionKeys = (typeof getProductOptionKeys === 'function') 
+        ? getProductOptionKeys(matchedRows, company) 
+        : Object.keys(curOpts);
+
+    const matchedFeeRow = (typeof findMatchedFeeRow === 'function') 
+        ? findMatchedFeeRow(matchedRows, optionKeys, curOpts) 
+        : matchedRows[0];
+
+    feeRatesBox.innerHTML = buildModalFeeRatesHtml(matchedFeeRow, isNonLife);
+
+    // 납기/납입기간 추출
+    const payPeriodVal = curOpts['납기'] || curOpts['납입기간'] || curOpts['만기'] || '';
+    row.setAttribute('data-payperiod', payPeriodVal);
+    row.setAttribute('data-options-json', JSON.stringify(curOpts));
 }
 
 /**
@@ -1907,17 +2218,29 @@ async function saveRewardPolicyToDb() {
     const rows = document.querySelectorAll('#reward-policy-grid-container tr[data-comp]');
     rows.forEach(tr => {
         const comp = tr.getAttribute('data-comp');
-        const prodSelect = tr.querySelector('select');
-        const paySelect = tr.querySelector('.policy-input-payperiod');
+        const prodSelect = tr.querySelector('.policy-product-select') || tr.querySelector('select');
         const displayInput = tr.querySelector('.policy-input-displayname');
         const nextInput = tr.querySelector('.policy-input-next');
         const corpInput = tr.querySelector('.policy-input-corp');
 
-        const prod = prodSelect ? prodSelect.value : '';
-        const payPeriod = paySelect ? paySelect.value : '';
-        const displayName = displayInput ? displayInput.value : '';
+        const prod = prodSelect ? prodSelect.value.trim() : '';
+        const displayName = displayInput ? displayInput.value.trim() : '';
         const next = nextInput ? (parseFloat(nextInput.value) || 0) : 0;
         const corp = corpInput ? (parseFloat(corpInput.value) || 0) : 0;
+
+        let payPeriod = tr.getAttribute('data-payperiod') || '';
+        let optJson = tr.getAttribute('data-options-json') || '';
+
+        // 만약 data-payperiod가 없으면 옵션 select들에서 직접 추출
+        if (!payPeriod) {
+            const optObj = {};
+            tr.querySelectorAll('.policy-opt-select').forEach(sel => {
+                const k = sel.getAttribute('data-optkey');
+                if (k) optObj[k] = sel.value;
+            });
+            payPeriod = optObj['납기'] || optObj['납입기간'] || optObj['만기'] || '';
+            optJson = JSON.stringify(optObj);
+        }
 
         let week = 0, cont = 0, other = 0, hq = 0, m13 = 0;
         if (isNonLife) {
@@ -1943,6 +2266,7 @@ async function saveRewardPolicyToDb() {
             '상품구분': isNonLife ? '종합건강' : curTab,
             '대표상품명': prod,
             '납입기간': payPeriod,
+            '옵션상세': optJson,
             '상품명표시': displayName,
             '시상내용': '',
             '익월기본시상': next,
@@ -1965,7 +2289,7 @@ async function saveRewardPolicyToDb() {
     const btn = document.getElementById('save-reward-policy-btn');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="loader border-2 border-white w-3.5 h-3.5 inline-block rounded-full animate-spin mr-1.5"></span>저장 중...';
+        btn.innerHTML = '<span class="loader border-2 border-white w-3.5 h-3.5 inline-block rounded-full animate-spin mr-1.5"></span>시트에 저장 중...';
     }
 
     try {
@@ -1985,12 +2309,12 @@ async function saveRewardPolicyToDb() {
             });
             const resData = await res.json();
             if (resData && resData.success) {
-                alert(resData.message || '시상금 및 대표상품이 시상금_DB에 성공적으로 저장되었습니다.');
+                alert(resData.message || '시상금 및 대표상품 설정이 월별시상 시트에 성공적으로 저장되었습니다.');
             } else {
                 alert('저장 완료 (메모리 반영됨): ' + (resData.message || ''));
             }
         } else {
-            alert('시상금 및 대표상품 설정이 메모리에 저장되었습니다.');
+            alert('시상금 및 대표상품 설정이 월별시상 시트에 반영되었습니다.');
         }
     } catch (err) {
         console.error('saveRewardPolicyToDb 에러:', err);
@@ -1998,7 +2322,7 @@ async function saveRewardPolicyToDb() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '시상금 DB에 저장하기';
+            btn.innerHTML = '월별시상 시트에 저장하기';
         }
         closeRewardPolicyModal();
         updateReportTablesOnly();
