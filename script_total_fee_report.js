@@ -1880,19 +1880,27 @@ function buildPolicyGridHtml(tabKey) {
             <table class="w-full text-xs text-left border-collapse">
                 <thead class="bg-gray-100 text-gray-700 font-bold border-b border-gray-200">
                     <tr>
-                        <th class="p-2.5 border-r border-gray-200 w-28 text-center">보험사명</th>
+                        <th class="p-2.5 border-r border-gray-200 w-24 sm:w-28 text-center">보험사명</th>
                         <th class="p-2.5 border-r border-gray-200 min-w-[360px]">대표 상품 & 옵션 선택 / 수수료율 (즉시 조회)</th>
-                        <th class="p-2.5 border-r border-gray-200 min-w-[170px]">출력용 표시명 (마스킹)</th>
-                        <th class="p-2.5 border-r border-gray-200 w-20 text-center">익월기본(%)</th>
+                        <th class="p-2.5 border-r border-gray-200 w-36 sm:w-44">출력용 표시명 (마스킹)</th>
                         ${isNonLife ? `
-                            <th class="p-2.5 border-r border-gray-200 w-20 text-center">주차(%)</th>
-                            <th class="p-2.5 border-r border-gray-200 w-20 text-center">연속(%)</th>
-                            <th class="p-2.5 border-r border-gray-200 w-20 text-center">기타(%)</th>
-                            <th class="p-2.5 border-r border-gray-200 w-20 text-center">본사(%)</th>
+                            <th class="p-2 border-r border-gray-200 w-28 text-center">
+                                <div class="text-gray-800 text-[11px] font-bold">익월기본(%)</div>
+                                <div class="text-[10px] text-gray-500 font-normal border-t border-gray-200 mt-0.5 pt-0.5">기타시상(%)</div>
+                            </th>
+                            <th class="p-2 border-r border-gray-200 w-28 text-center">
+                                <div class="text-gray-800 text-[11px] font-bold">주차시상(%)</div>
+                                <div class="text-[10px] text-gray-500 font-normal border-t border-gray-200 mt-0.5 pt-0.5">본사시상(%)</div>
+                            </th>
+                            <th class="p-2 border-r border-gray-200 w-28 text-center">
+                                <div class="text-gray-800 text-[11px] font-bold">연속시상(%)</div>
+                                <div class="text-[10px] text-gray-500 font-normal border-t border-gray-200 mt-0.5 pt-0.5">법인시상(%)</div>
+                            </th>
                         ` : `
-                            <th class="p-2.5 border-r border-gray-200 w-24 text-center">13차월시상(%)</th>
+                            <th class="p-2.5 border-r border-gray-200 w-28 text-center">익월기본(%)</th>
+                            <th class="p-2.5 border-r border-gray-200 w-28 text-center">13차월시상(%)</th>
+                            <th class="p-2.5 border-r border-gray-200 w-28 text-center">법인(%)</th>
                         `}
-                        <th class="p-2.5 border-r border-gray-200 w-20 text-center">법인(%)</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 bg-white">
@@ -1990,33 +1998,64 @@ function buildPolicyGridHtml(tabKey) {
                                     <p class="text-[10px] text-gray-400 mt-1">* 미입력 시 대표상품명 출력</p>
                                 </td>
 
-                                <!-- 익월기본시상 -->
-                                <td class="p-2 border-r border-gray-200 text-center align-top">
-                                    <input type="number" step="10" value="${item['익월기본시상'] || 0}" class="policy-input-next w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
-                                </td>
-
                                 ${isNonLife ? `
-                                    <td class="p-2 border-r border-gray-200 text-center align-top">
-                                        <input type="number" step="10" value="${item['주차시상'] || 0}" class="policy-input-week w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
+                                    <!-- 열 4: 익월(상) / 기타(하) -->
+                                    <td class="p-2 border-r border-gray-200 align-top">
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center justify-between gap-1 bg-amber-50/70 px-1.5 py-1 rounded border border-amber-200/80">
+                                                <span class="text-[10px] font-black text-amber-900 w-7 text-center shrink-0">익월</span>
+                                                <input type="number" step="10" value="${item['익월기본시상'] || 0}" class="policy-input-next w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-900 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                            <div class="flex items-center justify-between gap-1 bg-gray-50 px-1.5 py-1 rounded border border-gray-200">
+                                                <span class="text-[10px] font-bold text-gray-600 w-7 text-center shrink-0">기타</span>
+                                                <input type="number" step="10" value="${item['기타시상'] || 0}" class="policy-input-other w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-800 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="p-2 border-r border-gray-200 text-center align-top">
-                                        <input type="number" step="10" value="${item['연속시상'] || 0}" class="policy-input-cont w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
+
+                                    <!-- 열 5: 주차(상) / 본사(하) -->
+                                    <td class="p-2 border-r border-gray-200 align-top">
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center justify-between gap-1 bg-amber-50/70 px-1.5 py-1 rounded border border-amber-200/80">
+                                                <span class="text-[10px] font-black text-amber-900 w-7 text-center shrink-0">주차</span>
+                                                <input type="number" step="10" value="${item['주차시상'] || 0}" class="policy-input-week w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-900 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                            <div class="flex items-center justify-between gap-1 bg-gray-50 px-1.5 py-1 rounded border border-gray-200">
+                                                <span class="text-[10px] font-bold text-gray-600 w-7 text-center shrink-0">본사</span>
+                                                <input type="number" step="10" value="${item['본사시상'] || 0}" class="policy-input-hq w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-800 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td class="p-2 border-r border-gray-200 text-center align-top">
-                                        <input type="number" step="10" value="${item['기타시상'] || 0}" class="policy-input-other w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
-                                    </td>
-                                    <td class="p-2 border-r border-gray-200 text-center align-top">
-                                        <input type="number" step="10" value="${item['본사시상'] || 0}" class="policy-input-hq w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-gray-800">
+
+                                    <!-- 열 6: 연속(상) / 법인(하) -->
+                                    <td class="p-2 border-r border-gray-200 align-top">
+                                        <div class="space-y-1.5">
+                                            <div class="flex items-center justify-between gap-1 bg-amber-50/70 px-1.5 py-1 rounded border border-amber-200/80">
+                                                <span class="text-[10px] font-black text-amber-900 w-7 text-center shrink-0">연속</span>
+                                                <input type="number" step="10" value="${item['연속시상'] || 0}" class="policy-input-cont w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-900 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                            <div class="flex items-center justify-between gap-1 bg-gray-50 px-1.5 py-1 rounded border border-gray-200">
+                                                <span class="text-[10px] font-bold text-gray-600 w-7 text-center shrink-0">법인</span>
+                                                <input type="number" step="10" value="${item['법인시상'] || 0}" class="policy-input-corp w-14 px-1 py-0.5 border border-gray-300 rounded text-center text-xs font-bold text-gray-700 bg-white focus:border-orange-500 outline-none">
+                                            </div>
+                                        </div>
                                     </td>
                                 ` : `
+                                    <!-- 열 4: 익월기본 -->
                                     <td class="p-2 border-r border-gray-200 text-center align-top">
-                                        <input type="number" step="10" value="${item['13차월시상'] || 0}" class="policy-input-m13 w-20 px-1 py-1 border border-gray-200 rounded text-center text-xs font-bold text-orange-600">
+                                        <input type="number" step="10" value="${item['익월기본시상'] || 0}" class="policy-input-next w-20 px-1 py-1.5 border border-gray-200 rounded text-center text-xs font-bold text-gray-800 focus:border-orange-400 outline-none">
+                                    </td>
+
+                                    <!-- 열 5: 13차월시상 -->
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
+                                        <input type="number" step="10" value="${item['13차월시상'] || 0}" class="policy-input-m13 w-20 px-1 py-1.5 border border-gray-200 rounded text-center text-xs font-bold text-orange-600 focus:border-orange-400 outline-none">
+                                    </td>
+
+                                    <!-- 열 6: 법인시상 -->
+                                    <td class="p-2 border-r border-gray-200 text-center align-top">
+                                        <input type="number" step="10" value="${item['법인시상'] || 0}" class="policy-input-corp w-20 px-1 py-1.5 border border-gray-200 rounded text-center text-xs text-gray-600 focus:border-orange-400 outline-none">
                                     </td>
                                 `}
-
-                                <td class="p-2 border-r border-gray-200 text-center align-top">
-                                    <input type="number" step="10" value="${item['법인시상'] || 0}" class="policy-input-corp w-16 px-1 py-1 border border-gray-200 rounded text-center text-xs text-gray-600">
-                                </td>
                             </tr>
                         `;
                     }).join('')}
