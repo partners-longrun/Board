@@ -734,6 +734,17 @@
                         </div>
                     </div>` : ''}
 
+                    <!-- 3-1. 수수료 예시표 조회 -->
+                    <div onclick="navigate('feeTable')" class="bg-white cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-gray-200 transition-all duration-300 rounded-2xl p-5 border border-gray-100 flex items-center text-left group gap-4">
+                        <div class="w-14 h-14 bg-gray-50 text-slate-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-white transition-colors duration-300 shadow-sm border border-gray-100/50">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800 text-base group-hover:text-primary transition-colors">수수료 예시표 조회</h3>
+                            <p class="text-[11px] text-gray-400 mt-0.5">보험사 및 상품별 실수령 수수료율</p>
+                        </div>
+                    </div>
+
 
 
 
