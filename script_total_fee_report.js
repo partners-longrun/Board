@@ -82,6 +82,7 @@ function getDefaultRewardPolicies(month) {
             '상품구분': '종합건강',
             '대표상품명': d.prod,
             '납입기간': d.payPeriod,
+            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
             '상품명표시': d.prod,
             '시상내용': '',
             '익월기본시상': d.next,
@@ -116,6 +117,7 @@ function getDefaultRewardPolicies(month) {
             '상품구분': '종신보험',
             '대표상품명': d.prod,
             '납입기간': d.payPeriod,
+            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
             '상품명표시': d.prod,
             '시상내용': '',
             '익월기본시상': d.next,
@@ -149,6 +151,7 @@ function getDefaultRewardPolicies(month) {
             '상품구분': '단기납종신',
             '대표상품명': d.prod,
             '납입기간': d.payPeriod,
+            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
             '상품명표시': d.prod,
             '시상내용': '',
             '익월기본시상': d.next,
@@ -182,6 +185,7 @@ function getDefaultRewardPolicies(month) {
             '상품구분': '경영인정기',
             '대표상품명': d.prod,
             '납입기간': d.payPeriod,
+            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
             '상품명표시': d.prod,
             '시상내용': '',
             '익월기본시상': d.next,
@@ -404,6 +408,20 @@ function findInsuranceCompanyKey(catData, company) {
 }
 
 /**
+ * 정책 객체 또는 옵션상세에서 납입기간(납기/만기 등) 안전하게 추출 (납입기간 열 삭제 대응)
+ */
+function extractPayPeriodFromPolicy(item) {
+    if (!item) return '';
+    let opts = {};
+    if (typeof item['옵션상세'] === 'string' && item['옵션상세'].trim()) {
+        try { opts = JSON.parse(item['옵션상세']); } catch (e) { opts = {}; }
+    } else if (item['옵션상세'] && typeof item['옵션상세'] === 'object') {
+        opts = item['옵션상세'];
+    }
+    return opts['납기'] || opts['납입기간'] || opts['만기'] || item['납입기간'] || '';
+}
+
+/**
  * 엑셀 데이터에서 특정 회사의 상품 행들 검색
  */
 function findFeeDataRow(category, company, productName, payPeriod, optDetails) {
@@ -434,6 +452,10 @@ function findFeeDataRow(category, company, productName, payPeriod, optDetails) {
             return true;
         });
         if (matchByOpts) return matchByOpts;
+
+        if (!payPeriod) {
+            payPeriod = optDetails['납기'] || optDetails['납입기간'] || optDetails['만기'] || '';
+        }
     }
 
     // 2. 상품명 및 납입기간 일치 검색
@@ -884,7 +906,7 @@ function buildNonLifeTablePages() {
     const items = policies.map(p => {
         const comp = p['보험사명'];
         const prod = p['대표상품명'] || '';
-        const payPeriod = p['납입기간'] || '';
+        const payPeriod = extractPayPeriodFromPolicy(p);
         const displayName = p['상품명표시'] || prod || `${comp} 종합보험`;
 
         // 엑셀 원본 수수료 찾기 (세부 옵션 매칭 포함)
@@ -1069,7 +1091,7 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
     const items = policies.map(p => {
         const comp = p['보험사명'];
         const prod = p['대표상품명'] || '';
-        const payPeriod = p['납입기간'] || '';
+        const payPeriod = extractPayPeriodFromPolicy(p);
         const displayName = p['상품명표시'] || prod || `${comp} 종신보험`;
 
         // 엑셀 원본 수수료 찾기 (세부 옵션 매칭 포함)
@@ -1750,9 +1772,102 @@ function buildPolicyTabsHtml(curTab) {
 }
 
 /**
- * 모달 내 탭 전환
+ * 현재 열려있는 모달 탭의 입력값들을 totalFeeReportState.policyData 메모리에 즉시 동기화
+ */
+function syncCurrentTabModalToState() {
+    const curTab = totalFeeReportState.activeTab || '손해보험';
+    const isNonLife = curTab === '손해보험';
+    const insCategory = isNonLife ? '손해보험' : '생명보험';
+    const mStr = String(totalFeeReportState.month || '2026.09').replace(/\./g, '');
+
+    const rows = document.querySelectorAll('#reward-policy-grid-container tr[data-comp]');
+    if (!rows || rows.length === 0) return;
+
+    if (!Array.isArray(totalFeeReportState.policyData)) {
+        totalFeeReportState.policyData = [];
+    }
+
+    rows.forEach(tr => {
+        const comp = tr.getAttribute('data-comp');
+        if (!comp) return;
+
+        const prodSelect = tr.querySelector('.policy-product-select') || tr.querySelector('select');
+        const displayInput = tr.querySelector('.policy-input-displayname');
+        const nextInput = tr.querySelector('.policy-input-next');
+        const corpInput = tr.querySelector('.policy-input-corp');
+
+        const prod = prodSelect ? prodSelect.value.trim() : '';
+        const displayName = displayInput ? displayInput.value.trim() : '';
+        const next = nextInput ? (parseFloat(nextInput.value) || 0) : 0;
+        const corp = corpInput ? (parseFloat(corpInput.value) || 0) : 0;
+
+        let payPeriod = tr.getAttribute('data-payperiod') || '';
+        let optJson = tr.getAttribute('data-options-json') || '';
+
+        // 행 내의 모든 옵션 select 박스에서 최신 선택값 수집
+        const optSelects = tr.querySelectorAll('.policy-opt-select');
+        if (optSelects.length > 0) {
+            const optObj = {};
+            optSelects.forEach(sel => {
+                const k = sel.getAttribute('data-optkey');
+                if (k) optObj[k] = sel.value;
+            });
+            optJson = JSON.stringify(optObj);
+            payPeriod = optObj['납기'] || optObj['납입기간'] || optObj['만기'] || payPeriod;
+        }
+
+        let week = 0, cont = 0, other = 0, hq = 0, m13 = 0;
+        if (isNonLife) {
+            const wEl = tr.querySelector('.policy-input-week');
+            const cEl = tr.querySelector('.policy-input-cont');
+            const oEl = tr.querySelector('.policy-input-other');
+            const hEl = tr.querySelector('.policy-input-hq');
+            week = wEl ? (parseFloat(wEl.value) || 0) : 0;
+            cont = cEl ? (parseFloat(cEl.value) || 0) : 0;
+            other = oEl ? (parseFloat(oEl.value) || 0) : 0;
+            hq = hEl ? (parseFloat(hEl.value) || 0) : 0;
+        } else {
+            const m13El = tr.querySelector('.policy-input-m13');
+            m13 = m13El ? (parseFloat(m13El.value) || 0) : 0;
+        }
+
+        // totalFeeReportState.policyData 내 기존 항목 갱신 또는 추가
+        let existingIdx = totalFeeReportState.policyData.findIndex(p => p['보험사명'] === comp && (isNonLife ? p['보험사구분'] === '손해보험' : p['상품구분'] === curTab));
+        const newObj = {
+            '마감월': mStr,
+            '보험사구분': insCategory,
+            '보험사명': comp,
+            '상품구분': isNonLife ? '종합건강' : curTab,
+            '대표상품명': prod,
+            '납입기간': payPeriod,
+            '옵션상세': optJson,
+            '상품명표시': displayName,
+            '시상내용': '',
+            '익월기본시상': next,
+            '13차월시상': m13,
+            '주차시상': week,
+            '연속시상': cont,
+            '기타시상': other,
+            '본사시상': hq,
+            '법인시상': corp,
+            '임시시상': 0
+        };
+
+        if (existingIdx !== -1) {
+            totalFeeReportState.policyData[existingIdx] = Object.assign({}, totalFeeReportState.policyData[existingIdx], newObj);
+        } else {
+            totalFeeReportState.policyData.push(newObj);
+        }
+    });
+}
+
+/**
+ * 모달 내 탭 전환 (이전 탭 입력값 메모리 자동 보존)
  */
 function switchRewardPolicyTab(tabKey) {
+    // 1. 현재 탭의 변경 내용을 먼저 메모리에 완벽 보존
+    syncCurrentTabModalToState();
+
     totalFeeReportState.activeTab = tabKey;
     const tabsBar = document.getElementById('reward-policy-modal-tabs');
     if (tabsBar) {
@@ -2343,83 +2458,8 @@ function closeRewardPolicyModal() {
  * 모달에서 입력된 정책을 메모리에 수집하고 스프레드시트 DB에 저장
  */
 async function saveRewardPolicyToDb() {
-    const curTab = totalFeeReportState.activeTab || '손해보험';
-    const isNonLife = curTab === '손해보험';
-    const insCategory = isNonLife ? '손해보험' : '생명보험';
-    const mStr = String(totalFeeReportState.month || '2026.09').replace(/\./g, '');
-
-    // 1. 현재 화면의 모든 행 입력값 수집
-    const rows = document.querySelectorAll('#reward-policy-grid-container tr[data-comp]');
-    rows.forEach(tr => {
-        const comp = tr.getAttribute('data-comp');
-        const prodSelect = tr.querySelector('.policy-product-select') || tr.querySelector('select');
-        const displayInput = tr.querySelector('.policy-input-displayname');
-        const nextInput = tr.querySelector('.policy-input-next');
-        const corpInput = tr.querySelector('.policy-input-corp');
-
-        const prod = prodSelect ? prodSelect.value.trim() : '';
-        const displayName = displayInput ? displayInput.value.trim() : '';
-        const next = nextInput ? (parseFloat(nextInput.value) || 0) : 0;
-        const corp = corpInput ? (parseFloat(corpInput.value) || 0) : 0;
-
-        let payPeriod = tr.getAttribute('data-payperiod') || '';
-        let optJson = tr.getAttribute('data-options-json') || '';
-
-        // 행 내의 모든 옵션 select 박스에서 최신 선택값 수집
-        const optSelects = tr.querySelectorAll('.policy-opt-select');
-        if (optSelects.length > 0) {
-            const optObj = {};
-            optSelects.forEach(sel => {
-                const k = sel.getAttribute('data-optkey');
-                if (k) optObj[k] = sel.value;
-            });
-            optJson = JSON.stringify(optObj);
-            payPeriod = optObj['납기'] || optObj['납입기간'] || optObj['만기'] || payPeriod;
-        }
-
-        let week = 0, cont = 0, other = 0, hq = 0, m13 = 0;
-        if (isNonLife) {
-            const wEl = tr.querySelector('.policy-input-week');
-            const cEl = tr.querySelector('.policy-input-cont');
-            const oEl = tr.querySelector('.policy-input-other');
-            const hEl = tr.querySelector('.policy-input-hq');
-            week = wEl ? (parseFloat(wEl.value) || 0) : 0;
-            cont = cEl ? (parseFloat(cEl.value) || 0) : 0;
-            other = oEl ? (parseFloat(oEl.value) || 0) : 0;
-            hq = hEl ? (parseFloat(hEl.value) || 0) : 0;
-        } else {
-            const m13El = tr.querySelector('.policy-input-m13');
-            m13 = m13El ? (parseFloat(m13El.value) || 0) : 0;
-        }
-
-        // totalFeeReportState.policyData 내 기존 항목 갱신 또는 추가
-        let existingIdx = totalFeeReportState.policyData.findIndex(p => p['보험사명'] === comp && (isNonLife ? p['보험사구분'] === '손해보험' : p['상품구분'] === curTab));
-        const newObj = {
-            '마감월': mStr,
-            '보험사구분': insCategory,
-            '보험사명': comp,
-            '상품구분': isNonLife ? '종합건강' : curTab,
-            '대표상품명': prod,
-            '납입기간': payPeriod,
-            '옵션상세': optJson,
-            '상품명표시': displayName,
-            '시상내용': '',
-            '익월기본시상': next,
-            '13차월시상': m13,
-            '주차시상': week,
-            '연속시상': cont,
-            '기타시상': other,
-            '본사시상': hq,
-            '법인시상': corp,
-            '임시시상': 0
-        };
-
-        if (existingIdx !== -1) {
-            totalFeeReportState.policyData[existingIdx] = newObj;
-        } else {
-            totalFeeReportState.policyData.push(newObj);
-        }
-    });
+    // 1. 현재 열려있는 탭의 최신 입력값을 policyData에 먼저 동기화
+    syncCurrentTabModalToState();
 
     const btn = document.getElementById('save-reward-policy-btn');
     if (btn) {
