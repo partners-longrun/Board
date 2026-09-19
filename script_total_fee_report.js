@@ -926,12 +926,35 @@ function buildNonLifeTablePages() {
         const feeSubTotal = feeNext + feeM7_11 + feeM13 + feeM14 + Math.max(feeM15, 0);
 
         // 시상금 항목들
-        const rewNext = parseFloat(p['익월기본시상']) || 0;
+        const rawNext = parseFloat(p['익월기본시상']) || 0;
         const rewWeek = parseFloat(p['주차시상']) || 0;
         const rewCont = parseFloat(p['연속시상']) || 0;
         const rewOther = parseFloat(p['기타시상']) || 0;
-        const rewHq = parseFloat(p['본사시상']) || 0;
-        const rewSubTotal = rewWeek + rewCont + rewOther + rewHq;
+        const rawHq = parseFloat(p['본사시상']) || 0;
+        const rawCorp = parseFloat(p['법인시상']) || 0;
+
+        // 수당규정 판별: Super vs (Success, 사업단장)
+        const isSuper = (state.preset === 'Super') || (!['Success', '사업단장'].includes(state.preset) && (parseFloat(state.nonLifeRate) || 84) === 84);
+
+        let rewNext = rawNext;
+        let rewHq = rawHq;
+
+        if (isSuper) {
+            // Super 수당규정:
+            // 1) 법인시상을 익월에 포함해서 지급
+            rewNext = rawNext + rawCorp;
+            // 2) 2차년에 본사시상을 지급하지 않음
+            rewHq = 0;
+        } else {
+            // Success, 사업단장 수당규정:
+            // 1) 법인시상 지급하지 않음
+            rewNext = rawNext;
+            // 2) 2차년에 본사시상을 지급
+            rewHq = rawHq;
+        }
+
+        // 시상 소계 = 익월시상 + 주차 + 연속 + 기타 + 본사
+        const rewSubTotal = rewNext + rewWeek + rewCont + rewOther + rewHq;
 
         // 합계 산출
         const nextMonthTotal = feeNext + rewNext;
@@ -978,40 +1001,54 @@ function buildNonLifeTablePages() {
         pages.push(items.slice(i, i + pageSize));
     }
 
+    const isSuperPreset = (state.preset === 'Super') || (!['Success', '사업단장'].includes(state.preset) && (parseFloat(state.nonLifeRate) || 84) === 84);
+
     return pages.map((pageItems, pageIdx) => `
         <div class="a4-page bg-white shadow-xl p-8 flex flex-col justify-between">
             <div>
-                <!-- 상단 타이틀 바 -->
-                <div class="flex items-center justify-between border-2 border-gray-900 rounded-lg p-3 bg-gray-50 mb-4">
-                    <h2 class="text-lg font-black text-gray-900" id="report-title-display-손해보험">
-                        ${state.titles['손해보험']}
-                    </h2>
-                    <div class="px-4 py-1 bg-indigo-900 text-white text-xs font-black rounded">
-                        손해보험
+                ${pageIdx === 0 ? `
+                    <!-- 상단 타이틀 바 (첫 장에만 표시) -->
+                    <div class="flex items-center justify-between border-2 border-gray-900 rounded-lg p-3 bg-gray-50 mb-4">
+                        <h2 class="text-lg font-black text-gray-900" id="report-title-display-손해보험">
+                            ${state.titles['손해보험']}
+                        </h2>
+                        <div class="px-4 py-1 bg-indigo-900 text-white text-xs font-black rounded">
+                            손해보험
+                        </div>
                     </div>
-                </div>
 
-                <!-- 안내 문구 및 기준일 -->
-                <div class="flex justify-between items-end text-[11px] text-gray-600 mb-4 pb-2 border-b border-gray-200">
-                    <div class="space-y-0.5">
-                        <div>· 인보험, 20년납, 수정률 240% 기준</div>
-                        <div>· 시상은 손보 월 합산실적 20만원 이상인 경우, 실적구간 없이 지급</div>
-                        <div>· 기타 항목은 '클럽(멤버십)', '주력상품/신규상품', '물품', '여행' 시상 등을 합하여 표시함</div>
+                    <!-- 안내 문구 및 기준일 (첫 장에만 표시) -->
+                    <div class="flex justify-between items-end text-[11px] text-gray-600 mb-4 pb-2 border-b border-gray-200">
+                        <div class="space-y-0.5">
+                            <div>· 인보험, 20년납, 수정률 240% 기준</div>
+                            ${isSuperPreset ? `
+                                <div>· 시상은 손보 월 합산실적 20만원 이상인 경우, 실적구간 없이 지급<br>&nbsp;&nbsp;(월 합산실적이 20만원 미만인 경우, Success 수당규정에 따라 지급)</div>
+                            ` : `
+                                <div>· 시상은 손보 월 합산실적 10만원 이상인 경우, 실적구간 없이 지급<br>&nbsp;&nbsp;(월 합산실적이 10만원 미만인 경우, 보험사 시상만 지급)</div>
+                            `}
+                            <div>· 2차년 시상은 13차월 유지시 15차월에 지급</div>
+                            <div>· 기타 항목은 '클럽(멤버십)', '주력상품/신규상품', '물품', '여행' 시상 등을 합하여 표시함</div>
+                        </div>
+                        <div class="text-right shrink-0 ml-4">
+                            <div class="font-bold text-gray-800">※ ${state.weekText}</div>
+                            <div class="text-gray-500 text-[10px]">(${nonLifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <div class="font-bold text-gray-800">※ ${state.weekText}</div>
-                        <div class="text-gray-500 text-[10px]">(${nonLifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                ` : `
+                    <!-- 2페이지 이후: 상단 여백 및 미니 헤더 -->
+                    <div class="flex justify-between items-center text-[10.5px] text-gray-500 pb-2 mb-3 border-b border-gray-100">
+                        <span class="font-bold text-gray-700">${state.titles['손해보험']} (계속)</span>
+                        <span>※ ${state.weekText} (${nonLifeSort === 'total' ? '총합계 순' : '익월합계 순'})</span>
                     </div>
-                </div>
+                `}
 
                 <!-- 회사별 테이블 블록들 -->
                 <div class="space-y-4">
                     ${pageItems.map(item => `
                         <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
-                            <!-- 헤더: 회사명 & 대표상품 -->
+                            <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
                             <div class="bg-gray-100/90 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
-                                ${item.payPeriod ? `<span class="text-[10px] text-gray-500 font-normal">(${item.payPeriod})</span>` : ''}
                             </div>
 
                             <table class="w-full border-collapse">
@@ -1164,34 +1201,42 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
     return pages.map((pageItems, pageIdx) => `
         <div class="a4-page bg-white shadow-xl p-8 flex flex-col justify-between">
             <div>
-                <!-- 상단 타이틀 바 -->
-                <div class="flex items-center justify-between border-2 border-gray-900 rounded-lg p-3 bg-gray-50 mb-4">
-                    <h2 class="text-lg font-black text-gray-900" id="report-title-display-${catKey}">
-                        ${state.titles[catKey]}
-                    </h2>
-                    <div class="px-4 py-1 text-white text-xs font-black rounded" style="background-color: ${badgeColor};">
-                        ${badgeLabels[catKey] || catKey}
+                ${pageIdx === 0 ? `
+                    <!-- 상단 타이틀 바 (첫 장에만 표시) -->
+                    <div class="flex items-center justify-between border-2 border-gray-900 rounded-lg p-3 bg-gray-50 mb-4">
+                        <h2 class="text-lg font-black text-gray-900" id="report-title-display-${catKey}">
+                            ${state.titles[catKey]}
+                        </h2>
+                        <div class="px-4 py-1 text-white text-xs font-black rounded" style="background-color: ${badgeColor};">
+                            ${badgeLabels[catKey] || catKey}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 안내 문구 및 기준일 -->
-                <div class="flex justify-between items-end text-[11px] text-gray-600 mb-4 pb-2 border-b border-gray-200">
-                    <div class="space-y-0.5">
-                        <div>${subDesc}</div>
+                    <!-- 안내 문구 및 기준일 (첫 장에만 표시) -->
+                    <div class="flex justify-between items-end text-[11px] text-gray-600 mb-4 pb-2 border-b border-gray-200">
+                        <div class="space-y-0.5">
+                            <div>${subDesc}</div>
+                        </div>
+                        <div class="text-right shrink-0 ml-4">
+                            <div class="font-bold text-gray-800">※ ${state.weekText}</div>
+                            <div class="text-gray-500 text-[10px]">(${lifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <div class="font-bold text-gray-800">※ ${state.weekText}</div>
-                        <div class="text-gray-500 text-[10px]">(${lifeSort === 'total' ? '총합계 순' : '익월합계 순'})</div>
+                ` : `
+                    <!-- 2페이지 이후: 상단 여백 및 미니 헤더 -->
+                    <div class="flex justify-between items-center text-[10.5px] text-gray-500 pb-2 mb-3 border-b border-gray-100">
+                        <span class="font-bold text-gray-700">${state.titles[catKey]} (계속)</span>
+                        <span>※ ${state.weekText} (${lifeSort === 'total' ? '총합계 순' : '익월합계 순'})</span>
                     </div>
-                </div>
+                `}
 
                 <!-- 회사별 테이블 블록들 -->
                 <div class="space-y-3.5">
                     ${pageItems.map(item => `
                         <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
+                            <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
                             <div class="bg-gray-100/90 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
-                                ${item.payPeriod ? `<span class="text-[10px] text-gray-500 font-normal">(${item.payPeriod})</span>` : ''}
                             </div>
 
                             <table class="w-full border-collapse">
