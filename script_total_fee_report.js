@@ -1034,11 +1034,17 @@ function buildNonLifeTablePages() {
         items.sort((a, b) => b.nextMonthTotal - a.nextMonthTotal);
     }
 
-    // A4 1페이지당 4~5개 회사 배치
-    const pageSize = 4;
+    // A4 페이지 분할 (1페이지 5개, 2페이지 6개로 총 11개사를 2장에 최적 수용)
     const pages = [];
-    for (let i = 0; i < items.length; i += pageSize) {
-        pages.push(items.slice(i, i + pageSize));
+    if (items.length <= 5) {
+        pages.push(items);
+    } else {
+        pages.push(items.slice(0, 5));
+        const remaining = items.slice(5);
+        const pageSize2 = 6;
+        for (let i = 0; i < remaining.length; i += pageSize2) {
+            pages.push(remaining.slice(i, i + pageSize2));
+        }
     }
 
     const isSuperPreset = (state.preset === 'Super') || (!['Success', '사업단장'].includes(state.preset) && (parseFloat(state.nonLifeRate) || 84) === 84);
@@ -1082,8 +1088,8 @@ function buildNonLifeTablePages() {
                     </div>
                 `}
 
-                <!-- 회사별 테이블 블록들 -->
-                <div class="space-y-4">
+                <!-- 회사별 테이블 블록들 (1페이지는 2배 간격 28px, 6개가 들어가는 2페이지는 20px로 최적 분배) -->
+                <div class="${pageIdx === 0 ? 'space-y-7' : 'space-y-5'}">
                     ${pageItems.map(item => `
                         <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
                             <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
@@ -1143,7 +1149,7 @@ function buildNonLifeTablePages() {
                                         </td>
                                         <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
                                         <!-- 익월합계는 위에서 병합됨 -->
-                                        <td colspan="4" class="py-2 px-1 text-[9.5px] text-gray-600 text-right border-r border-gray-200 space-x-1.5 truncate">
+                                        <td colspan="4" class="py-2 px-2 text-[11px] font-medium text-gray-700 text-right border-r border-gray-200 space-x-2">
                                             ${item.reward.hq > 0 ? `<span>(본사) ${item.reward.hq}%</span>` : ''}
                                             ${item.reward.week > 0 ? `<span>(주차) ${item.reward.week}%</span>` : ''}
                                             ${item.reward.cont > 0 ? `<span>(연속) ${item.reward.cont}%</span>` : ''}
@@ -1286,8 +1292,8 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                     </div>
                 `}
 
-                <!-- 회사별 테이블 블록들 -->
-                <div class="space-y-3.5">
+                <!-- 회사별 테이블 블록들 (기존의 2배 간격: space-y-7) -->
+                <div class="space-y-7">
                     ${pageItems.map(item => `
                         <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
                             <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
@@ -1343,7 +1349,7 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                                         <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">시상금</td>
                                         <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
-                                        <td class="py-2 px-1 font-semibold text-orange-600 border-r border-gray-200">${item.reward.m13 > 0 ? `${item.reward.m13}%` : '-'}</td>
+                                        <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.m13 > 0 ? `${item.reward.m13}%` : '-'}</td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
