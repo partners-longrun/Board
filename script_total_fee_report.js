@@ -23,7 +23,7 @@ var totalFeeReportState = {
     sortBy: 'nextMonth', // 'nextMonth' (익월합계순) | 'total' (총합계순)
     sortBys: {
         '손해보험': 'nextMonth',
-        '종신보험': 'nextMonth',
+        '종신보험': 'total',
         '단기납종신': 'nextMonth',
         '경영인정기': 'nextMonth'
     },
@@ -288,6 +288,10 @@ async function fetchRewardPolicyData(month) {
 function setTotalFeePreset(presetName) {
     totalFeeReportState.preset = presetName;
 
+    if (!totalFeeReportState.sortBys) {
+        totalFeeReportState.sortBys = {};
+    }
+
     if (presetName === '사업단장') {
         totalFeeReportState.nonLifeRate = 92;
         totalFeeReportState.lifeRate = 90;
@@ -295,6 +299,11 @@ function setTotalFeePreset(presetName) {
         totalFeeReportState.titles['종신보험'] = '사업단장 수당규정 총수당 예시표 : 생명보험';
         totalFeeReportState.titles['단기납종신'] = '사업단장 수당규정 총수당 예시표 : 단기납 종신보험';
         totalFeeReportState.titles['경영인정기'] = '사업단장 수당규정 총수당 예시표 : 경영인정기';
+        // Success / 사업단장 디폴트 정렬: 손보(총합순), 종신(총합순), 단기납(익월순), 경영인(익월순)
+        totalFeeReportState.sortBys['손해보험'] = 'total';
+        totalFeeReportState.sortBys['종신보험'] = 'total';
+        totalFeeReportState.sortBys['단기납종신'] = 'nextMonth';
+        totalFeeReportState.sortBys['경영인정기'] = 'nextMonth';
     } else if (presetName === 'Super') {
         totalFeeReportState.nonLifeRate = 84;
         totalFeeReportState.lifeRate = 79;
@@ -302,6 +311,11 @@ function setTotalFeePreset(presetName) {
         totalFeeReportState.titles['종신보험'] = 'Super 수당규정 총수당 예시표 : 생명보험';
         totalFeeReportState.titles['단기납종신'] = 'Super 수당규정 총수당 예시표 : 단기납 종신보험';
         totalFeeReportState.titles['경영인정기'] = 'Super 수당규정 총수당 예시표 : 경영인정기';
+        // Super 디폴트 정렬: 손보(익월순), 종신(총합순), 단기납(익월순), 경영인(익월순)
+        totalFeeReportState.sortBys['손해보험'] = 'nextMonth';
+        totalFeeReportState.sortBys['종신보험'] = 'total';
+        totalFeeReportState.sortBys['단기납종신'] = 'nextMonth';
+        totalFeeReportState.sortBys['경영인정기'] = 'nextMonth';
     } else if (presetName === 'Success') {
         totalFeeReportState.nonLifeRate = 84;
         totalFeeReportState.lifeRate = 73;
@@ -309,6 +323,11 @@ function setTotalFeePreset(presetName) {
         totalFeeReportState.titles['종신보험'] = 'Success 수당규정 총수당 예시표 : 생명보험';
         totalFeeReportState.titles['단기납종신'] = 'Success 수당규정 총수당 예시표 : 단기납 종신보험';
         totalFeeReportState.titles['경영인정기'] = 'Success 수당규정 총수당 예시표 : 경영인정기';
+        // Success / 사업단장 디폴트 정렬: 손보(총합순), 종신(총합순), 단기납(익월순), 경영인(익월순)
+        totalFeeReportState.sortBys['손해보험'] = 'total';
+        totalFeeReportState.sortBys['종신보험'] = 'total';
+        totalFeeReportState.sortBys['단기납종신'] = 'nextMonth';
+        totalFeeReportState.sortBys['경영인정기'] = 'nextMonth';
     } else {
         totalFeeReportState.preset = 'custom';
     }
@@ -1088,7 +1107,7 @@ function buildNonLifeTablePages() {
                                     <!-- 시상 행 -->
                                     <tr>
                                         <td class="py-1 px-2 font-bold bg-gray-50 text-gray-700 border-r border-gray-200 leading-tight">
-                                            시상<br><span class="text-[10px] text-gray-500 font-normal">(기본+본사)</span>
+                                            시상금
                                         </td>
                                         <td class="py-1 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
                                         <!-- 익월합계는 위에서 병합됨 -->
