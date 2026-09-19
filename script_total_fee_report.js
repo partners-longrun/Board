@@ -937,12 +937,33 @@ function buildNonLifeTablePages() {
         const rates = (rawRow && rawRow.rates) ? rawRow.rates : { first: 550, year1: 850, m13: 85, year2: 170, total: 850 };
 
         // 수수료율 계산 (원본 × 지급율)
+        const feeYear1 = Math.round((rates.year1 || 0) * rateFactor);
+        const feeYear2 = Math.round((rates.year2 || 0) * rateFactor);
         const feeNext = Math.round((rates.first || 0) * rateFactor);
-        const feeM7_11 = 0;
+        const feeM7_11 = Math.max(feeYear1 - feeNext, 0);
         const feeM13 = Math.round((rates.m13 || 0) * rateFactor);
-        const feeM14 = Math.round((rates.m13 || 0) * rateFactor);
-        const feeM15 = Math.round(((rates.year2 || 0) - (rates.m13 || 0) * 2) * rateFactor);
-        const feeSubTotal = feeNext + feeM7_11 + feeM13 + feeM14 + Math.max(feeM15, 0);
+
+        let feeM14 = feeM13;
+        let feeM15 = Math.max(feeYear2 - (feeM13 + feeM14), 0);
+
+        // 한화손보, 메리츠, AIG손보 특수 처리
+        if (comp.includes('메리츠')) {
+            // 메리츠: 15차월 없음(0), 14차월이 2차년 잔여 전체
+            feeM14 = Math.max(feeYear2 - feeM13, 0);
+            feeM15 = 0;
+        } else if (comp.includes('한화손보') || comp.includes('한화손해')) {
+            // 한화손보: 13차월 지급 후 잔여 2차년을 14차월과 15차월에 균등 배분
+            const remain = Math.max(feeYear2 - feeM13, 0);
+            feeM14 = Math.round(remain / 2);
+            feeM15 = Math.max(remain - feeM14, 0);
+        } else if (comp.includes('AIG')) {
+            // AIG손보: 잔여분의 약 55%를 14차월, 나머지를 15차월 이상에 배분
+            const remain = Math.max(feeYear2 - feeM13, 0);
+            feeM14 = Math.round(remain * 0.55);
+            feeM15 = Math.max(remain - feeM14, 0);
+        }
+
+        const feeSubTotal = feeNext + feeM7_11 + feeM13 + feeM14 + feeM15;
 
         // 시상금 항목들
         const rawNext = parseFloat(p['익월기본시상']) || 0;
@@ -1158,13 +1179,18 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
         const rawRow = findFeeDataRow('생명보험', comp, prod, payPeriod, optDetails);
         const rates = (rawRow && rawRow.rates) ? rawRow.rates : { first: 600, year1: 800, m13: 200, year2: 300, year3: 200, total: 1500 };
 
+        const feeYear1 = Math.round((rates.year1 || 0) * rateFactor);
+        const feeYear2 = Math.round((rates.year2 || 0) * rateFactor);
+        const feeYear3 = Math.round((rates.year3 || 0) * rateFactor);
+        const feeTotal = Math.round((rates.total || 0) * rateFactor);
+
         const feeNext = Math.round((rates.first || 0) * rateFactor);
-        const feeM7_12 = 0;
+        const feeM7_12 = Math.max(feeYear1 - feeNext, 0);
         const feeM13 = Math.round((rates.m13 || 0) * rateFactor);
-        const feeY2 = Math.round(((rates.year2 || 0) - (rates.m13 || 0)) * rateFactor);
-        const feeY3 = Math.round((rates.year3 || 0) * rateFactor);
-        const feeY4 = Math.round(((rates.total || 0) - (rates.year1 || 0) - (rates.year2 || 0) - (rates.year3 || 0)) * rateFactor);
-        const feeSubTotal = feeNext + feeM7_12 + feeM13 + Math.max(feeY2, 0) + Math.max(feeY3, 0) + Math.max(feeY4, 0);
+        const feeY2 = Math.max(feeYear2 - feeM13, 0);
+        const feeY3 = feeYear3;
+        const feeY4 = Math.max(feeTotal - (feeYear1 + feeYear2 + feeYear3), 0);
+        const feeSubTotal = feeNext + feeM7_12 + feeM13 + feeY2 + feeY3 + feeY4;
 
         const rewNext = parseFloat(p['익월기본시상']) || 0;
         const rewM13 = parseFloat(p['13차월시상']) || 0;
