@@ -363,6 +363,47 @@ function setCategorySortBy(catKey, sortBy) {
 }
 
 /**
+ * 보험사명 정규화 및 안전 매칭 헬퍼
+ * - KDB생명과 DB생명이 서로 오매칭되지 않도록 엄격 분기
+ * - KB라이프와 KDB생명, DB손보 등 오매칭 원천 차단
+ */
+function findInsuranceCompanyKey(catData, company) {
+    if (!catData || !company) return null;
+    const keys = Object.keys(catData);
+    if (keys.length === 0) return null;
+
+    // 1. 정확한 일치 (Exact match)
+    const exact = keys.find(k => k === company);
+    if (exact) return exact;
+
+    // 2. 공백 제거 후 일치
+    const cleanComp = String(company).replace(/\s+/g, '');
+    const cleanExact = keys.find(k => k.replace(/\s+/g, '') === cleanComp);
+    if (cleanExact) return cleanExact;
+
+    // 3. 특수 회사 분기 (KDB vs DB, KB vs KDB 오매칭 방지)
+    if (cleanComp.includes('KDB')) {
+        return keys.find(k => k.includes('KDB')) || null;
+    }
+    if (cleanComp.startsWith('DB') || cleanComp === 'DB생명' || cleanComp === 'DB손보') {
+        return keys.find(k => !k.includes('KDB') && (k.includes('DB') || k.startsWith('DB'))) || null;
+    }
+    if (cleanComp.startsWith('KB') || cleanComp.includes('KB')) {
+        return keys.find(k => !k.includes('KDB') && (k.includes('KB') || k.startsWith('KB'))) || null;
+    }
+
+    // 4. 일반적인 매칭 (k.includes(company) 또는 company.includes(k))
+    // 단, 타겟 회사명과의 길이 차이가 가장 적은 후보 우선 선택
+    const candidates = keys.filter(k => k.includes(company) || company.includes(k));
+    if (candidates.length > 0) {
+        candidates.sort((a, b) => Math.abs(a.length - company.length) - Math.abs(b.length - company.length));
+        return candidates[0];
+    }
+
+    return null;
+}
+
+/**
  * 엑셀 데이터에서 특정 회사의 상품 행들 검색
  */
 function findFeeDataRow(category, company, productName, payPeriod, optDetails) {
@@ -371,8 +412,8 @@ function findFeeDataRow(category, company, productName, payPeriod, optDetails) {
     const catData = FEE_TABLE_DATA.categories[category];
     if (!catData) return null;
 
-    // 회사명 정규화 매칭
-    let compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    // 회사명 정규화 매칭 (findInsuranceCompanyKey 사용)
+    let compKey = findInsuranceCompanyKey(catData, company);
     if (!compKey) return null;
 
     const rows = catData[compKey] || [];
@@ -1775,40 +1816,44 @@ function buildModalFeeRatesHtml(matchedRow, isNonLife) {
     const curRate = parseFloat(isNonLife ? state.nonLifeRate : state.lifeRate) || (isNonLife ? 84 : 79);
     const rateFactor = curRate / 100;
 
-    const calcFirst = rates.first ? Math.round(rates.first * rateFactor) : '-';
-    const calcTotal = rates.total ? Math.round(rates.total * rateFactor) : '-';
+    const fmtAppliedRate = (val) => {
+        if (val == null || val === undefined || isNaN(val)) return '-';
+        const calc = val * rateFactor;
+        const rounded = Math.round(calc * 10) / 10;
+        return rounded + '%';
+    };
 
     return `
         <div class="p-2 bg-amber-50/80 border border-amber-200/90 rounded-xl text-[11px] text-gray-800 space-y-1 shadow-xs">
             <div class="flex items-center justify-between pb-1 border-b border-amber-200/60">
                 <span class="font-black text-amber-900 flex items-center gap-1">
                     <svg class="w-3.5 h-3.5 text-orange-500 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    기준 수수료율 (100% 원본)
+                    수수료율 (지급율 ${curRate}% 적용)
                 </span>
-                <span class="text-[10px] text-orange-800 font-extrabold bg-orange-100/80 px-1.5 py-0.5 rounded">
-                    지급율 ${curRate}% 적용 시: 1회차 ${calcFirst}% / 총수수료 ${calcTotal}%
+                <span class="text-[10px] text-orange-800 font-extrabold bg-orange-100/80 px-2 py-0.5 rounded">
+                    ${state.preset || 'Super'} 규정 기준 (${isNonLife ? '손보' : '생보'} ${curRate}%)
                 </span>
             </div>
             <div class="grid grid-cols-5 gap-1 text-center font-bold">
                 <div class="bg-white p-1 rounded-lg border border-amber-200/60">
                     <div class="text-[9.5px] text-gray-500 font-medium">1회차</div>
-                    <div class="text-indigo-600 font-black">${rates.first != null ? rates.first + '%' : '-'}</div>
+                    <div class="text-indigo-600 font-black">${fmtAppliedRate(rates.first)}</div>
                 </div>
                 <div class="bg-white p-1 rounded-lg border border-amber-200/60">
                     <div class="text-[9.5px] text-gray-500 font-medium">1차년도합계</div>
-                    <div class="text-indigo-600 font-black">${rates.year1 != null ? rates.year1 + '%' : '-'}</div>
+                    <div class="text-indigo-600 font-black">${fmtAppliedRate(rates.year1)}</div>
                 </div>
                 <div class="bg-white p-1 rounded-lg border border-amber-200/60">
                     <div class="text-[9.5px] text-gray-500 font-medium">13차월</div>
-                    <div class="text-indigo-600 font-black">${rates.m13 != null ? rates.m13 + '%' : '-'}</div>
+                    <div class="text-indigo-600 font-black">${fmtAppliedRate(rates.m13)}</div>
                 </div>
                 <div class="bg-white p-1 rounded-lg border border-amber-200/60">
                     <div class="text-[9.5px] text-gray-500 font-medium">2차년도합계</div>
-                    <div class="text-indigo-600 font-black">${rates.year2 != null ? rates.year2 + '%' : '-'}</div>
+                    <div class="text-indigo-600 font-black">${fmtAppliedRate(rates.year2)}</div>
                 </div>
                 <div class="bg-white p-1 rounded-lg border border-amber-200/60">
                     <div class="text-[9.5px] text-gray-500 font-medium">총합계</div>
-                    <div class="text-emerald-700 font-black">${rates.total != null ? rates.total + '%' : '-'}</div>
+                    <div class="text-emerald-700 font-black">${fmtAppliedRate(rates.total)}</div>
                 </div>
             </div>
         </div>
@@ -1941,8 +1986,8 @@ function buildPolicyGridHtml(tabKey) {
                             };
                         }
 
-                        // 해당 회사의 엑셀 상품 목록 추출
-                        let compKey = Object.keys(catData || {}).find(k => k === comp || k.includes(comp) || comp.includes(k));
+                        // 해당 회사의 엑셀 상품 목록 추출 (findInsuranceCompanyKey로 안전 매칭: KDB vs DB 오매칭 방지)
+                        let compKey = findInsuranceCompanyKey(catData || {}, comp);
                         const compRows = compKey ? (catData[compKey] || []) : [];
                         const uniqueProducts = Array.from(new Set(compRows.map(r => r.product))).filter(Boolean);
 
@@ -2147,7 +2192,7 @@ function onPolicyProductSelect(selectEl, company, tabKey) {
 
     // 3. 해당 회사의 상품 옵션 컨트롤 렌더링
     const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
-    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compKey = findInsuranceCompanyKey(catData, company);
     const compRows = compKey ? (catData[compKey] || []) : [];
 
     if (optionsBox) {
@@ -2171,7 +2216,7 @@ function onPolicyOptionChange(selectEl, company, tabKey) {
     const prodName = prodSelect ? prodSelect.value : '';
 
     const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
-    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compKey = findInsuranceCompanyKey(catData, company);
     const compRows = compKey ? (catData[compKey] || []) : [];
     const matchedRows = compRows.filter(r => r.product === prodName);
 
@@ -2226,7 +2271,7 @@ function updateModalRowFeeDisplay(row, company, tabKey) {
     }
 
     const catData = (FEE_TABLE_DATA && FEE_TABLE_DATA.categories) ? (FEE_TABLE_DATA.categories[insCategory] || {}) : {};
-    const compKey = Object.keys(catData).find(k => k === company || k.includes(company) || company.includes(k));
+    const compKey = findInsuranceCompanyKey(catData, company);
     const compRows = compKey ? (catData[compKey] || []) : [];
     const matchedRows = compRows.filter(r => r.product === prodName);
 
