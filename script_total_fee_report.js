@@ -1091,54 +1091,65 @@ function buildNonLifeTablePages() {
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
                             </div>
 
-                            <table class="w-full border-collapse">
+                            <table class="w-full table-fixed border-collapse">
+                                <colgroup>
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 12.12%;">
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 10.10%;">
+                                    <col style="width: 12.12%;">
+                                    <col style="width: 15.26%;">
+                                </colgroup>
                                 <thead>
                                     <tr class="bg-[#2e7b88] text-white text-[11px] font-bold">
-                                        <th class="py-1.5 px-2 border-r border-teal-600/50 w-20">지급항목</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50">익월</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50">7~11차월</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50">13차월</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50">14차월</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50">15차월</th>
-                                        <th class="py-1.5 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
-                                        <th class="py-1.5 px-2 bg-[#1b5059]">총합계</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">지급항목</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">익월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">7~12차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">13차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">14차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">15차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
+                                        <th class="py-2.5 px-1 bg-[#1b5059]">총합계</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <!-- 수수료 행 -->
                                     <tr class="border-b border-gray-200">
-                                        <td class="py-1 px-2 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
-                                        <td class="py-1 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
+                                        <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
+                                        <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
                                         <!-- 익월합계 세로 병합 셀 -->
-                                        <td rowspan="2" class="py-1 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
                                             ${item.nextMonthTotal}%
                                         </td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_11}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m13}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m14}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m15}%</td>
-                                        <td class="py-1 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_11}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m13}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m14}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m15}%</td>
+                                        <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
                                         <!-- 총합계 세로 병합 셀 -->
-                                        <td rowspan="2" class="py-1 px-2 font-black text-purple-900 bg-purple-100/90 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm">
                                             ${item.grandTotal}%
                                         </td>
                                     </tr>
 
                                     <!-- 시상 행 -->
                                     <tr>
-                                        <td class="py-1 px-2 font-bold bg-gray-50 text-gray-700 border-r border-gray-200 leading-tight">
+                                        <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200 leading-tight">
                                             시상금
                                         </td>
-                                        <td class="py-1 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
+                                        <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
                                         <!-- 익월합계는 위에서 병합됨 -->
-                                        <td colspan="4" class="py-1 px-2 text-[10px] text-gray-600 text-right border-r border-gray-200 space-x-2">
+                                        <td colspan="4" class="py-2 px-1 text-[9.5px] text-gray-600 text-right border-r border-gray-200 space-x-1.5 truncate">
                                             ${item.reward.hq > 0 ? `<span>(본사) ${item.reward.hq}%</span>` : ''}
                                             ${item.reward.week > 0 ? `<span>(주차) ${item.reward.week}%</span>` : ''}
                                             ${item.reward.cont > 0 ? `<span>(연속) ${item.reward.cont}%</span>` : ''}
                                             ${item.reward.other > 0 ? `<span>(기타) ${item.reward.other}%</span>` : ''}
                                         </td>
-                                        <td class="py-1 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.reward.subTotal}%</td>
+                                        <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.reward.subTotal}%</td>
                                         <!-- 총합계는 위에서 병합됨 -->
                                     </tr>
                                 </tbody>
@@ -1284,47 +1295,59 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
                             </div>
 
-                            <table class="w-full border-collapse">
+                            <table class="w-full table-fixed border-collapse">
+                                <colgroup>
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 11.01%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 9.17%;">
+                                    <col style="width: 11.01%;">
+                                    <col style="width: 13.79%;">
+                                </colgroup>
                                 <thead>
                                     <tr class="bg-[#2e7b88] text-white text-[10.5px] font-bold">
-                                        <th class="py-1 px-2 border-r border-teal-600/50 w-20">지급항목</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">익월</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">7~12차월</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">13차월</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">2차년</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">3차년</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50">4차년+</th>
-                                        <th class="py-1 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
-                                        <th class="py-1 px-2 bg-[#1b5059]">총합계</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">지급항목</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">익월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">7~12차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">13차월</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">2차년</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">3차년</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50">4차년+</th>
+                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
+                                        <th class="py-2.5 px-1 bg-[#1b5059]">총합계</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="border-b border-gray-200">
-                                        <td class="py-1 px-2 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
-                                        <td class="py-1 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
-                                        <td rowspan="2" class="py-1 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
+                                        <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
+                                        <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
+                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
                                             ${item.nextMonthTotal}%
                                         </td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_12}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.m13}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.y2}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.y3}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">${item.fee.y4}%</td>
-                                        <td class="py-1 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
-                                        <td rowspan="2" class="py-1 px-2 font-black text-purple-900 bg-purple-100/90 text-sm">
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_12}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m13}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.y2}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.y3}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.y4}%</td>
+                                        <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
+                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm">
                                             ${item.grandTotal}%
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td class="py-1 px-2 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">시상금</td>
-                                        <td class="py-1 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">-</td>
-                                        <td class="py-1 px-1 font-semibold text-orange-600 border-r border-gray-200">${item.reward.m13 > 0 ? `${item.reward.m13}%` : '-'}</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">-</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">-</td>
-                                        <td class="py-1 px-1 text-gray-700 border-r border-gray-200">-</td>
-                                        <td class="py-1 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.reward.subTotal}%</td>
+                                        <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">시상금</td>
+                                        <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
+                                        <td class="py-2 px-1 font-semibold text-orange-600 border-r border-gray-200">${item.reward.m13 > 0 ? `${item.reward.m13}%` : '-'}</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
+                                        <td class="py-2 px-1 text-gray-700 border-r border-gray-200">-</td>
+                                        <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.reward.subTotal}%</td>
                                     </tr>
                                 </tbody>
                             </table>
