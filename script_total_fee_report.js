@@ -887,8 +887,12 @@ function buildNonLifeTablePages() {
         const payPeriod = p['납입기간'] || '';
         const displayName = p['상품명표시'] || prod || `${comp} 종합보험`;
 
-        // 엑셀 원본 수수료 찾기
-        const rawRow = findFeeDataRow('손해보험', comp, prod, payPeriod);
+        // 엑셀 원본 수수료 찾기 (세부 옵션 매칭 포함)
+        let optDetails = null;
+        if (p['옵션상세']) {
+            try { optDetails = JSON.parse(p['옵션상세']); } catch (e) {}
+        }
+        const rawRow = findFeeDataRow('손해보험', comp, prod, payPeriod, optDetails);
         const rates = (rawRow && rawRow.rates) ? rawRow.rates : { first: 550, year1: 850, m13: 85, year2: 170, total: 850 };
 
         // 수수료율 계산 (원본 × 지급율)
@@ -1068,7 +1072,12 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
         const payPeriod = p['납입기간'] || '';
         const displayName = p['상품명표시'] || prod || `${comp} 종신보험`;
 
-        const rawRow = findFeeDataRow('생명보험', comp, prod, payPeriod);
+        // 엑셀 원본 수수료 찾기 (세부 옵션 매칭 포함)
+        let optDetails = null;
+        if (p['옵션상세']) {
+            try { optDetails = JSON.parse(p['옵션상세']); } catch (e) {}
+        }
+        const rawRow = findFeeDataRow('생명보험', comp, prod, payPeriod, optDetails);
         const rates = (rawRow && rawRow.rates) ? rawRow.rates : { first: 600, year1: 800, m13: 200, year2: 300, year3: 200, total: 1500 };
 
         const feeNext = Math.round((rates.first || 0) * rateFactor);
@@ -2003,6 +2012,24 @@ function buildPolicyGridHtml(tabKey) {
                                 savedOptions = {};
                             }
                         }
+
+                        // [하위 호환 Fallback] 기존 데이터에 '옵션상세'가 없고 '납입기간'만 저장되어 있는 경우:
+                        // matchedRows 중에서 해당 납입기간(예: 20년)을 포함하는 행을 찾아 상위 옵션(구분/만기 등)을 자동 보충
+                        const hasOtherKeys = Object.keys(savedOptions).some(k => k !== '납기' && k !== '납입기간');
+                        if (!hasOtherKeys && item['납입기간']) {
+                            const targetPay = String(item['납입기간']).trim();
+                            const matchedRowByPay = matchedRows.find(r => {
+                                if (!r.options) return false;
+                                return Object.values(r.options).some(v => {
+                                    const s = String(v).trim();
+                                    return s === targetPay || (targetPay.replace(/[^0-9]/g, '') !== '' && s.replace(/[^0-9]/g, '') === targetPay.replace(/[^0-9]/g, ''));
+                                });
+                            });
+                            if (matchedRowByPay && matchedRowByPay.options) {
+                                savedOptions = Object.assign({}, matchedRowByPay.options, savedOptions);
+                            }
+                        }
+
                         if (!savedOptions['납기'] && item['납입기간']) {
                             savedOptions['납기'] = item['납입기간'];
                         }
@@ -2338,15 +2365,16 @@ async function saveRewardPolicyToDb() {
         let payPeriod = tr.getAttribute('data-payperiod') || '';
         let optJson = tr.getAttribute('data-options-json') || '';
 
-        // 만약 data-payperiod가 없으면 옵션 select들에서 직접 추출
-        if (!payPeriod) {
+        // 행 내의 모든 옵션 select 박스에서 최신 선택값 수집
+        const optSelects = tr.querySelectorAll('.policy-opt-select');
+        if (optSelects.length > 0) {
             const optObj = {};
-            tr.querySelectorAll('.policy-opt-select').forEach(sel => {
+            optSelects.forEach(sel => {
                 const k = sel.getAttribute('data-optkey');
                 if (k) optObj[k] = sel.value;
             });
-            payPeriod = optObj['납기'] || optObj['납입기간'] || optObj['만기'] || '';
             optJson = JSON.stringify(optObj);
+            payPeriod = optObj['납기'] || optObj['납입기간'] || optObj['만기'] || payPeriod;
         }
 
         let week = 0, cont = 0, other = 0, hq = 0, m13 = 0;
