@@ -1441,6 +1441,8 @@
             setTimeout(() => {
                 container.querySelectorAll('#commonMonthSelect, #mobileMonthSelect').forEach(e => e.addEventListener('change', ev => {
                     state.currentMonth = ev.target.value;
+                    if (state.data.rewardData && state.data.rewardData.month !== state.currentMonth) state.data.rewardData = null;
+                    if (state.data.branchCommData && state.data.branchCommData.month !== state.currentMonth) state.data.branchCommData = null;
                     saveSession();
                     refresh();
                 }));
@@ -2813,15 +2815,16 @@
             // === 대시보드 화면 (default) ===
 
             // 시상금 데이터 (손보 법인, 생보 법인, 2차년 인센티브, 해촉자 정산)
-            const d = state.data.rewardData?.summary || {};
+            const rewardLoaded = !!state.data.rewardData && state.data.rewardData.month === state.currentMonth;
+            const d = rewardLoaded ? (state.data.rewardData?.summary || {}) : {};
             const rewardKeys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브', '해촉자 정산'];
             let rewardPay = 0, rewardRefund = 0;
             rewardKeys.forEach(k => { const o = d[k] || { pay: 0, refund: 0 }; rewardPay += o.pay; rewardRefund += o.refund; });
             const rewardNet = rewardPay + rewardRefund;
 
             // 수수료 데이터
-            const c = state.data.branchCommData || {};
-            const commLoaded = !!state.data.branchCommData;
+            const commLoaded = !!state.data.branchCommData && state.data.branchCommData.month === state.currentMonth;
+            const c = commLoaded ? state.data.branchCommData : {};
             const nonLifePay = c.nonLifePay || 0;
             const nonLifeRefund = c.nonLifeRefund || 0;
             const lifePay = c.lifePay || 0;
@@ -2844,6 +2847,7 @@
 
             // 전체 합산 (수수료 + 시상금)
             const grandNet = commNet + rewardNet;
+            const bothLoaded = commLoaded && rewardLoaded;
 
             // 스피너 HTML
             const spinner = `<svg class="animate-spin w-5 h-5 text-gray-300 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
@@ -2905,16 +2909,16 @@
                         <h3 class="font-bold text-base text-amber-950 flex items-center gap-2">
                             <div class="w-2 h-2 rounded-full bg-amber-500 shadow-sm"></div>${title}
                         </h3>
-                        <span class="text-base font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
+                        <span class="text-base font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${rewardLoaded ? formatMoney(subTotal) : spinner}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center mt-auto">
-                        <div class="cursor-pointer bg-white/90 hover:bg-blue-50/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-blue-200 shadow-xs group" onclick="openDetail('${key}','pay')">
+                        <div class="${rewardLoaded ? 'cursor-pointer hover:bg-blue-50/90' : 'cursor-default'} bg-white/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-blue-200 shadow-xs group" onclick="${rewardLoaded ? `openDetail('${key}','pay')` : ''}">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">지급</p>
-                            <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${formatMoney(obj.pay)}</p>
+                            <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${rewardLoaded ? formatMoney(obj.pay) : spinner}</p>
                         </div>
-                        <div class="cursor-pointer bg-white/90 hover:bg-red-50/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-red-200 shadow-xs group" onclick="openDetail('${key}','refund')">
+                        <div class="${rewardLoaded ? 'cursor-pointer hover:bg-red-50/90' : 'cursor-default'} bg-white/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-red-200 shadow-xs group" onclick="${rewardLoaded ? `openDetail('${key}','refund')` : ''}">
                             <p class="text-[10px] text-gray-400 font-bold uppercase mb-1">환수</p>
-                            <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${formatMoney(obj.refund)}</p>
+                            <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${rewardLoaded ? formatMoney(obj.refund) : spinner}</p>
                         </div>
                     </div>
                 </div>`;
@@ -2963,9 +2967,6 @@
                 </div>
             </div>
 
-            <!-- 당월 마감 AI 종합 브리핑 위젯 영역 -->
-            <div id="branch-ai-briefing-container"></div>
-
             <!-- 행1: 요약 카드 3개 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div class="col-span-1">
@@ -2975,7 +2976,7 @@
                 '수수료', commNet,
                 '시상금', rewardNet,
                 'bg-primary',
-                commLoaded
+                bothLoaded
             )}
                 </div>
                 <div class="col-span-1">
@@ -2985,7 +2986,7 @@
                 '수수료 지급', commTotalPay,
                 '시상금 지급', rewardPay,
                 'bg-blue-500',
-                commLoaded,
+                bothLoaded,
                 true
             )}
                 </div>
@@ -2996,7 +2997,7 @@
                 '수수료 환수', commTotalRefund,
                 '시상금 환수', rewardRefund,
                 'bg-red-400',
-                commLoaded,
+                bothLoaded,
                 true
             )}
                 </div>
@@ -3029,11 +3030,9 @@
                 </div>
             </div>`;
 
-            // 마감 상태 비동기 조회 및 AI 브리핑 위젯 로드
+            // 마감 상태 비동기 조회
             setTimeout(() => {
                 checkMonthClosingStatus();
-                const aiCont = div.querySelector('#branch-ai-briefing-container');
-                if (aiCont) renderAIBriefingWidget(aiCont, 'branch');
             }, 20);
 
             return div;
@@ -7971,23 +7970,27 @@
                         state.homeLoaded = true;
                     }
                     else if (state.currentView === 'branch') {
-                        // branch 뷰: rewardData는 세션 캐시 복원, branchCommData는 별도 fetch
-                        state.data.rewardData = parsed;
-                        state.isLoading = false;
-                        render();
-                        if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
-                            callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
-                                if (!commRes.error && commRes.success) {
-                                    commRes.month = state.currentMonth;
-                                    state.data.branchCommData = commRes;
-                                } else {
-                                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                                    if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
-                                }
-                                if (state.currentView === 'branch') render();
-                            });
+                        // branch 뷰: rewardData 세션 캐시 복원 (월 일치 검증)
+                        if (parsed && parsed.month === state.currentMonth) {
+                            state.data.rewardData = parsed;
+                            state.isLoading = false;
+                            render();
+                            if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
+                                callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
+                                    if (!commRes.error && commRes.success) {
+                                        commRes.month = state.currentMonth;
+                                        state.data.branchCommData = commRes;
+                                    } else {
+                                        state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+                                        if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
+                                    }
+                                    if (state.currentView === 'branch') render();
+                                });
+                            }
+                            return;
+                        } else {
+                            sessionStorage.removeItem(cacheKey);
                         }
-                        return;
                     }
                     else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
@@ -9397,6 +9400,10 @@
         }
 
         async function fetchBranch(key) {
+            // 현재 조회 마감월과 다른 이전 월 데이터는 즉시 초기화하여 잔류 방지
+            if (state.data.rewardData?.month !== state.currentMonth) state.data.rewardData = null;
+            if (state.data.branchCommData?.month !== state.currentMonth) state.data.branchCommData = null;
+
             state.isLoading = true; render();
             // 시상금데이터와 수수료데이터 동시 호출
             const [rewardRes, commRes] = await Promise.all([
@@ -9409,8 +9416,11 @@
                 rewardRes.month = state.currentMonth;
                 state.data.rewardData = rewardRes;
                 // branch 뷰의 시상금 캐시는 dashboard와 공유
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`, JSON.stringify(rewardRes));
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _branch`, JSON.stringify(rewardRes));
+                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(rewardRes));
+                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(rewardRes));
+            } else {
+                state.data.rewardData = { month: state.currentMonth, summary: {}, details: [] };
+                if (rewardRes.error) console.warn('시상금 데이터 로드 실패:', rewardRes.message);
             }
 
             if (!commRes.error && commRes.success) {
