@@ -5165,6 +5165,17 @@
                                     <div>실효, 연체 계약만 저장합니다.</div>
                                 </div>
                             </div>
+                            <div class="relative group flex-1 sm:flex-none">
+                                <button onclick="openLapseExcelUploadModal()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    엑셀 업로드
+                                </button>
+                                <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 w-max px-3.5 py-2 bg-gray-900/95 text-white text-xs rounded-lg shadow-2xl backdrop-blur-sm pointer-events-none transition duration-200 text-center leading-relaxed whitespace-nowrap">
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900/95"></div>
+                                    <div>유지율_DB 5개 시트 데이터를</div>
+                                    <div>엑셀 파일로 일괄 갱신합니다.</div>
+                                </div>
+                            </div>
                         </div>
                         <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto justify-center">
                             <button onclick="setLapseBaseType('recruiter')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
@@ -6397,6 +6408,544 @@
                 }
             });
         };
+
+        // --- 유지율_DB 엑셀 업로드 모달 및 핸들러 ---
+        window.openLapseExcelUploadModal = function () {
+            const modalId = 'lapse-excel-upload-modal';
+            let modal = document.getElementById(modalId);
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = modalId;
+                modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+                document.body.appendChild(modal);
+            }
+
+            const sheetConfigs = {
+                '통산유지율': {
+                    title: '통산유지율',
+                    sortDesc: '사번 (오름차순)',
+                    expectedCols: 40,
+                    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+                },
+                '실효리스트': {
+                    title: '실효리스트',
+                    sortDesc: '모집인코드 (오름차순) ➔ 계약일 (내림차순)',
+                    expectedCols: 24,
+                    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+                },
+                '당월실효': {
+                    title: '당월실효',
+                    sortDesc: '모집인코드 (오름차순) ➔ 납입회차 (오름차순)',
+                    expectedCols: 24,
+                    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
+                },
+                '당월연체': {
+                    title: '당월연체',
+                    sortDesc: '모집인코드 (오름차순) ➔ 납입회차 (오름차순)',
+                    expectedCols: 24,
+                    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                },
+                '당월미납': {
+                    title: '당월미납',
+                    sortDesc: '모집자코드 (오름차순) ➔ 최종회차 (오름차순)',
+                    expectedCols: 65,
+                    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+                }
+            };
+
+            let selectedSheet = '통산유지율';
+            let parsedExcelData = null; // { headerRow, dataRows, fileName }
+            let isUploading = false;
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden transform scale-100 flex flex-col max-h-[92vh]">
+                    <!-- 모달 헤더 -->
+                    <div class="px-6 py-4 border-b border-gray-100 bg-white flex justify-between items-center flex-shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-5 bg-blue-600 rounded-full block shadow-sm"></span>
+                            <h3 class="font-bold text-base text-gray-900">유지율_DB 엑셀 업로드</h3>
+                        </div>
+                        <button id="closeLapseUploadModalBtn" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- 모달 바디 (스크롤 가능) -->
+                    <div class="p-6 overflow-y-auto space-y-5 text-left text-sm">
+                        <!-- 1. 대상 시트 선택 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">1. 업로드 대상 시트 선택</label>
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2" id="lapseSheetSelectGroup">
+                                ${Object.keys(sheetConfigs).map(sName => `
+                                    <button type="button" data-sheet="${sName}" class="sheet-btn py-2.5 px-2 rounded-xl border text-xs font-bold text-center transition flex flex-col items-center justify-center gap-1 ${sName === selectedSheet ? 'border-blue-600 bg-blue-50/80 text-blue-700 shadow-sm ring-1 ring-blue-600' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'}">
+                                        <span>${sName}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <!-- 선택된 시트의 정렬 안내 -->
+                            <div id="selectedSheetInfoBox" class="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-2.5">
+                                <svg class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div class="text-xs text-gray-600 leading-relaxed">
+                                    <span class="font-bold text-gray-800" id="infoSheetTitle">${selectedSheet}</span> 시트 선택됨 
+                                    <div class="mt-0.5 text-gray-500">
+                                        정렬 기준: <strong class="text-blue-700 font-semibold" id="infoSortDesc">${sheetConfigs[selectedSheet].sortDesc}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. 엑셀 파일 선택 드롭존 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">2. 엑셀 파일 (.xlsx, .xls) 등록</label>
+                            <div id="lapseDropZone" class="border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50/30 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2.5 bg-gray-50/50">
+                                <input type="file" id="lapseExcelFileInput" accept=".xlsx, .xls" class="hidden">
+                                <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 pointer-events-none">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                </div>
+                                <div class="pointer-events-none">
+                                    <p class="font-bold text-sm text-gray-700">엑셀 파일을 마우스로 끌어다 놓거나 클릭하여 선택</p>
+                                    <p class="text-xs text-gray-400 mt-1">파일의 1행 헤더를 제외한 2행부터의 데이터가 반영됩니다.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. 파일 파싱 결과 미리보기 & 검증 안내 (파일 선택 시 노출) -->
+                        <div id="lapseFilePreviewBox" class="hidden space-y-3 p-4 rounded-xl bg-blue-50/40 border border-blue-100 animate-fadeIn">
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-gray-800" id="previewFileName">-</span>
+                                    <span class="text-gray-400" id="previewFileSize">-</span>
+                                </div>
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800" id="previewRowCount">- 건</span>
+                            </div>
+                            <!-- 열 수 일치 검증 안내 -->
+                            <div id="previewColNotice" class="text-xs flex items-center gap-1.5 font-medium text-emerald-700">
+                                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <span>엑셀 열 수 일치 확인됨</span>
+                            </div>
+                        </div>
+
+                        <!-- 주의 안내 배너 -->
+                        <div class="p-3.5 rounded-xl bg-amber-50 border border-amber-200/70 flex items-start gap-2.5 text-xs text-amber-900 leading-relaxed">
+                            <span class="text-amber-600 font-bold flex-shrink-0 text-sm">⚠️</span>
+                            <div>
+                                <strong>주의:</strong> 업로드 시 기존 <strong>1행 헤더는 안전하게 보존</strong>되며, <strong>2행부터의 기존 데이터는 업로드된 데이터로 전면 교체</strong>됩니다.
+                            </div>
+                        </div>
+
+                        <!-- 4. 프로그레스 바 (업로드 진행 시 노출) -->
+                        <div id="lapseUploadProgressSection" class="hidden space-y-2 pt-2">
+                            <div class="flex justify-between items-center text-xs font-bold text-gray-700">
+                                <span id="lapseProgressStatusText">데이터를 준비하고 있습니다...</span>
+                                <span id="lapseProgressPercentText" class="text-blue-600">0%</span>
+                            </div>
+                            <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div id="lapseProgressBar" class="h-full bg-blue-600 transition-all duration-300" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 모달 푸터 버튼 -->
+                    <div class="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-2.5 flex-shrink-0">
+                        <button type="button" id="cancelLapseUploadBtn" class="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 font-bold text-xs transition">취소</button>
+                        <button type="button" id="startLapseUploadBtn" disabled class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            업로드 시작
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.classList.add('modal-open');
+            modal.style.display = 'flex';
+
+            // 엘리먼트 참조
+            const closeBtn = modal.querySelector('#closeLapseUploadModalBtn');
+            const cancelBtn = modal.querySelector('#cancelLapseUploadBtn');
+            const dropZone = modal.querySelector('#lapseDropZone');
+            const fileInput = modal.querySelector('#lapseExcelFileInput');
+            const sheetButtons = modal.querySelectorAll('.sheet-btn');
+            const infoSheetTitle = modal.querySelector('#infoSheetTitle');
+            const infoSortDesc = modal.querySelector('#infoSortDesc');
+            const previewBox = modal.querySelector('#lapseFilePreviewBox');
+            const previewFileName = modal.querySelector('#previewFileName');
+            const previewFileSize = modal.querySelector('#previewFileSize');
+            const previewRowCount = modal.querySelector('#previewRowCount');
+            const previewColNotice = modal.querySelector('#previewColNotice');
+            const startBtn = modal.querySelector('#startLapseUploadBtn');
+            const progressSection = modal.querySelector('#lapseUploadProgressSection');
+            const progressBar = modal.querySelector('#lapseProgressBar');
+            const progressPercentText = modal.querySelector('#lapseProgressPercentText');
+            const progressStatusText = modal.querySelector('#lapseProgressStatusText');
+
+            const closeModal = () => {
+                if (isUploading) {
+                    if (!confirm('현재 업로드가 진행 중입니다. 창을 닫으시겠습니까?')) return;
+                }
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+
+            // 시트 선택 변경 이벤트
+            sheetButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (isUploading) return;
+                    selectedSheet = btn.getAttribute('data-sheet');
+                    
+                    sheetButtons.forEach(b => {
+                        const isCur = b.getAttribute('data-sheet') === selectedSheet;
+                        b.className = `sheet-btn py-2.5 px-2 rounded-xl border text-xs font-bold text-center transition flex flex-col items-center justify-center gap-1 ${isCur ? 'border-blue-600 bg-blue-50/80 text-blue-700 shadow-sm ring-1 ring-blue-600' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'}`;
+                    });
+
+                    infoSheetTitle.textContent = selectedSheet;
+                    infoSortDesc.textContent = sheetConfigs[selectedSheet].sortDesc;
+
+                    // 파일이 이미 파싱되어 있다면 열 수 재검증
+                    if (parsedExcelData) {
+                        validateParsedDataWithSheet();
+                    }
+                });
+            });
+
+            // 파일 드롭존 이벤트
+            dropZone.addEventListener('click', () => {
+                if (isUploading) return;
+                fileInput.click();
+            });
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-blue-500', 'bg-blue-50/50');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/50');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-500', 'bg-blue-50/50');
+                if (isUploading) return;
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFileSelected(e.dataTransfer.files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    handleFileSelected(e.target.files[0]);
+                }
+            });
+
+            // 스마트 시트 자동 감지
+            function autoDetectSheet(fileName, headerRow) {
+                const fn = (fileName || '').toLowerCase();
+                if (fn.includes('통산유지율') || fn.includes('통산')) return '통산유지율';
+                if (fn.includes('당월실효')) return '당월실효';
+                if (fn.includes('당월연체')) return '당월연체';
+                if (fn.includes('실효리스트') || fn.includes('실효목록')) return '실효리스트';
+                if (fn.includes('미납') || fn.includes('당월미납')) return '당월미납';
+
+                const headersJoined = (headerRow || []).join(',');
+                if (headersJoined.includes('모집고') || headersJoined.includes('유지율(%)') || headersJoined.includes('통산 유지율')) {
+                    return '통산유지율';
+                }
+                if (headersJoined.includes('수금자코드') || headersJoined.includes('쉐어율') || headersJoined.includes('최종월도')) {
+                    return '당월미납';
+                }
+                return null;
+            }
+
+            // 파일 선택 처리 및 파싱
+            async function handleFileSelected(file) {
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                    alert('엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.');
+                    return;
+                }
+
+                try {
+                    showLoading(true);
+                    const parsed = await readLapseExcelFileAsync(file);
+                    showLoading(false);
+
+                    parsedExcelData = {
+                        ...parsed,
+                        fileName: file.name,
+                        fileSize: (file.size / 1024).toFixed(1) + ' KB'
+                    };
+
+                    // 시트 자동 감지
+                    const detected = autoDetectSheet(file.name, parsed.headerRow);
+                    if (detected && detected !== selectedSheet) {
+                        const targetBtn = Array.from(sheetButtons).find(b => b.getAttribute('data-sheet') === detected);
+                        if (targetBtn) targetBtn.click();
+                    } else {
+                        validateParsedDataWithSheet();
+                    }
+
+                    previewBox.classList.remove('hidden');
+                    previewFileName.textContent = file.name;
+                    previewFileSize.textContent = parsedExcelData.fileSize;
+                    previewRowCount.textContent = `데이터 ${parsedExcelData.dataRows.length.toLocaleString()}건`;
+
+                    startBtn.disabled = false;
+                } catch (err) {
+                    showLoading(false);
+                    console.error(err);
+                    alert('엑셀 파일 파싱에 실패했습니다: ' + err.message);
+                }
+            }
+
+            // 열 수 검증 안내
+            function validateParsedDataWithSheet() {
+                if (!parsedExcelData) return;
+                const expected = sheetConfigs[selectedSheet].expectedCols;
+                const actual = parsedExcelData.headerRow.length;
+
+                if (actual === expected) {
+                    previewColNotice.className = "text-xs flex items-center gap-1.5 font-medium text-emerald-700";
+                    previewColNotice.innerHTML = `
+                        <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span>[${selectedSheet}] 열 수(${actual}개) 정확히 일치 확인됨</span>
+                    `;
+                } else {
+                    previewColNotice.className = "text-xs flex items-center gap-1.5 font-medium text-amber-700";
+                    previewColNotice.innerHTML = `
+                        <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        <span>시트 기준 열 수(${expected}개)와 엑셀 열 수(${actual}개)가 상이합니다. 확인 후 진행하세요.</span>
+                    `;
+                }
+            }
+
+            // 업로드 시작 버튼 클릭
+            startBtn.addEventListener('click', async () => {
+                if (!parsedExcelData || isUploading) return;
+
+                const rowCount = parsedExcelData.dataRows.length;
+                const confirmMsg = `선택하신 [${selectedSheet}] 시트의 2행부터의 기존 데이터를 모두 삭제하고,\n업로드된 ${rowCount.toLocaleString()}건의 데이터로 새로 갱신합니다.\n\n정말 업로드를 진행하시겠습니까?`;
+                if (!confirm(confirmMsg)) return;
+
+                isUploading = true;
+                startBtn.disabled = true;
+                cancelBtn.disabled = true;
+                closeBtn.disabled = true;
+                sheetButtons.forEach(b => b.disabled = true);
+                progressSection.classList.remove('hidden');
+
+                try {
+                    // 1. 시트별 정렬 기준에 맞춰 정렬 수행
+                    progressStatusText.textContent = `데이터를 ${selectedSheet} 정렬 기준에 맞춰 정렬하는 중...`;
+                    progressBar.style.width = '10%';
+                    progressPercentText.textContent = '10%';
+
+                    await new Promise(r => setTimeout(r, 50)); // UI 갱신 양보
+                    const sortedRows = sortLapseDataRows(selectedSheet, parsedExcelData.headerRow, parsedExcelData.dataRows);
+
+                    // 2. 1,000행 단위 청크 분할
+                    const CHUNK_SIZE = 1000;
+                    const chunks = [];
+                    for (let i = 0; i < sortedRows.length; i += CHUNK_SIZE) {
+                        chunks.push(sortedRows.slice(i, i + CHUNK_SIZE));
+                    }
+                    const totalChunks = chunks.length > 0 ? chunks.length : 1;
+
+                    // 3. 청크별 순차 전송
+                    for (let i = 0; i < chunks.length; i++) {
+                        const chunkIdx = i;
+                        const chunkRows = chunks[i];
+                        const pct = Math.round(15 + ((i + 1) / totalChunks) * 80);
+
+                        progressStatusText.textContent = `서버로 데이터 전송 중... (${i + 1}/${totalChunks} 청크)`;
+                        progressBar.style.width = `${pct}%`;
+                        progressPercentText.textContent = `${pct}%`;
+
+                        const res = await callApi('uploadRetentionSheetChunk', state.user.staffId, selectedSheet, chunkIdx, totalChunks, chunkRows);
+                        if (res.error || !res.success) {
+                            throw new Error(res.message || '서버 저장 중 오류가 발생했습니다.');
+                        }
+                    }
+
+                    // 4. 완료 처리
+                    progressBar.style.width = '100%';
+                    progressPercentText.textContent = '100%';
+                    progressStatusText.textContent = '업로드 완료 및 반영 성공!';
+
+                    await new Promise(r => setTimeout(r, 400));
+                    alert(`[${selectedSheet}] 데이터(${rowCount.toLocaleString()}건)가 성공적으로 갱신되었습니다.`);
+
+                    // 모달 닫기
+                    isUploading = false;
+                    modal.style.display = 'none';
+                    document.body.classList.remove('modal-open');
+
+                    // 화면 새로고침 및 캐시 초기화
+                    if (state.lapseData) {
+                        state.lapseData = {};
+                    }
+                    if (typeof refresh === 'function') {
+                        refresh();
+                    }
+                } catch (err) {
+                    isUploading = false;
+                    startBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    closeBtn.disabled = false;
+                    sheetButtons.forEach(b => b.disabled = false);
+                    console.error(err);
+                    alert('업로드 실패: ' + err.message);
+                    progressStatusText.textContent = '업로드 실패: ' + err.message;
+                    progressBar.classList.add('bg-red-600');
+                }
+            });
+        };
+
+        // 엑셀 파일 비동기 읽기 헬퍼
+        function readLapseExcelFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        if (typeof XLSX === 'undefined') {
+                            throw new Error('SheetJS(XLSX) 라이브러리를 불러올 수 없습니다.');
+                        }
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                            throw new Error('엑셀 파일에 시트가 존재하지 않습니다.');
+                        }
+                        const firstSheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[firstSheetName];
+                        
+                        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        if (!rawRows || rawRows.length < 2) {
+                            throw new Error('엑셀 파일에 데이터가 없거나 1행만 존재합니다.');
+                        }
+
+                        const headerRow = rawRows[0].map(h => String(h || '').trim());
+                        const dataRows = [];
+
+                        for (let r = 1; r < rawRows.length; r++) {
+                            const row = rawRows[r];
+                            if (!row || row.length === 0) continue;
+                            const isAllEmpty = row.every(c => c === undefined || c === null || String(c).trim() === '');
+                            if (isAllEmpty) continue;
+
+                            const cleanedRow = [];
+                            for (let c = 0; c < headerRow.length; c++) {
+                                let val = row[c];
+                                if (val === undefined || val === null) {
+                                    cleanedRow.push('');
+                                } else if (val instanceof Date) {
+                                    const y = val.getFullYear();
+                                    const m = String(val.getMonth() + 1).padStart(2, '0');
+                                    const d = String(val.getDate()).padStart(2, '0');
+                                    cleanedRow.push(`${y}-${m}-${d}`);
+                                } else if (typeof val === 'string') {
+                                    cleanedRow.push(val.trim());
+                                } else {
+                                    cleanedRow.push(val);
+                                }
+                            }
+                            dataRows.push(cleanedRow);
+                        }
+
+                        resolve({ headerRow, dataRows, sheetName: firstSheetName });
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = (err) => reject(err);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 5개 시트별 맞춤 정렬 함수
+        function sortLapseDataRows(sheetName, headerRow, dataRows) {
+            const tidyHeaders = headerRow.map(h => String(h || '').trim().replace(/\s+/g, ''));
+            
+            const findCol = (names) => {
+                for (const name of names) {
+                    const idx = tidyHeaders.indexOf(name.replace(/\s+/g, ''));
+                    if (idx !== -1) return idx;
+                }
+                return -1;
+            };
+
+            const cmpVal = (a, b, desc = false) => {
+                const strA = String(a !== undefined && a !== null ? a : '').trim();
+                const strB = String(b !== undefined && b !== null ? b : '').trim();
+                const numA = Number(strA);
+                const numB = Number(strB);
+                let diff = 0;
+                if (!isNaN(numA) && !isNaN(numB) && strA !== '' && strB !== '') {
+                    diff = numA - numB;
+                } else {
+                    diff = strA.localeCompare(strB, 'ko', { numeric: true });
+                }
+                return desc ? -diff : diff;
+            };
+
+            const cmpDate = (a, b, desc = false) => {
+                const dA = String(a || '').replace(/[^0-9]/g, '');
+                const dB = String(b || '').replace(/[^0-9]/g, '');
+                let diff = dA.localeCompare(dB);
+                return desc ? -diff : diff;
+            };
+
+            const cmpNum = (a, b, desc = false) => {
+                const nA = parseInt(String(a || '').replace(/[^0-9]/g, ''), 10) || 0;
+                const nB = parseInt(String(b || '').replace(/[^0-9]/g, ''), 10) || 0;
+                let diff = nA - nB;
+                return desc ? -diff : diff;
+            };
+
+            const sorted = [...dataRows];
+
+            if (sheetName === '통산유지율') {
+                // 1. 통산유지율: 사번 (오름차순)
+                const idIdx = findCol(['사번', '사원번호', '사번코드']);
+                const targetIdx = idIdx !== -1 ? idIdx : 2;
+                sorted.sort((rA, rB) => cmpVal(rA[targetIdx], rB[targetIdx], false));
+            } else if (sheetName === '실효리스트') {
+                // 2. 실효리스트: 모집인코드 (오름차순) ➔ 계약일 (내림차순)
+                const codeIdx = findCol(['모집인코드', '모집자코드', '모집인사번']);
+                const dateIdx = findCol(['계약일', '계약일자']);
+                const tCode = codeIdx !== -1 ? codeIdx : 2;
+                const tDate = dateIdx !== -1 ? dateIdx : 12;
+                sorted.sort((rA, rB) => {
+                    const c = cmpVal(rA[tCode], rB[tCode], false);
+                    if (c !== 0) return c;
+                    return cmpDate(rA[tDate], rB[tDate], true);
+                });
+            } else if (sheetName === '당월실효' || sheetName === '당월연체') {
+                // 3. 당월실효 / 4. 당월연체: 모집인코드 (오름차순) ➔ 납입회차 (오름차순)
+                const codeIdx = findCol(['모집인코드', '모집자코드', '모집인사번']);
+                const roundIdx = findCol(['납입회차', '회차']);
+                const tCode = codeIdx !== -1 ? codeIdx : 2;
+                const tRound = roundIdx !== -1 ? roundIdx : 18;
+                sorted.sort((rA, rB) => {
+                    const c = cmpVal(rA[tCode], rB[tCode], false);
+                    if (c !== 0) return c;
+                    return cmpNum(rA[tRound], rB[tRound], false);
+                });
+            } else if (sheetName === '당월미납') {
+                // 5. 당월미납: 모집자코드(모집인코드) (오름차순) ➔ 최종회차 (오름차순)
+                const codeIdx = findCol(['모집자코드', '모집인코드', '모집인사번']);
+                const roundIdx = findCol(['최종회차', '납입회차']);
+                const tCode = codeIdx !== -1 ? codeIdx : 2;
+                const tRound = roundIdx !== -1 ? roundIdx : 25;
+                sorted.sort((rA, rB) => {
+                    const c = cmpVal(rA[tCode], rB[tCode], false);
+                    if (c !== 0) return c;
+                    return cmpNum(rA[tRound], rB[tRound], false);
+                });
+            }
+
+            return sorted;
+        }
 
         // --- 7. Modals & Popups ---
         window.openDetail = function (k, t, customDetails = null, customTitle = null) {
