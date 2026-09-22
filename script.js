@@ -316,6 +316,9 @@
                         resetSessionTimer();
                         setTimeout(prefetchAllBackground, 500); // [OPTIMIZATION] Trigger background prefetching immediately
                         setTimeout(prefetchFeeTableInBackground, 1200);
+                        if (typeof prefetchBranchDashboardSafely === 'function') {
+                            prefetchBranchDashboardSafely();
+                        }
                         return true;
                     }
                 } catch (e) { console.error('Restore failed', e); }
@@ -6645,30 +6648,43 @@
         // ==========================================
         // 지사대표 마감 처리 및 상태 관리
         // ==========================================
-        window.checkMonthClosingStatus = async function () {
+        window.updateMonthClosingBadgeUI = function (isClosed, closedAt) {
             const badge = document.getElementById('branchMonthClosingBadge');
             const btn = document.getElementById('branchMonthClosingBtn');
             if (!badge || !btn) return;
+
+            if (isClosed) {
+                badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> 마감완료${closedAt ? ` (${closedAt.split(' ')[0]})` : ''}`;
+                btn.className = "text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-xs bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300";
+                btn.textContent = "마감 취소";
+                btn.classList.remove('hidden');
+            } else {
+                badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1";
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span> 미마감 (일반사용자 숨김)`;
+                btn.className = "text-xs px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs bg-primary hover:bg-primary/90 text-white";
+                btn.textContent = "마감 하기";
+                btn.classList.remove('hidden');
+            }
+        };
+
+        window.checkMonthClosingStatus = async function (force = false) {
+            const badge = document.getElementById('branchMonthClosingBadge');
+            const btn = document.getElementById('branchMonthClosingBtn');
+            if (!badge || !btn) return;
+
+            // 이미 마감 상태가 세팅되어 있고 강제 조회가 아니면 UI만 즉시 갱신 (네트워크 호출 생략)
+            if (!force && state.isCurrentMonthClosed !== undefined) {
+                window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+                return;
+            }
 
             try {
                 const res = await callApi('getMonthClosingStatus', state.currentMonth, state.user.staffId);
                 if (res && res.success) {
                     state.isCurrentMonthClosed = !!res.isClosed;
                     state.currentMonthClosedAt = res.closedAt || '';
-
-                    if (res.isClosed) {
-                        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1";
-                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> 마감완료${res.closedAt ? ` (${res.closedAt.split(' ')[0]})` : ''}`;
-                        btn.className = "text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-xs bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300";
-                        btn.textContent = "마감 취소";
-                        btn.classList.remove('hidden');
-                    } else {
-                        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1";
-                        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span> 미마감 (일반사용자 숨김)`;
-                        btn.className = "text-xs px-3.5 py-1.5 rounded-lg font-bold transition shadow-xs bg-primary hover:bg-primary/90 text-white";
-                        btn.textContent = "마감 하기";
-                        btn.classList.remove('hidden');
-                    }
+                    window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
                 } else {
                     badge.textContent = "상태 조회 실패";
                     badge.classList.remove('animate-pulse');
@@ -7943,6 +7959,9 @@
                     state.prefetchTriggered = true;
                     setTimeout(prefetchAllBackground, 800);
                     setTimeout(prefetchFeeTableInBackground, 1200);
+                    if (typeof prefetchBranchDashboardSafely === 'function') {
+                        prefetchBranchDashboardSafely();
+                    }
                 }
                 return;
             }
@@ -7966,21 +7985,25 @@
                         state.homeLoaded = true;
                     }
                     else if (state.currentView === 'branch') {
-                        // branch 뷰: rewardData는 세션 캐시 복원, branchCommData는 별도 fetch
+                        // branch 뷰: rewardData 및 branchCommData 세션 캐시 동시 복원
                         state.data.rewardData = parsed;
+                        const commCached = sessionStorage.getItem(`COMM_${state.user.staffId}_${state.currentMonth}_branch`);
+                        if (commCached) {
+                            try {
+                                const parsedComm = JSON.parse(commCached);
+                                if (parsedComm && parsedComm.month === state.currentMonth) {
+                                    state.data.branchCommData = parsedComm;
+                                }
+                            } catch (e) {}
+                        }
                         state.isLoading = false;
                         render();
+                        if (state.isCurrentMonthClosed !== undefined && typeof window.updateMonthClosingBadgeUI === 'function') {
+                            window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+                        }
+                        // 수수료 데이터가 캐시에 없을 때만 fetchBranch 호출
                         if (!state.data.branchCommData || state.data.branchCommData.month !== state.currentMonth) {
-                            callApi('getBranchCommissionData', state.user.staffId, state.currentMonth).then(commRes => {
-                                if (!commRes.error && commRes.success) {
-                                    commRes.month = state.currentMonth;
-                                    state.data.branchCommData = commRes;
-                                } else {
-                                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                                    if (commRes.error) console.warn('수수료 로드 실패:', commRes.message);
-                                }
-                                if (state.currentView === 'branch') render();
-                            });
+                            fetchBranch();
                         }
                         return;
                     }
@@ -9393,31 +9416,114 @@
 
         async function fetchBranch(key) {
             state.isLoading = true; render();
-            // 시상금데이터와 수수료데이터 동시 호출
-            const [rewardRes, commRes] = await Promise.all([
-                callApi('getRewardData', state.user.staffId, state.currentMonth),
-                callApi('getBranchCommissionData', state.user.staffId, state.currentMonth)
-            ]);
-            state.isLoading = false;
+            try {
+                // 통합 번들 API 호출: 시상금 + 수수료 + 마감상태 1회에 수신
+                const res = await callApi('getBranchDashboardBundle', state.user.staffId, state.currentMonth);
+                state.isLoading = false;
 
-            if (!rewardRes.error) {
-                rewardRes.month = state.currentMonth;
-                state.data.rewardData = rewardRes;
-                // branch 뷰의 시상금 캐시는 dashboard와 공유
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _dashboard`, JSON.stringify(rewardRes));
-                sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth} _branch`, JSON.stringify(rewardRes));
-            }
-
-            if (!commRes.error && commRes.success) {
-                commRes.month = state.currentMonth;
-                state.data.branchCommData = commRes;
-            } else {
-                // 에러시 빈 값으로 초기화 (화면은 사용 가능)
-                state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                if (commRes.error) console.warn('수수료 데이터 로드 실패:', commRes.message);
+                if (res && res.success) {
+                    if (res.rewardData && !res.rewardData.error) {
+                        res.rewardData.month = state.currentMonth;
+                        state.data.rewardData = res.rewardData;
+                        // branch와 dashboard 세션 캐시 공유 (공백 오타 제거)
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(res.rewardData));
+                        sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(res.rewardData));
+                    }
+                    if (res.commData && !res.commData.error && res.commData.success) {
+                        res.commData.month = state.currentMonth;
+                        state.data.branchCommData = res.commData;
+                        sessionStorage.setItem(`COMM_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(res.commData));
+                    } else {
+                        state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+                        if (res.commData?.error) console.warn('수수료 데이터 로드 실패:', res.commData.message);
+                    }
+                    if (res.closingStatus && res.closingStatus.success) {
+                        state.isCurrentMonthClosed = !!res.closingStatus.isClosed;
+                        state.currentMonthClosedAt = res.closingStatus.closedAt || '';
+                    }
+                } else {
+                    state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
+                    if (res?.error) console.warn('지사대표 대시보드 번들 로드 실패:', res.message);
+                }
+            } catch (e) {
+                state.isLoading = false;
+                console.error('fetchBranch exception:', e);
             }
 
             render();
+            if (state.isCurrentMonthClosed !== undefined && typeof window.updateMonthClosingBadgeUI === 'function') {
+                window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+            }
+        }
+
+        /**
+         * [OPTIMIZATION] 지사대표 대시보드 안전 단일 지연 사전 로딩 (Safe Lazy Pre-fetch)
+         * - 지사대표 권한 사용자에게만 작동
+         * - 3초 유휴 시간 후 단 1회의 번들 API만 조용히 호출하여 구글 차단(Rate Limit) 원천 방지
+         */
+        let _branchPrefetchTimer = null;
+        function prefetchBranchDashboardSafely() {
+            if (!state.user || !isBranchRepAny()) return;
+            const staffId = state.user.staffId;
+            const month = state.currentMonth;
+            if (!staffId || !month) return;
+
+            const rewardKey = `DATA_${staffId}_${month}_branch`;
+            const commKey = `COMM_${staffId}_${month}_branch`;
+
+            // 이미 메모리 또는 세션 스토리지에 캐시되어 있다면 호출 불필요
+            if (state.data.rewardData?.month === month && state.data.branchCommData?.month === month) return;
+            if (sessionStorage.getItem(rewardKey) && sessionStorage.getItem(commKey)) return;
+            if (state._prefetchingBranch) return;
+
+            if (_branchPrefetchTimer) clearTimeout(_branchPrefetchTimer);
+
+            state._prefetchingBranch = true;
+            _branchPrefetchTimer = setTimeout(async () => {
+                try {
+                    // 3초 후 상태 재확인 (로그아웃 등 예외 체크)
+                    if (!state.user || !isBranchRepAny()) {
+                        state._prefetchingBranch = false;
+                        return;
+                    }
+                    if (state.data.rewardData?.month === month && state.data.branchCommData?.month === month) {
+                        state._prefetchingBranch = false;
+                        return;
+                    }
+
+                    console.log('[Safe Pre-fetch] 지사대표 대시보드 백그라운드 사전 로딩 시작...');
+                    const res = await callApi('getBranchDashboardBundle', staffId, month);
+                    if (res && res.success) {
+                        if (res.rewardData && !res.rewardData.error) {
+                            res.rewardData.month = month;
+                            state.data.rewardData = res.rewardData;
+                            sessionStorage.setItem(`DATA_${staffId}_${month}_dashboard`, JSON.stringify(res.rewardData));
+                            sessionStorage.setItem(`DATA_${staffId}_${month}_branch`, JSON.stringify(res.rewardData));
+                        }
+                        if (res.commData && !res.commData.error && res.commData.success) {
+                            res.commData.month = month;
+                            state.data.branchCommData = res.commData;
+                            sessionStorage.setItem(`COMM_${staffId}_${month}_branch`, JSON.stringify(res.commData));
+                        }
+                        if (res.closingStatus && res.closingStatus.success) {
+                            state.isCurrentMonthClosed = !!res.closingStatus.isClosed;
+                            state.currentMonthClosedAt = res.closingStatus.closedAt || '';
+                        }
+                        console.log('[Safe Pre-fetch] 지사대표 대시보드 사전 로딩 완료 (캐시 저장 완료)');
+                        // 만약 사용자가 3초 사이에 이미 지사대표 화면에 진입해 있었다면 화면 즉시 갱신
+                        if (state.currentView === 'branch') {
+                            render();
+                            if (typeof window.updateMonthClosingBadgeUI === 'function') {
+                                window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Safe Pre-fetch] 지사대표 사전 로딩 중 예외 발생:', e);
+                } finally {
+                    state._prefetchingBranch = false;
+                }
+            }, 3000);
         }
         async function fetchRec(key) {
             state.isLoading = true; render();
