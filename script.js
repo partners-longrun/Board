@@ -6448,7 +6448,7 @@
                 '당월미납': {
                     title: '당월미납',
                     sortDesc: '모집자코드 (오름차순) ➔ 최종회차 (오름차순)',
-                    expectedCols: 65,
+                    expectedCols: 64,
                     badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
                 }
             };
@@ -6642,18 +6642,32 @@
 
             // 스마트 시트 자동 감지
             function autoDetectSheet(fileName, headerRow) {
-                const fn = (fileName || '').toLowerCase();
-                if (fn.includes('통산유지율') || fn.includes('통산')) return '통산유지율';
-                if (fn.includes('당월실효')) return '당월실효';
-                if (fn.includes('당월연체')) return '당월연체';
-                if (fn.includes('실효리스트') || fn.includes('실효목록')) return '실효리스트';
-                if (fn.includes('미납') || fn.includes('당월미납')) return '당월미납';
-
-                const headersJoined = (headerRow || []).join(',');
-                if (headersJoined.includes('모집고') || headersJoined.includes('유지율(%)') || headersJoined.includes('통산 유지율')) {
+                const cleanFn = (fileName || '').toLowerCase().replace(/\s+/g, '');
+                
+                // 1. 파일명 기반 강력한 감지 (공백 무시)
+                if (cleanFn.includes('통산유지율') || cleanFn.includes('통산') || cleanFn.includes('유지율')) {
                     return '통산유지율';
                 }
-                if (headersJoined.includes('수금자코드') || headersJoined.includes('쉐어율') || headersJoined.includes('최종월도')) {
+                // '당월실효'를 '실효'보다 먼저 체크하여 구분
+                if (cleanFn.includes('당월실효')) {
+                    return '당월실효';
+                }
+                if (cleanFn.includes('당월연체') || cleanFn.includes('연체')) {
+                    return '당월연체';
+                }
+                if (cleanFn.includes('실효리스트') || cleanFn.includes('실효목록') || cleanFn.includes('실효')) {
+                    return '실효리스트';
+                }
+                if (cleanFn.includes('미납') || cleanFn.includes('당월미납')) {
+                    return '당월미납';
+                }
+
+                // 2. 엑셀 헤더 컬럼 내용 기반 보조 감지
+                const headersJoined = (headerRow || []).join(',').replace(/\s+/g, '');
+                if (headersJoined.includes('모집고') || headersJoined.includes('유지율(%)') || headersJoined.includes('통산유지율')) {
+                    return '통산유지율';
+                }
+                if (headersJoined.includes('수금자코드') || headersJoined.includes('쉐어율') || headersJoined.includes('최종월도') || (headerRow && headerRow.length === 64)) {
                     return '당월미납';
                 }
                 return null;
