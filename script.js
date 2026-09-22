@@ -316,8 +316,8 @@
                         resetSessionTimer();
                         setTimeout(prefetchAllBackground, 500); // [OPTIMIZATION] Trigger background prefetching immediately
                         setTimeout(prefetchFeeTableInBackground, 1200);
-                        if (typeof prefetchBranchDashboardSafely === 'function') {
-                            prefetchBranchDashboardSafely();
+                        if (typeof prefetchUserDataSafely === 'function') {
+                            prefetchUserDataSafely();
                         }
                         return true;
                     }
@@ -7959,8 +7959,8 @@
                     state.prefetchTriggered = true;
                     setTimeout(prefetchAllBackground, 800);
                     setTimeout(prefetchFeeTableInBackground, 1200);
-                    if (typeof prefetchBranchDashboardSafely === 'function') {
-                        prefetchBranchDashboardSafely();
+                    if (typeof prefetchUserDataSafely === 'function') {
+                        prefetchUserDataSafely();
                     }
                 }
                 return;
@@ -9457,74 +9457,142 @@
         }
 
         /**
-         * [OPTIMIZATION] 지사대표 대시보드 안전 단일 지연 사전 로딩 (Safe Lazy Pre-fetch)
-         * - 지사대표 권한 사용자에게만 작동
-         * - 3초 유휴 시간 후 단 1회의 번들 API만 조용히 호출하여 구글 차단(Rate Limit) 원천 방지
+         * [OPTIMIZATION] 사용자 맞춤형 안전 단일 지연 사전 로딩 (Safe Lazy Pre-fetch)
+         * - 구글 웹앱 초당 동시 요청 한도(Rate Limit) 원천 방지: 시차 분산형 사전 로딩
+         * 1) 일반 관리자: 3초 후 관리자 데이터(getAdminSummary) 1건 조용히 호출
+         * 2) 지사대표: 3초 후 번들 API 1건 호출 → 5초 추가 시차(총 8초) 후 관리자 데이터 1건 순차 호출
+         * 3) 일반 사용자(FP): 3초 후 본인의 시상금 API(getRewardData) 1건 조용히 호출
          */
-        let _branchPrefetchTimer = null;
-        function prefetchBranchDashboardSafely() {
-            if (!state.user || !isBranchRepAny()) return;
+        let _userPrefetchTimer = null;
+        let _adminPrefetchTimer = null;
+        function prefetchUserDataSafely() {
+            if (!state.user) return;
             const staffId = state.user.staffId;
             const month = state.currentMonth;
             if (!staffId || !month) return;
 
-            const rewardKey = `DATA_${staffId}_${month}_branch`;
+            const isRep = isBranchRepAny();
+            const isAdmin = isAdminAny();
+            const rewardKey = `DATA_${staffId}_${month}_dashboard`;
+            const branchKey = `DATA_${staffId}_${month}_branch`;
             const commKey = `COMM_${staffId}_${month}_branch`;
+            const adminKey = `DATA_${staffId}_${month}_admin`;
 
-            // 이미 메모리 또는 세션 스토리지에 캐시되어 있다면 호출 불필요
-            if (state.data.rewardData?.month === month && state.data.branchCommData?.month === month) return;
-            if (sessionStorage.getItem(rewardKey) && sessionStorage.getItem(commKey)) return;
-            if (state._prefetchingBranch) return;
+            if (state._prefetchingUser) return;
+            if (_userPrefetchTimer) clearTimeout(_userPrefetchTimer);
+            if (_adminPrefetchTimer) clearTimeout(_adminPrefetchTimer);
 
-            if (_branchPrefetchTimer) clearTimeout(_branchPrefetchTimer);
-
-            state._prefetchingBranch = true;
-            _branchPrefetchTimer = setTimeout(async () => {
+            state._prefetchingUser = true;
+            _userPrefetchTimer = setTimeout(async () => {
                 try {
                     // 3초 후 상태 재확인 (로그아웃 등 예외 체크)
-                    if (!state.user || !isBranchRepAny()) {
-                        state._prefetchingBranch = false;
-                        return;
-                    }
-                    if (state.data.rewardData?.month === month && state.data.branchCommData?.month === month) {
-                        state._prefetchingBranch = false;
+                    if (!state.user) {
+                        state._prefetchingUser = false;
                         return;
                     }
 
-                    console.log('[Safe Pre-fetch] 지사대표 대시보드 백그라운드 사전 로딩 시작...');
-                    const res = await callApi('getBranchDashboardBundle', staffId, month);
-                    if (res && res.success) {
-                        if (res.rewardData && !res.rewardData.error) {
-                            res.rewardData.month = month;
-                            state.data.rewardData = res.rewardData;
-                            sessionStorage.setItem(`DATA_${staffId}_${month}_dashboard`, JSON.stringify(res.rewardData));
-                            sessionStorage.setItem(`DATA_${staffId}_${month}_branch`, JSON.stringify(res.rewardData));
+                    if (isRep) {
+                        // 1) 지사대표: 3초 시점에 지사대표 번들 API 1회 호출
+                        const needBranch = !(state.data.rewardData?.month === month && state.data.branchCommData?.month === month) &&
+                                           !(sessionStorage.getItem(branchKey) && sessionStorage.getItem(commKey));
+
+                        if (needBranch) {
+                            console.log('[Safe Pre-fetch] 지사대표 대시보드 백그라운드 사전 로딩 시작...');
+                            const res = await callApi('getBranchDashboardBundle', staffId, month);
+                            if (res && res.success) {
+                                if (res.rewardData && !res.rewardData.error) {
+                                    res.rewardData.month = month;
+                                    state.data.rewardData = res.rewardData;
+                                    sessionStorage.setItem(rewardKey, JSON.stringify(res.rewardData));
+                                    sessionStorage.setItem(branchKey, JSON.stringify(res.rewardData));
+                                }
+                                if (res.commData && !res.commData.error && res.commData.success) {
+                                    res.commData.month = month;
+                                    state.data.branchCommData = res.commData;
+                                    sessionStorage.setItem(commKey, JSON.stringify(res.commData));
+                                }
+                                if (res.closingStatus && res.closingStatus.success) {
+                                    state.isCurrentMonthClosed = !!res.closingStatus.isClosed;
+                                    state.currentMonthClosedAt = res.closingStatus.closedAt || '';
+                                }
+                                console.log('[Safe Pre-fetch] 지사대표 번들 사전 로딩 완료 (지사대표/시상금 캐시 동시 확보)');
+                                if (state.currentView === 'branch') {
+                                    render();
+                                    if (typeof window.updateMonthClosingBadgeUI === 'function') {
+                                        window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+                                    }
+                                } else if (state.currentView === 'dashboard') {
+                                    render();
+                                }
+                            }
                         }
-                        if (res.commData && !res.commData.error && res.commData.success) {
-                            res.commData.month = month;
-                            state.data.branchCommData = res.commData;
-                            sessionStorage.setItem(`COMM_${staffId}_${month}_branch`, JSON.stringify(res.commData));
+
+                        // 지사대표의 관리자 메뉴 사전 로딩: 번들과 겹치지 않게 5초 추가 시차(총 8초) 후 순차 호출
+                        const needAdmin = !state.data.adminSummary && !sessionStorage.getItem(adminKey);
+                        if (needAdmin) {
+                            _adminPrefetchTimer = setTimeout(async () => {
+                                try {
+                                    if (!state.user || !isBranchRepAny() || state.data.adminSummary || sessionStorage.getItem(adminKey)) return;
+                                    console.log('[Safe Pre-fetch] (지사대표) 관리자 데이터 2차 순차 사전 로딩 시작...');
+                                    const adminRes = await callApi('getAdminSummary', month, staffId);
+                                    let parsed = adminRes;
+                                    if (typeof adminRes === 'string') {
+                                        try { parsed = JSON.parse(adminRes); } catch(e) { parsed = null; }
+                                    }
+                                    if (parsed && !parsed.error) {
+                                        state.data.adminSummary = parsed;
+                                        sessionStorage.setItem(adminKey, JSON.stringify(parsed));
+                                        console.log('[Safe Pre-fetch] (지사대표) 관리자 데이터 사전 로딩 완료');
+                                        if (state.currentView === 'admin') render();
+                                    }
+                                } catch(err) {
+                                    console.warn('[Safe Pre-fetch] 지사대표 관리자 2차 사전 로딩 예외:', err);
+                                }
+                            }, 5000);
                         }
-                        if (res.closingStatus && res.closingStatus.success) {
-                            state.isCurrentMonthClosed = !!res.closingStatus.isClosed;
-                            state.currentMonthClosedAt = res.closingStatus.closedAt || '';
+
+                    } else if (isAdmin) {
+                        // 2) 일반 관리자 (지사대표 아님): 3초 시점에 관리자 데이터 단 1회 호출
+                        const needAdmin = !state.data.adminSummary && !sessionStorage.getItem(adminKey);
+                        if (needAdmin) {
+                            console.log('[Safe Pre-fetch] (일반 관리자) 관리자 데이터 사전 로딩 시작...');
+                            const adminRes = await callApi('getAdminSummary', month, staffId);
+                            let parsed = adminRes;
+                            if (typeof adminRes === 'string') {
+                                try { parsed = JSON.parse(adminRes); } catch(e) { parsed = null; }
+                            }
+                            if (parsed && !parsed.error) {
+                                state.data.adminSummary = parsed;
+                                sessionStorage.setItem(adminKey, JSON.stringify(parsed));
+                                console.log('[Safe Pre-fetch] (일반 관리자) 관리자 데이터 사전 로딩 완료');
+                                if (state.currentView === 'admin') render();
+                            }
                         }
-                        console.log('[Safe Pre-fetch] 지사대표 대시보드 사전 로딩 완료 (캐시 저장 완료)');
-                        // 만약 사용자가 3초 사이에 이미 지사대표 화면에 진입해 있었다면 화면 즉시 갱신
-                        if (state.currentView === 'branch') {
-                            render();
-                            if (typeof window.updateMonthClosingBadgeUI === 'function') {
-                                window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
+                    } else {
+                        // 3) 일반 사용자(FP): 3초 시점에 시상금 API 단 1회 호출
+                        const needReward = !(state.data.rewardData?.month === month) && !sessionStorage.getItem(rewardKey);
+                        if (needReward) {
+                            console.log('[Safe Pre-fetch] 일반 시상금 데이터 백그라운드 사전 로딩 시작...');
+                            const d = await callApi('getRewardData', staffId, month);
+                            if (d && !d.error) {
+                                d.month = month;
+                                state.data.rewardData = d;
+                                sessionStorage.setItem(rewardKey, JSON.stringify(d));
+                                console.log('[Safe Pre-fetch] 일반 시상금 데이터 사전 로딩 완료');
+                                if (state.currentView === 'dashboard') {
+                                    render();
+                                }
                             }
                         }
                     }
                 } catch (e) {
-                    console.warn('[Safe Pre-fetch] 지사대표 사전 로딩 중 예외 발생:', e);
+                    console.warn('[Safe Pre-fetch] 사전 로딩 중 예외 발생:', e);
                 } finally {
-                    state._prefetchingBranch = false;
+                    state._prefetchingUser = false;
                 }
             }, 3000);
         }
+        const prefetchBranchDashboardSafely = prefetchUserDataSafely;
         async function fetchRec(key) {
             state.isLoading = true; render();
             const d = await callApi('getRecruitmentData', state.user.staffId, state.currentMonth);
