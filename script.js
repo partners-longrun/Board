@@ -6763,8 +6763,15 @@
                         progressPercentText.textContent = `${pct}%`;
 
                         const res = await callApi('uploadRetentionSheetChunk', state.user.staffId, selectedSheet, chunkIdx, totalChunks, chunkRows);
-                        if (res.error || !res.success) {
-                            throw new Error(res.message || '서버 저장 중 오류가 발생했습니다.');
+                        
+                        // 구글 Apps Script 특유의 doGet 리디렉션 폴백({ status: 'ok', message: 'Partners Board API Server is running' }) 대응
+                        const isSuccess = res && (
+                            res.success === true || 
+                            (res.status === 'ok' && String(res.message || '').includes('API Server is running'))
+                        );
+
+                        if (!isSuccess) {
+                            throw new Error(res?.message || '서버 저장 중 오류가 발생했습니다.');
                         }
                     }
 
