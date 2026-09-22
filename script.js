@@ -5129,6 +5129,12 @@
             render();
         }
 
+        function canUploadLapseExcel() {
+            if (!state.user) return false;
+            const r1 = String(state.user.role1 || state.user.role || '').trim();
+            return r1 === '지사대표' || r1 === '운영진' || r1 === '실장';
+        }
+
         function createLapseAdminView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
@@ -5165,6 +5171,7 @@
                                     <div>실효, 연체 계약만 저장합니다.</div>
                                 </div>
                             </div>
+                            ${canUploadLapseExcel() ? `
                             <div class="relative group flex-1 sm:flex-none">
                                 <button onclick="openLapseExcelUploadModal()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -5175,7 +5182,7 @@
                                     <div>유지율_DB 5개 시트 데이터를</div>
                                     <div>엑셀 파일로 일괄 갱신합니다.</div>
                                 </div>
-                            </div>
+                            </div>` : ''}
                         </div>
                         <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg w-full sm:w-auto justify-center">
                             <button onclick="setLapseBaseType('recruiter')" class="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-md transition duration-200 ${state.lapseBaseType === 'recruiter' ? 'bg-white shadow-sm text-primary font-bold' : 'text-gray-500 hover:text-gray-700'}">모집인 기준</button>
@@ -6411,6 +6418,11 @@
 
         // --- 유지율_DB 엑셀 업로드 모달 및 핸들러 ---
         window.openLapseExcelUploadModal = function () {
+            if (typeof canUploadLapseExcel === 'function' && !canUploadLapseExcel()) {
+                alert('권한1이 지사대표, 운영진, 실장인 경우에만 엑셀 업로드가 가능합니다.');
+                return;
+            }
+
             const modalId = 'lapse-excel-upload-modal';
             let modal = document.getElementById(modalId);
             if (!modal) {
