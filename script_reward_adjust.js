@@ -128,9 +128,9 @@
                             <p class="text-xs text-gray-500 mt-1">시상 지급 대상을 검색/변경하고 비율 및 지급액을 조정합니다. (지사대표 전용)</p>
                         </div>
                         <div class="flex flex-col sm:flex-row items-center gap-2.5 flex-shrink-0">
-                            <div id="dropZone" class="border-2 border-dashed border-slate-200 hover:border-primary/50 hover:bg-orange-50/5 rounded-xl px-3.5 py-2 text-center cursor-pointer transition flex items-center justify-center gap-2 h-[42px] w-full sm:w-auto">
-                                <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                <span class="text-xs text-gray-600 font-bold whitespace-nowrap">엑셀 업로드 (.xlsx)</span>
+                            <div id="dropZone" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap w-full sm:w-auto">
+                                <svg class="w-5 h-5 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                <span>엑셀 업로드</span>
                                 <input type="file" id="excelFilesInput" multiple accept=".xlsx" class="hidden">
                             </div>
                             <button id="exportAdjustBtn" class="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-1.5 h-[42px] whitespace-nowrap">

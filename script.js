@@ -3028,10 +3028,8 @@
                     💡 Tip: 시상금 및 기타 수수료/공제 항목의 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.
                 </div>
                 <div class="self-end sm:self-center">
-                    <button onclick="openCommissionUploadModal()" class="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                        </svg>
+                    <button onclick="openCommissionUploadModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         <span>엑셀 업로드</span>
                     </button>
                 </div>
@@ -5187,9 +5185,9 @@
                             </div>
                             ${canUploadLapseExcel() ? `
                             <div class="relative group flex-1 sm:flex-none">
-                                <button onclick="openLapseExcelUploadModal()" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm transition flex items-center justify-center gap-2 whitespace-nowrap text-sm">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                    엑셀 업로드
+                                <button onclick="openLapseExcelUploadModal()" class="w-full px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap">
+                                    <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    <span>엑셀 업로드</span>
                                 </button>
                                 <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 w-max px-3.5 py-2 bg-gray-900/95 text-white text-xs rounded-lg shadow-2xl backdrop-blur-sm pointer-events-none transition duration-200 text-center leading-relaxed whitespace-nowrap">
                                     <div class="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900/95"></div>
@@ -9460,8 +9458,8 @@
                     <div class="flex flex-wrap md:flex-nowrap gap-2 items-center w-full md:w-auto">
                         ${canUploadPerformanceExcel() ? `
                         <!-- 엑셀 업로드 버튼 (소속 선택 콤보박스 왼쪽) -->
-                        <button onclick="openPerformanceExcelUploadModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition transform hover:-translate-y-0.5 cursor-pointer whitespace-nowrap">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <button onclick="openPerformanceExcelUploadModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap">
+                            <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                             <span>엑셀 업로드</span>
                         </button>
                         ` : ''}
