@@ -9882,6 +9882,14 @@
                 return `<option value="${m}" ${m === curM ? 'selected' : ''}>${i + 1}월</option>`;
             }).join('');
 
+            // 기준일 디폴트 값: 업로드하는 날의 전일 (yyyy-MM-dd)
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yYear = yesterday.getFullYear();
+            const yMonth = String(yesterday.getMonth() + 1).padStart(2, '0');
+            const yDay = String(yesterday.getDate()).padStart(2, '0');
+            const defaultRefDate = `${yYear}-${yMonth}-${yDay}`;
+
             modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-gray-100 transition-all transform flex flex-col max-h-[90vh]">
                     <!-- 헤더 -->
@@ -9905,30 +9913,36 @@
 
                     <!-- 본문 -->
                     <div class="p-6 space-y-5 overflow-y-auto flex-1">
-                        <!-- 1. 대상 마감월 선택 -->
-                        <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-200">
-                            <label class="block text-xs font-bold text-gray-700 mb-2">1. 대상 마감월 선택 <span class="text-rose-500">*</span></label>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="relative">
-                                    <select id="perfUploadYear" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
-                                        ${yearOptions}
-                                    </select>
-                                </div>
-                                <div class="relative">
-                                    <select id="perfUploadMonth" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
-                                        ${monthOptions}
-                                    </select>
+                        <!-- 1. 대상 마감월 및 기준일 선택 -->
+                        <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-200 space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">1. 대상 마감월 선택 <span class="text-rose-500">*</span></label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="relative">
+                                        <select id="perfUploadYear" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
+                                            ${yearOptions}
+                                        </select>
+                                    </div>
+                                    <div class="relative">
+                                        <select id="perfUploadMonth" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
+                                            ${monthOptions}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                            <p class="text-[11px] text-gray-500 mt-2 flex items-center gap-1">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-700 mb-1.5">2. 기준일 선택 (AQ열 기록) <span class="text-rose-500">*</span></label>
+                                <input type="date" id="perfUploadRefDate" value="${defaultRefDate}" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition cursor-pointer">
+                            </div>
+                            <p class="text-[11px] text-gray-500 flex items-center gap-1">
                                 <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 선택한 마감월의 기존 데이터는 삭제되고 새 데이터로 완전히 교체(갱신)됩니다.
                             </p>
                         </div>
 
-                        <!-- 2. 엑셀 파일 드롭존 -->
+                        <!-- 3. 엑셀 파일 드롭존 -->
                         <div>
-                            <label class="block text-xs font-bold text-gray-700 mb-2">2. 엑셀 파일 선택 (.xlsx, .xls) <span class="text-rose-500">*</span></label>
+                            <label class="block text-xs font-bold text-gray-700 mb-2">3. 엑셀 파일 선택 (.xlsx, .xls) <span class="text-rose-500">*</span></label>
                             <input type="file" id="perfExcelFileInput" accept=".xlsx, .xls" class="hidden">
                             <div id="perfExcelDropzone" class="border-2 border-dashed border-gray-300 hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/30 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
                                 <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 group-hover:text-emerald-600 group-hover:scale-105 transition border border-gray-100">
@@ -9941,7 +9955,7 @@
                             </div>
                         </div>
 
-                        <!-- 3. 파일 미리보기 & 검증 안내 박스 -->
+                        <!-- 4. 파일 미리보기 & 검증 안내 박스 -->
                         <div id="perfExcelPreviewBox" class="hidden bg-emerald-50/60 rounded-xl p-4 border border-emerald-200 space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-2">
@@ -9960,7 +9974,7 @@
                             </div>
                         </div>
 
-                        <!-- 4. 처리 진행 상태 -->
+                        <!-- 5. 처리 진행 상태 -->
                         <div id="perfUploadProgressSection" class="hidden space-y-2 pt-2">
                             <div class="flex justify-between text-xs font-bold text-gray-600">
                                 <span id="perfUploadStatusText" class="flex items-center gap-1.5 text-emerald-700">
@@ -10003,6 +10017,7 @@
             const progressSection = modal.querySelector('#perfUploadProgressSection');
             const yearSelect = modal.querySelector('#perfUploadYear');
             const monthSelect = modal.querySelector('#perfUploadMonth');
+            const refDateInput = modal.querySelector('#perfUploadRefDate');
 
             const closeModal = () => {
                 if (isUploading) {
@@ -10095,8 +10110,9 @@
                 const targetY = yearSelect.value;
                 const targetM = monthSelect.value;
                 const targetYm = targetY + targetM;
+                const targetRefDate = (refDateInput?.value || defaultRefDate).trim();
 
-                const confirmMsg = `${targetY}년 ${parseInt(targetM)}월 마감 데이터(${parsedExcelData.dataRows.length.toLocaleString()}건)를 갱신하시겠습니까?\n\n※ 기존에 입력된 ${targetY}년 ${parseInt(targetM)}월 데이터는 삭제되고 새 데이터로 완전히 교체됩니다.`;
+                const confirmMsg = `${targetY}년 ${parseInt(targetM)}월 마감 데이터(${parsedExcelData.dataRows.length.toLocaleString()}건)를 갱신하시겠습니까?\n\n※ 기준일: ${targetRefDate}\n※ 기존에 입력된 ${targetY}년 ${parseInt(targetM)}월 데이터는 삭제되고 새 데이터로 완전히 교체됩니다.`;
                 if (!confirm(confirmMsg)) return;
 
                 isUploading = true;
@@ -10105,10 +10121,11 @@
                 closeBtn.disabled = true;
                 yearSelect.disabled = true;
                 monthSelect.disabled = true;
+                if (refDateInput) refDateInput.disabled = true;
                 progressSection.classList.remove('hidden');
 
                 try {
-                    const res = await callApi('uploadPerformanceAnalysisExcel', state.user.staffId, targetYm, parsedExcelData.dataRows);
+                    const res = await callApi('uploadPerformanceAnalysisExcel', state.user.staffId, targetYm, parsedExcelData.dataRows, targetRefDate);
                     
                     if (res && res.success) {
                         alert(res.message || `${targetYm} 마감월 데이터가 성공적으로 갱신되었습니다.`);
@@ -10119,7 +10136,10 @@
                         state.perfAnalysisLoaded = false;
                         state.perfAnalysisYear = targetY;
                         state.perfAnalysisMonth = targetM;
-                        loadPerformanceAnalysisData(targetY, targetM);
+                        render();
+                        if (typeof fetchPerformanceAnalysisData === 'function') {
+                            fetchPerformanceAnalysisData();
+                        }
                     } else {
                         alert('데이터 갱신 실패: ' + (res?.message || '알 수 없는 오류'));
                         isUploading = false;
@@ -10128,6 +10148,7 @@
                         closeBtn.disabled = false;
                         yearSelect.disabled = false;
                         monthSelect.disabled = false;
+                        if (refDateInput) refDateInput.disabled = false;
                         progressSection.classList.add('hidden');
                     }
                 } catch (err) {
@@ -10139,6 +10160,7 @@
                     closeBtn.disabled = false;
                     yearSelect.disabled = false;
                     monthSelect.disabled = false;
+                    if (refDateInput) refDateInput.disabled = false;
                     progressSection.classList.add('hidden');
                 }
             });
