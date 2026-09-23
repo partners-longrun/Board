@@ -7188,7 +7188,7 @@
                     hasSummaryRow: true,
                     addMonth: false,
                     allowMulti: false,
-                    sortDesc: '1순위 사번 → 2순위 계약일 → 3순위 보험사 (오름차순)',
+                    sortDesc: '사번, 계약일, 보험사 (오름차순)',
                     guide: '엑셀 상단 2개 행(헤더)과 맨 아래 집계행을 제외한 순수 데이터(60개 열)가 스프레드시트에 누적 저장됩니다.'
                 },
                 '손보실적': {
@@ -7201,7 +7201,7 @@
                     hasSummaryRow: true,
                     addMonth: false,
                     allowMulti: false,
-                    sortDesc: '1순위 사번 → 2순위 계약일 → 3순위 보험사 (오름차순)',
+                    sortDesc: '사번, 계약일, 보험사 (오름차순)',
                     guide: '엑셀 상단 2개 행(헤더)과 맨 아래 집계행을 제외한 순수 데이터(60개 열)가 스프레드시트에 누적 저장됩니다.'
                 },
                 '기타수수료': {
@@ -7237,8 +7237,29 @@
             let parsedFiles = [];
             let isUploading = false;
 
-            const rawCurrentMonth = String(state.currentMonth || '').replace(/[^0-9]/g, '');
-            const defaultMonth = rawCurrentMonth.length >= 6 ? rawCurrentMonth.substring(0, 6) : '202608';
+            // 디폴트 마감월은 현재 월의 전월 (예: 9월 -> 202608)
+            const now = new Date();
+            const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const defaultMonth = `${prevMonthDate.getFullYear()}${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+            // 마감월 드롭다운 옵션 (과거 18개월 목록 생성)
+            const monthOptionsList = [];
+            for (let i = -1; i < 18; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const ym = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
+                if (!monthOptionsList.includes(ym)) monthOptionsList.push(ym);
+            }
+            if (Array.isArray(state.months)) {
+                state.months.forEach(m => {
+                    const ym = String(m || '').replace(/[^0-9]/g, '').substring(0, 6);
+                    if (ym.length === 6 && !monthOptionsList.includes(ym)) monthOptionsList.push(ym);
+                });
+            }
+            monthOptionsList.sort().reverse();
+
+            const monthOptionsHtml = monthOptionsList.map(ym =>
+                `<option value="${ym}" ${ym === defaultMonth ? 'selected' : ''}>${ym}</option>`
+            ).join('');
 
             modal.innerHTML = `
                 <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 ring-1 ring-black/5 flex flex-col max-h-[92vh]">
@@ -7279,11 +7300,18 @@
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div>
                                     <span id="comm-sheet-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg border bg-emerald-100 text-emerald-800 border-emerald-200">생보실적</span>
-                                    <span id="comm-sheet-sort" class="text-xs text-gray-500 ml-2">정렬: 1순위 사번 → 2순위 계약일 → 3순위 보험사</span>
+                                    <span id="comm-sheet-sort" class="text-xs text-gray-500 ml-2">정렬: 사번, 계약일, 보험사 (오름차순)</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <label for="comm-target-month" class="text-xs font-bold text-gray-700 whitespace-nowrap">마감월(6자리):</label>
-                                    <input type="text" id="comm-target-month" maxlength="6" value="${defaultMonth}" class="w-24 px-2.5 py-1.5 text-xs sm:text-sm font-mono font-bold text-center border border-gray-300 rounded-lg bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none" placeholder="202608">
+                                    <label for="comm-target-month" class="text-xs font-bold text-gray-700 whitespace-nowrap">마감월:</label>
+                                    <div class="relative">
+                                        <select id="comm-target-month" class="appearance-none px-3 pr-8 py-1.5 text-xs sm:text-sm font-mono font-bold text-gray-800 bg-white border border-gray-300 rounded-lg focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none cursor-pointer shadow-xs">
+                                            ${monthOptionsHtml}
+                                        </select>
+                                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <p id="comm-sheet-guide" class="text-xs text-gray-600 leading-relaxed">
