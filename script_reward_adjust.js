@@ -2043,9 +2043,37 @@
                 let analyzedFiles = []; // { file, name, size, columnCount, rowCount, columns, rows }
                 let isUploading = false;
 
+                // 표준 시상 엑셀 28개 열 헤더 기준
+                const STANDARD_REWARD_HEADERS = [
+                    '마감월', '지급년월', '처리구분(본사/제휴사)', '지급대상자', '지급대상자명',
+                    '분류', '보험사', '증권번호', '지급/환수 구분', '회차',
+                    '모집자사번', '모집자명', '인정보험료', '지급액', '시상내용',
+                    '계약일자', '계약자명', '상품명', '환수구분', 'DATA구분',
+                    '최종수정자', '최종수정일시', '본사구분', '직영/제휴', '본부/사업단',
+                    '권역/사업단', '지점', '팀'
+                ];
+
+                // 헤더 검증 함수
+                function validateHeaders(columns) {
+                    const cleanCols = (columns || []).map(c => String(c || '').trim()).filter(Boolean);
+                    const missing = STANDARD_REWARD_HEADERS.filter(h => !cleanCols.includes(h));
+                    const extra = cleanCols.filter(h => !STANDARD_REWARD_HEADERS.includes(h));
+                    const isCountMatch = cleanCols.length === STANDARD_REWARD_HEADERS.length;
+                    const isValid = missing.length === 0 && extra.length === 0 && isCountMatch;
+
+                    return {
+                        isValid,
+                        isCountMatch,
+                        count: cleanCols.length,
+                        missing,
+                        extra
+                    };
+                }
+
                 const renderModalContent = () => {
                     const totalFiles = analyzedFiles.length;
                     const totalRows = analyzedFiles.reduce((acc, f) => acc + f.rowCount, 0);
+                    const invalidFiles = analyzedFiles.filter(f => !f.validation.isValid);
 
                     const sheetOptions = ['2차년인센', '생보법인', '손보법인', '생보개인', '손보개인'];
 
@@ -2086,7 +2114,7 @@
                                         </div>
                                         <div class="pointer-events-none">
                                             <p class="font-bold text-gray-700 text-xs">파일을 마우스로 끌어다 놓거나 클릭하여 선택하세요</p>
-                                            <p class="text-[11px] text-gray-400 mt-0.5">복수 파일 동시 선택 가능 (.xlsx 지원)</p>
+                                            <p class="text-[11px] text-gray-400 mt-0.5">표준 28개 열 헤더 구조 (.xlsx 다중 선택 지원)</p>
                                         </div>
                                     </div>
                                 </div>
@@ -2095,45 +2123,80 @@
                                 ${totalFiles > 0 ? `
                                     <div class="space-y-2">
                                         <div class="flex items-center justify-between">
-                                            <label class="block text-xs font-bold text-gray-700">3. 파일 분석 결과</label>
-                                            <div class="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-lg text-[11px] border border-emerald-200/60">
-                                                총 <span class="font-black text-emerald-800">${totalFiles}</span>개 파일 / <span class="font-black text-emerald-800">${totalRows.toLocaleString()}</span>건 데이터
+                                            <label class="block text-xs font-bold text-gray-700">3. 파일 분석 및 헤더 검증 결과</label>
+                                            <div class="flex items-center gap-2">
+                                                ${invalidFiles.length > 0 ? `
+                                                    <span class="px-2.5 py-1 bg-rose-50 text-rose-700 font-bold rounded-lg text-[11px] border border-rose-200">
+                                                        ⚠️ 헤더 불일치 ${invalidFiles.length}건
+                                                    </span>
+                                                ` : `
+                                                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 font-bold rounded-lg text-[11px] border border-emerald-200">
+                                                        ✓ 모든 파일 헤더 정상 (28열)
+                                                    </span>
+                                                `}
+                                                <div class="px-2.5 py-1 bg-slate-100 text-slate-700 font-bold rounded-lg text-[11px] border border-slate-200">
+                                                    총 <span class="font-black text-slate-900">${totalFiles}</span>개 파일 / <span class="font-black text-slate-900">${totalRows.toLocaleString()}</span>건
+                                                </div>
                                             </div>
                                         </div>
+
+                                        ${invalidFiles.length > 0 ? `
+                                            <div class="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-[11px] leading-relaxed flex items-start gap-2">
+                                                <span class="text-amber-600 font-bold text-sm">⚠️</span>
+                                                <div>
+                                                    <strong>헤더 불일치 경고:</strong> 기준 헤더(28개)와 열 수 또는 열 이름이 다른 파일이 감지되었습니다. 마우스를 올려 상세 차이를 확인하세요.
+                                                </div>
+                                            </div>
+                                        ` : ''}
+
                                         <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                                             <table class="w-full text-left text-[11px]">
                                                 <thead class="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold">
                                                     <tr>
                                                         <th class="p-2.5 text-center w-10">No</th>
                                                         <th class="p-2.5">파일명</th>
-                                                        <th class="p-2.5 text-center w-24">컬럼 수</th>
+                                                        <th class="p-2.5 text-center w-36">열 헤더 상태</th>
                                                         <th class="p-2.5 text-right w-24">데이터 건수</th>
                                                         <th class="p-2.5 text-center w-12">삭제</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="divide-y divide-gray-100 bg-white">
-                                                    ${analyzedFiles.map((f, idx) => `
-                                                        <tr class="hover:bg-gray-50/80 transition">
-                                                            <td class="p-2.5 text-center text-gray-400 font-mono">${idx + 1}</td>
-                                                            <td class="p-2.5 font-medium text-gray-800 truncate max-w-[220px]" title="${f.name}">
-                                                                <div class="flex items-center gap-1.5">
-                                                                    <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                                                    <span class="truncate">${f.name}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td class="p-2.5 text-center font-bold text-slate-700">
-                                                                <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md cursor-help border border-slate-200" title="헤더 목록: ${f.columns.join(', ')}">
-                                                                    ${f.columnCount}개 열 ℹ️
-                                                                </span>
-                                                            </td>
-                                                            <td class="p-2.5 text-right font-black text-primary font-mono">${f.rowCount.toLocaleString()}건</td>
-                                                            <td class="p-2.5 text-center">
-                                                                <button type="button" data-remove-idx="${idx}" class="btn-remove-file p-1 text-gray-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition" title="파일 제외">
-                                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    `).join('')}
+                                                    ${analyzedFiles.map((f, idx) => {
+                                                        const v = f.validation;
+                                                        let badgeHtml = '';
+                                                        if (v.isValid) {
+                                                            badgeHtml = `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded-md border border-emerald-200/80 cursor-help" title="28개 표준 헤더와 완벽히 일치합니다.">28개 열 (정상)</span>`;
+                                                        } else {
+                                                            const diffDetails = [];
+                                                            if (!v.isCountMatch) diffDetails.push(`열 수: ${v.count}개 (기준 28개)`);
+                                                            if (v.missing.length > 0) diffDetails.push(`누락 열: [${v.missing.join(', ')}]`);
+                                                            if (v.extra.length > 0) diffDetails.push(`추가/불일치 열: [${v.extra.join(', ')}]`);
+                                                            const tooltipText = diffDetails.join('\n');
+
+                                                            badgeHtml = `<span class="px-2 py-0.5 bg-rose-50 text-rose-700 font-bold rounded-md border border-rose-300 cursor-help" title="${tooltipText}">⚠️ ${v.count}개 열 (불일치)</span>`;
+                                                        }
+
+                                                        return `
+                                                            <tr class="hover:bg-gray-50/80 transition">
+                                                                <td class="p-2.5 text-center text-gray-400 font-mono">${idx + 1}</td>
+                                                                <td class="p-2.5 font-medium text-gray-800 truncate max-w-[200px]" title="${f.name}">
+                                                                    <div class="flex items-center gap-1.5">
+                                                                        <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                                                        <span class="truncate">${f.name}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td class="p-2.5 text-center">
+                                                                    ${badgeHtml}
+                                                                </td>
+                                                                <td class="p-2.5 text-right font-black text-primary font-mono">${f.rowCount.toLocaleString()}건</td>
+                                                                <td class="p-2.5 text-center">
+                                                                    <button type="button" data-remove-idx="${idx}" class="btn-remove-file p-1 text-gray-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition" title="파일 제외">
+                                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        `;
+                                                    }).join('')}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -2238,6 +2301,14 @@
                                 alert('업로드할 엑셀 파일을 먼저 등록해 주세요.');
                                 return;
                             }
+
+                            // 헤더 불일치 파일이 존재하는 경우 2차 컨펌
+                            const hasInvalid = analyzedFiles.some(f => !f.validation.isValid);
+                            if (hasInvalid) {
+                                const confirmMsg = '⚠️ 기준 헤더(28개 열)와 일치하지 않는 파일이 포함되어 있습니다.\n헤더 구조가 다를 경우 일부 데이터가 누락되거나 잘못 저장될 수 있습니다.\n\n계속해서 업로드를 진행하시겠습니까?';
+                                if (!confirm(confirmMsg)) return;
+                            }
+
                             await executeModalUpload(targetSheet, analyzedFiles);
                         });
                     }
@@ -2252,6 +2323,8 @@
                     }
 
                     showLoading(true);
+                    const newlyInvalidFiles = [];
+
                     for (const file of validFiles) {
                         // 중복 파일명 체크
                         if (analyzedFiles.some(f => f.name === file.name && f.size === file.size)) {
@@ -2264,7 +2337,7 @@
                             const firstSheetName = workbook.SheetNames[0];
                             const sheet = workbook.Sheets[firstSheetName];
 
-                            // 헤더 및 행 파싱
+                            // 행 파싱
                             const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
                             
                             // 컬럼 헤더 목록 추출
@@ -2277,15 +2350,25 @@
                                 }
                             }
 
-                            analyzedFiles.push({
+                            // 28개 표준 헤더 검증
+                            const validation = validateHeaders(columns);
+
+                            const fileInfo = {
                                 file: file,
                                 name: file.name,
                                 size: file.size,
                                 columnCount: columns.length,
                                 rowCount: rawRows.length,
                                 columns: columns,
-                                rows: rawRows
-                            });
+                                rows: rawRows,
+                                validation: validation
+                            };
+
+                            analyzedFiles.push(fileInfo);
+
+                            if (!validation.isValid) {
+                                newlyInvalidFiles.push(fileInfo);
+                            }
                         } catch (err) {
                             console.error(`[${file.name}] 파일 파싱 실패:`, err);
                             alert(`[${file.name}] 파일을 해석하는 중 오류가 발생했습니다: ` + err.message);
@@ -2293,6 +2376,21 @@
                     }
                     showLoading(false);
                     renderModalContent();
+
+                    // 불일치 파일이 있는 경우 알림 경고 팝업
+                    if (newlyInvalidFiles.length > 0) {
+                        const alertMessages = newlyInvalidFiles.map(f => {
+                            const v = f.validation;
+                            const details = [];
+                            details.push(`• 파일명: ${f.name}`);
+                            details.push(`  - 열 수: ${v.count}개 (기준 28개)`);
+                            if (v.missing.length > 0) details.push(`  - 누락된 열 (${v.missing.length}개): ${v.missing.join(', ')}`);
+                            if (v.extra.length > 0) details.push(`  - 추가/다른 열 (${v.extra.length}개): ${v.extra.join(', ')}`);
+                            return details.join('\n');
+                        }).join('\n\n');
+
+                        alert(`⚠️ [엑셀 헤더 불일치 경고]\n등록하신 파일 중 표준 헤더(28개)와 일치하지 않는 파일이 있습니다.\n\n${alertMessages}\n\n모달창의 분석 결과를 확인해 주세요.`);
+                    }
                 }
 
                 // 모달 내 업로드 실행 프로세스
