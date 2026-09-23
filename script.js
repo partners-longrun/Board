@@ -6999,7 +6999,7 @@
                 .trim();
         }
 
-        function readCommissionExcelFileAsync(file) {
+        function readCommissionExcelFileAsync(file, sheetConfig = null) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -7016,15 +7016,39 @@
                         const sheet = workbook.Sheets[firstSheetName];
                         
                         const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                        if (!rawRows || rawRows.length < 2) {
-                            throw new Error('엑셀 파일에 데이터가 없거나 1행만 존재합니다.');
+                        const headerRowsCount = sheetConfig?.headerRowsCount || 1;
+                        const hasSummaryRow = sheetConfig?.hasSummaryRow || false;
+
+                        if (!rawRows || rawRows.length <= headerRowsCount) {
+                            throw new Error(`엑셀 파일에 데이터가 없거나 헤더행(${headerRowsCount}행)만 존재합니다.`);
                         }
 
-                        const headerRow = rawRows[0].map(h => String(h || '').trim());
+                        // 헤더 추출
+                        let headerRow = [];
+                        let dataStartRow = 1;
+
+                        if (headerRowsCount >= 2) {
+                            // 상단 2행이 헤더인 경우 (생보실적, 손보실적)
+                            const r0 = rawRows[0] || [];
+                            const r1 = rawRows[1] || [];
+                            const maxCol = Math.max(r0.length, r1.length);
+                            for (let c = 0; c < maxCol; c++) {
+                                const h1 = String(r0[c] || '').trim();
+                                const h2 = String(r1[c] || '').trim();
+                                // 2행 명칭 우선 (비어있으면 1행 사용)
+                                headerRow.push(h2 || h1);
+                            }
+                            dataStartRow = 2; // 0, 1행이 헤더이므로 실제 데이터는 index 2(3행)부터 시작
+                        } else {
+                            // 상단 1행이 헤더인 경우 (기타수수료, 세후지급공제)
+                            headerRow = (rawRows[0] || []).map(h => String(h || '').trim());
+                            dataStartRow = 1;
+                        }
+
                         const cleanHeaders = headerRow.map(h => cleanCommissionHeaderName(h));
                         const dataRows = [];
 
-                        for (let r = 1; r < rawRows.length; r++) {
+                        for (let r = dataStartRow; r < rawRows.length; r++) {
                             const row = rawRows[r];
                             if (!row || row.length === 0) continue;
                             const isAllEmpty = row.every(c => c === undefined || c === null || String(c).trim() === '');
@@ -7049,6 +7073,13 @@
                             dataRows.push(cleanedRow);
                         }
 
+                        // 맨 아래 마지막 행이 집계행인 경우 제외
+                        let summaryRowRemoved = false;
+                        if (hasSummaryRow && dataRows.length > 0) {
+                            dataRows.pop();
+                            summaryRowRemoved = true;
+                        }
+
                         resolve({
                             file,
                             fileName: file.name,
@@ -7056,6 +7087,7 @@
                             headerRow,
                             cleanHeaders,
                             dataRows,
+                            summaryRowRemoved,
                             sheetName: firstSheetName
                         });
                     } catch (err) {
@@ -7144,23 +7176,27 @@
                     name: '생보실적',
                     badge: '생보실적',
                     badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                    expectedExcelCols: 59,
-                    expectedSheetCols: 59,
+                    expectedExcelCols: 60,
+                    expectedSheetCols: 60,
+                    headerRowsCount: 2,
+                    hasSummaryRow: true,
                     addMonth: false,
                     allowMulti: false,
                     sortDesc: '1순위 사번 → 2순위 계약일 → 3순위 보험사 (오름차순)',
-                    guide: '엑셀의 59개 열과 스프레드시트의 59개 열이 일치합니다. 기존 데이터 아래에 누적 저장됩니다.'
+                    guide: '엑셀 상단 2개 행(헤더)과 맨 아래 집계행을 제외한 순수 데이터(60개 열)가 스프레드시트에 누적 저장됩니다.'
                 },
                 '손보실적': {
                     name: '손보실적',
                     badge: '손보실적',
                     badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
-                    expectedExcelCols: 59,
-                    expectedSheetCols: 59,
+                    expectedExcelCols: 60,
+                    expectedSheetCols: 60,
+                    headerRowsCount: 2,
+                    hasSummaryRow: true,
                     addMonth: false,
                     allowMulti: false,
                     sortDesc: '1순위 사번 → 2순위 계약일 → 3순위 보험사 (오름차순)',
-                    guide: '엑셀의 59개 열과 스프레드시트의 59개 열이 일치합니다. 기존 데이터 아래에 누적 저장됩니다.'
+                    guide: '엑셀 상단 2개 행(헤더)과 맨 아래 집계행을 제외한 순수 데이터(60개 열)가 스프레드시트에 누적 저장됩니다.'
                 },
                 '기타수수료': {
                     name: '기타수수료',
@@ -7168,6 +7204,8 @@
                     badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
                     expectedExcelCols: 4,
                     expectedSheetCols: 5,
+                    headerRowsCount: 1,
+                    hasSummaryRow: false,
                     addMonth: true,
                     allowMulti: false,
                     sortDesc: '항목설명 (오름차순)',
@@ -7179,6 +7217,8 @@
                     badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
                     expectedExcelCols: 4,
                     expectedSheetCols: 5,
+                    headerRowsCount: 1,
+                    hasSummaryRow: false,
                     addMonth: true,
                     allowMulti: true,
                     sortDesc: '항목설명 (오름차순)',
@@ -7187,6 +7227,7 @@
             };
 
             let selectedSheet = '생보실적';
+            let currentRawFiles = [];
             let parsedFiles = [];
             let isUploading = false;
 
@@ -7240,7 +7281,7 @@
                                 </div>
                             </div>
                             <p id="comm-sheet-guide" class="text-xs text-gray-600 leading-relaxed">
-                                엑셀의 59개 열과 스프레드시트의 59개 열이 일치합니다. 기존 데이터 아래에 누적 저장됩니다.
+                                엑셀 상단 2개 행(헤더)과 맨 아래 집계행을 제외한 순수 데이터(60개 열)가 스프레드시트에 누적 저장됩니다.
                             </p>
                         </div>
 
@@ -7335,7 +7376,7 @@
             });
 
             // 시트 탭 전환 헬퍼
-            const updateSheetUI = () => {
+            const updateSheetUI = async () => {
                 const cfg = sheetConfigs[selectedSheet];
                 sheetTabs.forEach(t => {
                     const s = t.getAttribute('data-comm-sheet');
@@ -7361,7 +7402,12 @@
                     dropzoneSub.textContent = '지원 형식: .xlsx, .xls';
                 }
 
-                validateAndRenderPreview();
+                // 이미 선택된 파일이 있으면 새 시트 설정으로 재파싱
+                if (currentRawFiles && currentRawFiles.length > 0) {
+                    await handleFiles(currentRawFiles);
+                } else {
+                    validateAndRenderPreview();
+                }
             };
 
             sheetTabs.forEach(t => {
@@ -7425,11 +7471,13 @@
                     targetFiles = targetFiles.slice(0, 2);
                 }
 
+                currentRawFiles = targetFiles;
+
                 try {
                     showLoading(true);
                     const parsedList = [];
                     for (const f of targetFiles) {
-                        const parsed = await readCommissionExcelFileAsync(f);
+                        const parsed = await readCommissionExcelFileAsync(f, cfg);
                         parsedList.push(parsed);
                     }
                     parsedFiles = parsedList;
@@ -7461,6 +7509,8 @@
                     const isValidCol = (colCnt === cfg.expectedExcelCols);
                     if (!isValidCol) isAllColsValid = false;
 
+                    const summaryNote = p.summaryRowRemoved ? '<span class="text-orange-500 font-normal ml-1">(집계행 제외)</span>' : '';
+
                     return `
                         <div class="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-100">
                             <div class="flex items-center gap-2 truncate">
@@ -7469,7 +7519,7 @@
                                 <span class="text-[11px] text-gray-400 flex-shrink-0">(${p.fileSize})</span>
                             </div>
                             <div class="flex items-center gap-3 text-right flex-shrink-0">
-                                <span class="text-xs text-gray-500 font-mono">${rowCnt.toLocaleString()}건</span>
+                                <span class="text-xs text-gray-500 font-mono">${rowCnt.toLocaleString()}건${summaryNote}</span>
                                 <span class="text-xs font-medium ${isValidCol ? 'text-emerald-600' : 'text-amber-600'}">${colCnt}열</span>
                             </div>
                         </div>
@@ -7482,7 +7532,7 @@
                     colNotice.className = "pt-2 text-xs flex items-center gap-1.5 font-medium text-emerald-700";
                     colNotice.innerHTML = `
                         <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span>[${selectedSheet}] 엑셀 열 수(${cfg.expectedExcelCols}개) 일치 확인됨 ${cfg.addMonth ? '➔ 1열 마감월 추가 후 총 5열로 누적 저장' : ''}</span>
+                        <span>[${selectedSheet}] 엑셀 열 수(${cfg.expectedExcelCols}개) 일치 확인됨 ${cfg.headerRowsCount >= 2 ? '(상단 2행 헤더 적용)' : ''} ${cfg.hasSummaryRow ? '(집계행 제외 완료)' : ''} ${cfg.addMonth ? '➔ 1열 마감월 추가 후 총 5열로 누적 저장' : ''}</span>
                     `;
                 } else {
                     colNotice.className = "pt-2 text-xs flex items-center gap-1.5 font-medium text-amber-700";
