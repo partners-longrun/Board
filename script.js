@@ -5143,6 +5143,12 @@
             return r1 === '지사대표' || r1 === '운영진' || r1 === '실장';
         }
 
+        function canUploadPerformanceExcel() {
+            if (!state.user) return false;
+            const r1 = String(state.user.role1 || state.user.role || '').trim();
+            return r1 === '지사대표' || r1 === '운영진' || r1 === '실장';
+        }
+
         function createLapseAdminView() {
             if (state.isLoading) return getSkeletonUI();
             const div = document.createElement('div');
@@ -9424,6 +9430,14 @@
                         <p class="text-gray-500 text-sm mt-1">데이터 기반 생/손보 포트폴리오 및 파트너 성과 관리</p>
                     </div>
                     <div class="flex flex-wrap md:flex-nowrap gap-2 items-center w-full md:w-auto">
+                        ${canUploadPerformanceExcel() ? `
+                        <!-- 엑셀 업로드 버튼 (소속 선택 콤보박스 왼쪽) -->
+                        <button onclick="openPerformanceExcelUploadModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-xl shadow-sm hover:shadow-md transition transform hover:-translate-y-0.5 cursor-pointer whitespace-nowrap">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            <span>엑셀 업로드</span>
+                        </button>
+                        ` : ''}
+
                         ${isBranchRepOrOps ? `
                         <!-- 소속 필터 드롭박스 (연도 월 선택 박스 왼쪽) -->
                         <div class="relative bg-white p-1.5 rounded-2xl shadow-sm border border-gray-100 flex-grow md:flex-grow-0">
@@ -9833,6 +9847,371 @@
                     }]
                 });
             }
+        }
+
+        // ==========================================
+        // [실적분석] 신계약전체 엑셀 업로드 모달 및 핸들러
+        // ==========================================
+        window.openPerformanceExcelUploadModal = function () {
+            if (!canUploadPerformanceExcel()) {
+                alert('권한1이 지사대표, 운영진, 실장인 경우에만 엑셀 업로드가 가능합니다.');
+                return;
+            }
+
+            const modalId = 'perf-excel-upload-modal';
+            let modal = document.getElementById(modalId);
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = "fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+
+            // 마감월 선택 옵션 구성
+            const now = new Date();
+            const curY = Math.max(2026, parseInt(state.perfAnalysisYear) || now.getFullYear());
+            const curM = (state.perfAnalysisMonth && state.perfAnalysisMonth !== 'All')
+                ? state.perfAnalysisMonth
+                : String(now.getMonth() + 1).padStart(2, '0');
+
+            const yearOptions = [2026, 2027, 2028].map(y =>
+                `<option value="${y}" ${y === curY ? 'selected' : ''}>${y}년</option>`
+            ).join('');
+
+            const monthOptions = Array.from({ length: 12 }, (_, i) => {
+                const m = String(i + 1).padStart(2, '0');
+                return `<option value="${m}" ${m === curM ? 'selected' : ''}>${i + 1}월</option>`;
+            }).join('');
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-gray-100 transition-all transform flex flex-col max-h-[90vh]">
+                    <!-- 헤더 -->
+                    <div class="px-6 py-5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white flex justify-between items-center flex-shrink-0 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                                    신계약전체 엑셀 업로드
+                                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/40 text-emerald-100 border border-emerald-300/30">실적분석_신계약전체</span>
+                                </h3>
+                                <p class="text-xs text-emerald-100 mt-0.5">신계약전체.xlsx 파일을 업로드하여 해당 마감월 실적 데이터를 갱신합니다.</p>
+                            </div>
+                        </div>
+                        <button id="closePerfUploadModalBtn" class="p-1.5 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- 본문 -->
+                    <div class="p-6 space-y-5 overflow-y-auto flex-1">
+                        <!-- 1. 대상 마감월 선택 -->
+                        <div class="bg-gray-50/80 p-4 rounded-xl border border-gray-200">
+                            <label class="block text-xs font-bold text-gray-700 mb-2">1. 대상 마감월 선택 <span class="text-rose-500">*</span></label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="relative">
+                                    <select id="perfUploadYear" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
+                                        ${yearOptions}
+                                    </select>
+                                </div>
+                                <div class="relative">
+                                    <select id="perfUploadMonth" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition">
+                                        ${monthOptions}
+                                    </select>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-2 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                선택한 마감월의 기존 데이터는 삭제되고 새 데이터로 완전히 교체(갱신)됩니다.
+                            </p>
+                        </div>
+
+                        <!-- 2. 엑셀 파일 드롭존 -->
+                        <div>
+                            <label class="block text-xs font-bold text-gray-700 mb-2">2. 엑셀 파일 선택 (.xlsx, .xls) <span class="text-rose-500">*</span></label>
+                            <input type="file" id="perfExcelFileInput" accept=".xlsx, .xls" class="hidden">
+                            <div id="perfExcelDropzone" class="border-2 border-dashed border-gray-300 hover:border-emerald-500 bg-gray-50/50 hover:bg-emerald-50/30 rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
+                                <div class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-400 group-hover:text-emerald-600 group-hover:scale-105 transition border border-gray-100">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-700 group-hover:text-emerald-700">엑셀 파일을 마우스로 끌어다 놓거나 클릭하여 선택하세요</p>
+                                    <p class="text-xs text-gray-400 mt-0.5">신계약전체.xlsx (B열~AL열 37개 컬럼 원본 데이터)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. 파일 미리보기 & 검증 안내 박스 -->
+                        <div id="perfExcelPreviewBox" class="hidden bg-emerald-50/60 rounded-xl p-4 border border-emerald-200 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span id="perfPreviewFileName" class="text-xs font-bold text-gray-800 truncate max-w-[280px]"></span>
+                                </div>
+                                <span id="perfPreviewFileSize" class="text-[11px] font-medium text-gray-500"></span>
+                            </div>
+                            <div class="flex items-center justify-between pt-1 border-t border-emerald-100 text-xs font-semibold">
+                                <span class="text-gray-600">업로드 대상 건수</span>
+                                <span id="perfPreviewRowCount" class="text-emerald-700 font-bold">0건</span>
+                            </div>
+                            <div id="perfPreviewNotice" class="text-[11px] text-emerald-700 flex items-center gap-1.5 pt-1">
+                                <svg class="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <span>신계약전체 37개 열 구조가 정상 확인되었습니다. (추가 6개 열 자동 계산)</span>
+                            </div>
+                        </div>
+
+                        <!-- 4. 처리 진행 상태 -->
+                        <div id="perfUploadProgressSection" class="hidden space-y-2 pt-2">
+                            <div class="flex justify-between text-xs font-bold text-gray-600">
+                                <span id="perfUploadStatusText" class="flex items-center gap-1.5 text-emerald-700">
+                                    <svg class="animate-spin w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    서버에 데이터를 전송하고 계산값을 산출하는 중...
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <div id="perfUploadProgressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full w-full animate-pulse transition-all duration-300"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 푸터 버튼 -->
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 flex-shrink-0">
+                        <button type="button" id="cancelPerfUploadBtn" class="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-bold text-xs transition">취소</button>
+                        <button type="button" id="startPerfUploadBtn" disabled class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                            업로드 시작
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            let parsedExcelData = null;
+            let isUploading = false;
+
+            const closeBtn = modal.querySelector('#closePerfUploadModalBtn');
+            const cancelBtn = modal.querySelector('#cancelPerfUploadBtn');
+            const dropzone = modal.querySelector('#perfExcelDropzone');
+            const fileInput = modal.querySelector('#perfExcelFileInput');
+            const startBtn = modal.querySelector('#startPerfUploadBtn');
+            const previewBox = modal.querySelector('#perfExcelPreviewBox');
+            const previewFileName = modal.querySelector('#perfPreviewFileName');
+            const previewFileSize = modal.querySelector('#perfPreviewFileSize');
+            const previewRowCount = modal.querySelector('#perfPreviewRowCount');
+            const previewNotice = modal.querySelector('#perfPreviewNotice');
+            const progressSection = modal.querySelector('#perfUploadProgressSection');
+            const yearSelect = modal.querySelector('#perfUploadYear');
+            const monthSelect = modal.querySelector('#perfUploadMonth');
+
+            const closeModal = () => {
+                if (isUploading) {
+                    if (!confirm('업로드가 진행 중입니다. 창을 닫으시겠습니까?')) return;
+                }
+                modal.remove();
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            // 드롭존 클릭
+            dropzone.addEventListener('click', () => {
+                if (isUploading) return;
+                fileInput.click();
+            });
+
+            // 드래그 앤 드롭
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isUploading) dropzone.classList.add('border-emerald-500', 'bg-emerald-50/40');
+                });
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-emerald-500', 'bg-emerald-50/40');
+                });
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                if (isUploading) return;
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    handlePerfExcelFile(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (isUploading) return;
+                if (e.target.files && e.target.files.length > 0) {
+                    handlePerfExcelFile(e.target.files[0]);
+                }
+            });
+
+            async function handlePerfExcelFile(file) {
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                    alert('엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.');
+                    return;
+                }
+
+                try {
+                    showLoading(true);
+                    const parsed = await readPerformanceExcelFileAsync(file);
+                    showLoading(false);
+
+                    parsedExcelData = {
+                        ...parsed,
+                        fileName: file.name,
+                        fileSize: (file.size / 1024).toFixed(1) + ' KB'
+                    };
+
+                    previewBox.classList.remove('hidden');
+                    previewFileName.textContent = file.name;
+                    previewFileSize.textContent = parsedExcelData.fileSize;
+                    previewRowCount.textContent = `${parsedExcelData.dataRows.length.toLocaleString()}건`;
+                    startBtn.disabled = false;
+                } catch (err) {
+                    showLoading(false);
+                    console.error(err);
+                    alert('엑셀 파일 분석 실패: ' + err.message);
+                    parsedExcelData = null;
+                    previewBox.classList.add('hidden');
+                    startBtn.disabled = true;
+                }
+            }
+
+            // 업로드 시작
+            startBtn.addEventListener('click', async () => {
+                if (!parsedExcelData || isUploading) return;
+
+                const targetY = yearSelect.value;
+                const targetM = monthSelect.value;
+                const targetYm = targetY + targetM;
+
+                const confirmMsg = `${targetY}년 ${parseInt(targetM)}월 마감 데이터(${parsedExcelData.dataRows.length.toLocaleString()}건)를 갱신하시겠습니까?\n\n※ 기존에 입력된 ${targetY}년 ${parseInt(targetM)}월 데이터는 삭제되고 새 데이터로 완전히 교체됩니다.`;
+                if (!confirm(confirmMsg)) return;
+
+                isUploading = true;
+                startBtn.disabled = true;
+                cancelBtn.disabled = true;
+                closeBtn.disabled = true;
+                yearSelect.disabled = true;
+                monthSelect.disabled = true;
+                progressSection.classList.remove('hidden');
+
+                try {
+                    const res = await callApi('uploadPerformanceAnalysisExcel', state.user.staffId, targetYm, parsedExcelData.dataRows);
+                    
+                    if (res && res.success) {
+                        alert(res.message || `${targetYm} 마감월 데이터가 성공적으로 갱신되었습니다.`);
+                        modal.remove();
+
+                        // 실적분석 뷰 갱신 및 대상 마감월로 이동
+                        state.perfAnalysisData = null;
+                        state.perfAnalysisLoaded = false;
+                        state.perfAnalysisYear = targetY;
+                        state.perfAnalysisMonth = targetM;
+                        loadPerformanceAnalysisData(targetY, targetM);
+                    } else {
+                        alert('데이터 갱신 실패: ' + (res?.message || '알 수 없는 오류'));
+                        isUploading = false;
+                        startBtn.disabled = false;
+                        cancelBtn.disabled = false;
+                        closeBtn.disabled = false;
+                        yearSelect.disabled = false;
+                        monthSelect.disabled = false;
+                        progressSection.classList.add('hidden');
+                    }
+                } catch (err) {
+                    console.error('uploadPerformanceAnalysisExcel error:', err);
+                    alert('업로드 중 통신 오류가 발생했습니다: ' + err.message);
+                    isUploading = false;
+                    startBtn.disabled = false;
+                    cancelBtn.disabled = false;
+                    closeBtn.disabled = false;
+                    yearSelect.disabled = false;
+                    monthSelect.disabled = false;
+                    progressSection.classList.add('hidden');
+                }
+            });
+        };
+
+        // 실적분석_신계약전체 엑셀 파싱 헬퍼 함수 (37개 열)
+        function readPerformanceExcelFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        if (typeof XLSX === 'undefined') {
+                            throw new Error('SheetJS(XLSX) 라이브러리를 불러올 수 없습니다.');
+                        }
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                            throw new Error('엑셀 파일에 시트가 존재하지 않습니다.');
+                        }
+                        const firstSheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[firstSheetName];
+
+                        const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        if (!rawRows || rawRows.length < 2) {
+                            throw new Error('엑셀 파일에 데이터가 없거나 헤더만 존재합니다.');
+                        }
+
+                        const headerRow = rawRows[0].map(h => String(h || '').trim());
+                        if (headerRow.length < 37) {
+                            throw new Error(`열 수가 부족합니다. 신계약전체 엑셀 파일은 최소 37개 열이어야 합니다. (현재 파일: ${headerRow.length}개 열)`);
+                        }
+
+                        const dataRows = [];
+                        for (let r = 1; r < rawRows.length; r++) {
+                            const row = rawRows[r];
+                            if (!row || row.length === 0) continue;
+                            const isAllEmpty = row.every(c => c === undefined || c === null || String(c).trim() === '');
+                            if (isAllEmpty) continue;
+
+                            const cleanedRow = [];
+                            for (let c = 0; c < 37; c++) {
+                                let val = row[c];
+                                if (val === undefined || val === null) {
+                                    cleanedRow.push('');
+                                } else if (val instanceof Date) {
+                                    const y = val.getFullYear();
+                                    const m = String(val.getMonth() + 1).padStart(2, '0');
+                                    const d = String(val.getDate()).padStart(2, '0');
+                                    cleanedRow.push(`${y}-${m}-${d}`);
+                                } else if (typeof val === 'string') {
+                                    cleanedRow.push(val.trim());
+                                } else {
+                                    cleanedRow.push(val);
+                                }
+                            }
+                            dataRows.push(cleanedRow);
+                        }
+
+                        if (dataRows.length === 0) {
+                            throw new Error('유효한 데이터 행이 존재하지 않습니다.');
+                        }
+
+                        resolve({
+                            headerRow,
+                            dataRows
+                        });
+                    } catch (err) {
+                        reject(err);
+                    }
+                };
+                reader.onerror = () => reject(new Error('파일을 읽는 도중 오류가 발생했습니다.'));
+                reader.readAsArrayBuffer(file);
+            });
         }
 
         function renderTopPartners() {
