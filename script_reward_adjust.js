@@ -1358,12 +1358,43 @@
                     });
                 }
 
+                // 안전한 숫자/금액 및 비율 파서
+                function parseNumSafe(val) {
+                    if (val === undefined || val === null || val === '') return 0;
+                    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+                    let str = String(val).replace(/,/g, '').replace(/원/g, '').replace(/\s+/g, '').trim();
+                    if (str.startsWith('(') && str.endsWith(')')) str = '-' + str.substring(1, str.length - 1);
+                    if (str.startsWith('△') || str.startsWith('▲') || str.startsWith('▼')) str = '-' + str.substring(1).trim();
+                    let n = parseFloat(str);
+                    return isNaN(n) ? 0 : n;
+                }
+
+                function parseRateSafe(val) {
+                    if (val === undefined || val === null || val === '') return 0;
+                    if (typeof val === 'number') {
+                        if (isNaN(val)) return 0;
+                        if (Math.abs(val) >= 10) return val / 100;
+                        return val;
+                    }
+                    let str = String(val).trim();
+                    if (str.startsWith('(') && str.endsWith(')')) str = '-' + str.substring(1, str.length - 1);
+                    if (str.startsWith('△') || str.startsWith('▲') || str.startsWith('▼')) str = '-' + str.substring(1).trim();
+                    if (str.includes('%')) {
+                        let n = parseFloat(str.replace(/%/g, '').replace(/,/g, '').trim());
+                        return isNaN(n) ? 0 : n / 100;
+                    }
+                    let n = parseFloat(str.replace(/,/g, '').trim());
+                    if (isNaN(n)) return 0;
+                    if (Math.abs(n) >= 10) return n / 100;
+                    return n;
+                }
+
                 function getRowKey(row) {
                     const m = String(row['마감월'] || '').trim();
                     const c = String(row['보험사'] || '').trim();
                     const p = String(row['증권번호'] || '').trim();
-                    const a = String(row['사번'] || '').trim();
-                    const r = String(row['납입회차'] || '').trim();
+                    const a = String(row['사번'] || row['모집자사번'] || row['FP사번'] || '').trim();
+                    const r = String(row['납입회차'] !== undefined ? row['납입회차'] : (row['회차'] !== undefined ? row['회차'] : '')).trim();
                     return `${m}_${c}_${p}_${a}_${r}`;
                 }
 
@@ -1403,25 +1434,40 @@
                     displayList.forEach(row => {
                         const key = getRowKey(row);
                         const isEdited = !!editedItems[key];
+                        const isRowRefund = String(row['지급/환수'] || row['구분'] || row['지급구분'] || '').includes('환수');
 
                         // 변경전 합계 (원본 데이터 기준)
                         if (isAdjustment) {
-                            prevReward += Number(row['시상금'] || 0);
-                            prevPay1 += row['지급액1'] !== '' ? Number(row['지급액1'] || 0) : 0;
+                            let origRwd = parseNumSafe(row['시상금']);
+                            if (isRowRefund && origRwd > 0) origRwd = -origRwd;
+                            prevReward += origRwd;
+
+                            let origP1 = parseNumSafe(row['지급액1']);
+                            if (isRowRefund && origP1 > 0) origP1 = -origP1;
+                            prevPay1 += origP1;
                         }
-                        prevPay2 += Number(row['지급액2'] || 0);
+
+                        let origP2 = parseNumSafe(row['지급액2'] !== undefined ? row['지급액2'] : (row['FP지급액'] !== undefined ? row['FP지급액'] : row['지급액']));
+                        if (isRowRefund && origP2 > 0) origP2 = -origP2;
+                        prevPay2 += origP2;
 
                         // 변경후 합계 (수정본 반영)
                         if (isAdjustment) {
-                            currReward += Number(row['시상금'] || 0);
-                            const p1 = (isEdited && editedItems[key]['지급액1'] !== undefined)
-                                ? (editedItems[key]['지급액1'] !== '' ? Number(editedItems[key]['지급액1']) : 0)
-                                : (row['지급액1'] !== '' ? Number(row['지급액1']) : 0);
+                            let curRwd = parseNumSafe(row['시상금']);
+                            if (isRowRefund && curRwd > 0) curRwd = -curRwd;
+                            currReward += curRwd;
+
+                            let p1 = (isEdited && editedItems[key]['지급액1'] !== undefined)
+                                ? parseNumSafe(editedItems[key]['지급액1'])
+                                : parseNumSafe(row['지급액1']);
+                            if (isRowRefund && p1 > 0) p1 = -p1;
                             currPay1 += p1;
                         }
-                        const p2 = (isEdited && editedItems[key]['지급액2'] !== undefined)
-                            ? Number(editedItems[key]['지급액2'] || 0)
-                            : Number(row['지급액2'] || 0);
+
+                        let p2 = (isEdited && editedItems[key]['지급액2'] !== undefined)
+                            ? parseNumSafe(editedItems[key]['지급액2'])
+                            : parseNumSafe(row['지급액2'] !== undefined ? row['지급액2'] : (row['FP지급액'] !== undefined ? row['FP지급액'] : row['지급액']));
+                        if (isRowRefund && p2 > 0) p2 = -p2;
                         currPay2 += p2;
                     });
 
@@ -1473,16 +1519,24 @@
                     const curFpName = isEdited && editedItems[key]['지급대상자2명'] !== undefined ? editedItems[key]['지급대상자2명'] : (row['지급대상자2명'] || '');
                     const curFpId = isEdited && editedItems[key]['지급대상자2사번'] !== undefined ? editedItems[key]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
 
-                    const curPay1 = isEdited && editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : '');
-                    let curPay2 = isEdited && editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : Number(row['지급액2'] || 0);
+                    const curPay1 = isEdited && editedItems[key]['지급액1'] !== undefined 
+                        ? parseNumSafe(editedItems[key]['지급액1']) 
+                        : (row['지급액1'] !== '' ? parseNumSafe(row['지급액1']) : '');
+                    let curPay2 = isEdited && editedItems[key]['지급액2'] !== undefined 
+                        ? parseNumSafe(editedItems[key]['지급액2']) 
+                        : parseNumSafe(row['지급액2'] !== undefined ? row['지급액2'] : (row['FP지급액'] !== undefined ? row['FP지급액'] : row['지급액']));
                     if (isRefund && curPay2 > 0) curPay2 = -curPay2;
 
-                    const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : '');
-                    let curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : Number(row['지급비율2'] || 0);
+                    const curRatio1 = isEdited && editedItems[key]['지급비율1'] !== undefined 
+                        ? parseRateSafe(editedItems[key]['지급비율1']) 
+                        : (row['지급비율1'] !== '' ? parseRateSafe(row['지급비율1']) : '');
+                    let curRatio2 = isEdited && editedItems[key]['지급비율2'] !== undefined 
+                        ? parseRateSafe(editedItems[key]['지급비율2']) 
+                        : parseRateSafe(row['지급비율2'] !== undefined ? row['지급비율2'] : row['시상률']);
                     if (isRefund && curRatio2 > 0) curRatio2 = -curRatio2;
 
                     // 시상률 백분율 포맷
-                    let rateFloat = Number(row['시상률'] || 0);
+                    let rateFloat = parseRateSafe(row['시상률']);
                     if (isRefund && rateFloat > 0) rateFloat = -rateFloat;
 
                     // 지급대상자1
@@ -1551,8 +1605,8 @@
                     const pay2El = tr.querySelector('.pay2-input');
                     const ratio2El = tr.querySelector('.ratio2-input');
 
-                    const premium = Number(row['보험료'] || 0);
-                    const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
+                    const premium = parseNumSafe(row['보험료'] !== undefined ? row['보험료'] : row['인정보험료']);
+                    const totalReward = isAdjustment ? parseNumSafe(row['시상금']) : 0;
 
                     const handleEditing = (source) => {
                         if (!editedItems[key]) editedItems[key] = {};
@@ -1943,19 +1997,25 @@
                         const curLeaderName = editedItems[k]['지급대상자1명'] !== undefined ? editedItems[k]['지급대상자1명'] : (row['지급대상자1명'] || '');
                         const curLeaderId = editedItems[k]['지급대상자1사번'] !== undefined ? editedItems[k]['지급대상자1사번'] : (row['지급대상자1사번'] || '');
                         const curFpName = editedItems[k]['지급대상자2명'] !== undefined ? editedItems[k]['지급대상자2명'] : (row['지급대상자2명'] || '');
-                        const curFpId = editedItems[k]['지급대상자2사번'] !== undefined ? editedItems[k]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
-                        
-                        const curPay1 = editedItems[k]['지급액1'] !== undefined ? editedItems[k]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : 0);
-                        const curRatio1 = editedItems[k]['지급비율1'] !== undefined ? editedItems[k]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : 0);
-                        let curPay2 = editedItems[k]['지급액2'] !== undefined ? editedItems[k]['지급액2'] : Number(row['지급액2'] || 0);
+                        const curPay1 = editedItems[k]['지급액1'] !== undefined 
+                            ? parseNumSafe(editedItems[k]['지급액1']) 
+                            : (row['지급액1'] !== '' ? parseNumSafe(row['지급액1']) : 0);
+                        const curRatio1 = editedItems[k]['지급비율1'] !== undefined 
+                            ? parseRateSafe(editedItems[k]['지급비율1']) 
+                            : (row['지급비율1'] !== '' ? parseRateSafe(row['지급비율1']) : 0);
+                        let curPay2 = editedItems[k]['지급액2'] !== undefined 
+                            ? parseNumSafe(editedItems[k]['지급액2']) 
+                            : parseNumSafe(row['지급액2'] !== undefined ? row['지급액2'] : (row['FP지급액'] !== undefined ? row['FP지급액'] : row['지급액']));
                         if (isRowRefund && curPay2 > 0) curPay2 = -curPay2;
 
-                        let curRatio2 = editedItems[k]['지급비율2'] !== undefined ? editedItems[k]['지급비율2'] : Number(row['지급비율2'] || 0);
+                        let curRatio2 = editedItems[k]['지급비율2'] !== undefined 
+                            ? parseRateSafe(editedItems[k]['지급비율2']) 
+                            : parseRateSafe(row['지급비율2'] !== undefined ? row['지급비율2'] : row['시상률']);
                         if (isRowRefund && curRatio2 > 0) curRatio2 = -curRatio2;
 
-                        const premium = Number(row['보험료'] || 0);
-                        const totalReward = isAdjustment ? Number(row['시상금'] || 0) : 0;
-                        let rateFloat = Number(row['시상률'] || 0);
+                        const premium = parseNumSafe(row['보험료'] !== undefined ? row['보험료'] : row['인정보험료']);
+                        const totalReward = isAdjustment ? parseNumSafe(row['시상금']) : 0;
+                        let rateFloat = parseRateSafe(row['시상률']);
                         if (isRowRefund && rateFloat > 0) rateFloat = -rateFloat;
 
                         let finalContent = useContent ? valContent : curContent;
