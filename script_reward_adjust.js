@@ -1563,21 +1563,18 @@
                         const valFpId = selectFpEl.value;
                         const valFpName = valFpId ? selectFpEl.options[selectFpEl.selectedIndex].text : '';
                         
-                        const rawPay2Val = pay2El.value.replace(/,/g, '');
-                        let valPay2 = parseInt(rawPay2Val) || 0;
-                        if (isRefund && valPay2 > 0) valPay2 = -valPay2;
-
-                        let valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
-                        if (isRefund && valRatio2 > 0) valRatio2 = -valRatio2;
-
-                        let finalRatio2 = valRatio2;
-                        let finalPay2 = valPay2;
-                        let finalRatio1 = 0;
-                        let finalPay1 = 0;
+                        // 기존 값 유지 (source가 pay2/ratio2가 아닌 경우 절대 금액/비율 재계산 금지)
+                        let finalRatio2 = editedItems[key]['지급비율2'] !== undefined ? editedItems[key]['지급비율2'] : curRatio2;
+                        let finalPay2 = editedItems[key]['지급액2'] !== undefined ? editedItems[key]['지급액2'] : curPay2;
+                        let finalRatio1 = editedItems[key]['지급비율1'] !== undefined ? editedItems[key]['지급비율1'] : (curPay1 !== '' ? curRatio1 : 0);
+                        let finalPay1 = editedItems[key]['지급액1'] !== undefined ? editedItems[key]['지급액1'] : (curPay1 !== '' ? curPay1 : 0);
 
                         if (isAdjustment) {
                             if (source === 'pay2') {
-                                // [공식: 지급액2 입력 시] 시상금 = 지급액1 + 지급액2
+                                const rawPay2Val = pay2El.value.replace(/,/g, '');
+                                let valPay2 = parseInt(rawPay2Val) || 0;
+                                if (isRefund && valPay2 > 0) valPay2 = -valPay2;
+
                                 finalPay2 = valPay2;
                                 finalPay1 = totalReward - finalPay2;
 
@@ -1593,8 +1590,10 @@
 
                                 ratio1Cell.innerHTML = formatRateAdj(finalRatio1, 'text-gray-600');
                                 pay1Cell.innerHTML = formatMoneyAdj(finalPay1, 'text-slate-700');
-                            } else {
-                                // [공식: 지급비율2 입력 시 (기본)] 지급액2 자동계산(소수점 버림) 후 지급액1 = 시상금 - 지급액2
+                            } else if (source === 'ratio2') {
+                                let valRatio2 = (parseFloat(ratio2El.value) || 0) / 100;
+                                if (isRefund && valRatio2 > 0) valRatio2 = -valRatio2;
+
                                 finalRatio2 = valRatio2;
                                 finalRatio1 = rateFloat - finalRatio2;
 
@@ -1607,20 +1606,7 @@
                                 pay1Cell.innerHTML = formatMoneyAdj(finalPay1, 'text-slate-700');
                             }
                         } else {
-                            if (source === 'pay2') {
-                                finalPay2 = valPay2;
-                                if (premium !== 0) {
-                                    finalRatio2 = finalPay2 / premium;
-                                    let r2Percent = Number((finalRatio2 * 100).toFixed(2));
-                                    if (isRefund && r2Percent > 0) r2Percent = -r2Percent;
-                                    ratio2El.value = r2Percent;
-                                }
-                            } else {
-                                finalRatio2 = valRatio2;
-                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
-                                if (isRefund && finalPay2 > 0) finalPay2 = -finalPay2;
-                                pay2El.value = formatNumberWithCommas(finalPay2);
-                            }
+                            // 개인 시상 (!isAdjustment)에서는 pay2, ratio2 수정 및 재계산 불가
                         }
 
                         updateInputNegativeColor(pay2El, finalPay2);
@@ -1959,6 +1945,8 @@
                         const curFpName = editedItems[k]['지급대상자2명'] !== undefined ? editedItems[k]['지급대상자2명'] : (row['지급대상자2명'] || '');
                         const curFpId = editedItems[k]['지급대상자2사번'] !== undefined ? editedItems[k]['지급대상자2사번'] : (row['지급대상자2사번'] || '');
                         
+                        const curPay1 = editedItems[k]['지급액1'] !== undefined ? editedItems[k]['지급액1'] : (row['지급액1'] !== '' ? Number(row['지급액1']) : 0);
+                        const curRatio1 = editedItems[k]['지급비율1'] !== undefined ? editedItems[k]['지급비율1'] : (row['지급비율1'] !== '' ? Number(row['지급비율1']) : 0);
                         let curPay2 = editedItems[k]['지급액2'] !== undefined ? editedItems[k]['지급액2'] : Number(row['지급액2'] || 0);
                         if (isRowRefund && curPay2 > 0) curPay2 = -curPay2;
 
@@ -1983,9 +1971,8 @@
 
                         let finalRatio2 = curRatio2;
                         let finalPay2 = curPay2;
-
-                        let finalRatio1 = 0;
-                        let finalPay1 = 0;
+                        let finalRatio1 = curRatio1;
+                        let finalPay1 = curPay1;
 
                         if (isAdjustment) {
                             if (usePay2) {
@@ -2005,20 +1992,6 @@
                                 finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
                                 if (isRowRefund && finalPay2 > 0) finalPay2 = -finalPay2;
                                 finalPay1 = totalReward - finalPay2;
-                            } else {
-                                finalRatio1 = rateFloat - finalRatio2;
-                                finalPay1 = totalReward - finalPay2;
-                            }
-                        } else {
-                            if (usePay2) {
-                                finalPay2 = targetPay2;
-                                if (premium !== 0) {
-                                    finalRatio2 = finalPay2 / premium;
-                                }
-                            } else if (useRatio2) {
-                                finalRatio2 = targetRatio2;
-                                finalPay2 = premium !== 0 ? Math.floor(premium * finalRatio2) : 0;
-                                if (isRowRefund && finalPay2 > 0) finalPay2 = -finalPay2;
                             }
                         }
 
