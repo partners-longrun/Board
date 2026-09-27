@@ -1533,11 +1533,11 @@
                         
                         <td class="p-2">${selectFpHtml}</td>
                         <td class="p-2 text-right">
-                            <input type="text" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold ${curPay2 < 0 ? 'text-rose-600' : 'text-gray-800'}" value="${formatNumberWithCommas(curPay2)}">
+                            <input type="text" class="pay2-input w-20 border border-gray-200 rounded px-1.5 py-0.5 text-right font-bold ${curPay2 < 0 ? 'text-rose-600' : 'text-gray-800'} ${!isAdjustment ? 'bg-gray-100 cursor-not-allowed text-gray-400' : ''}" value="${formatNumberWithCommas(curPay2)}" ${!isAdjustment ? 'disabled readonly' : ''}>
                         </td>
                         <td class="p-2 text-center">
                             <div class="flex items-center gap-0.5 justify-center">
-                                <input type="number" step="any" class="ratio2-input w-14 border border-gray-200 rounded px-1 py-0.5 text-center font-bold ${curRatio2 < 0 ? 'text-rose-600' : 'text-gray-800'}" value="${Number((curRatio2 * 100).toFixed(2))}">%
+                                <input type="number" step="any" class="ratio2-input w-14 border border-gray-200 rounded px-1 py-0.5 text-center font-bold ${curRatio2 < 0 ? 'text-rose-600' : 'text-gray-800'} ${!isAdjustment ? 'bg-gray-100 cursor-not-allowed text-gray-400' : ''}" value="${Number((curRatio2 * 100).toFixed(2))}" ${!isAdjustment ? 'disabled readonly' : ''}>%
                             </div>
                         </td>
                     `;
@@ -1818,19 +1818,19 @@
                             </div>
 
                             <!-- 4. 지급액2 -->
-                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2 ${isAdjustment ? '' : 'opacity-40'}">
                                 <div class="flex-1">
                                     <label class="block text-xs font-bold text-gray-500 mb-1">지급액2</label>
                                     <input type="text" id="modalPay2" disabled class="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-primary font-bold" placeholder="금액 입력">
                                 </div>
                                 <div class="flex items-center gap-1.5 pt-4">
-                                    <input type="checkbox" id="chkPay2" class="w-4 h-4 cursor-pointer">
+                                    <input type="checkbox" id="chkPay2" ${isAdjustment ? '' : 'disabled'} class="w-4 h-4 cursor-pointer">
                                     <label for="chkPay2" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
                                 </div>
                             </div>
 
                             <!-- 5. 지급비율2 -->
-                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2">
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-50 pb-2 ${isAdjustment ? '' : 'opacity-40'}">
                                 <div class="flex-1">
                                     <label class="block text-xs font-bold text-gray-500 mb-1">지급비율2</label>
                                     <div class="flex items-center gap-1.5">
@@ -1839,7 +1839,7 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-1.5 pt-4">
-                                    <input type="checkbox" id="chkRatio2" class="w-4 h-4 cursor-pointer">
+                                    <input type="checkbox" id="chkRatio2" ${isAdjustment ? '' : 'disabled'} class="w-4 h-4 cursor-pointer">
                                     <label for="chkRatio2" class="text-xs font-bold text-slate-600 cursor-pointer select-none">수정적용</label>
                                 </div>
                             </div>
@@ -1910,8 +1910,10 @@
                 setToggle(chkContent, modalContent);
                 if (isAdjustment) setToggle(chkLeader, modalLeaderSelect);
                 setToggle(chkFp, modalFpSelect);
-                setToggle(chkPay2, modalPay2);
-                setToggle(chkRatio2, modalRatio2);
+                if (isAdjustment) {
+                    setToggle(chkPay2, modalPay2);
+                    setToggle(chkRatio2, modalRatio2);
+                }
 
                 const closeModal = () => {
                     modal.style.display = 'none';
@@ -1924,8 +1926,8 @@
                     const useContent = chkContent.checked;
                     const useLeader = isAdjustment && chkLeader.checked;
                     const useFp = chkFp.checked;
-                    const usePay2 = chkPay2.checked;
-                    const useRatio2 = chkRatio2.checked;
+                    const usePay2 = isAdjustment && chkPay2.checked;
+                    const useRatio2 = isAdjustment && chkRatio2.checked;
 
                     const valContent = modalContent.value.trim();
                     const valLeaderId = modalLeaderSelect.value;
