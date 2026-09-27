@@ -1,19 +1,50 @@
         // === Section: Reward Adjustment View ===
+        // 시상조정 전역 상태 캐시 (다른 메뉴 이동 후 복귀 시 조회 내용 및 수정 내역 보존)
+        if (typeof window.rewardAdjustCache === 'undefined') {
+            window.rewardAdjustCache = {
+                hasData: false,
+                filter: null,
+                listData: [],
+                originalMap: {},
+                editedItems: {},
+                userList: [],
+                allUserList: [],
+                defaultsList: [],
+                selectedRowKeys: [],
+                companyOptions: [],
+                branchOptions: [],
+                contractDateSortState: 'none',
+                chkRetiredOnly: false
+            };
+        }
+
         function createRewardAdjustView() {
             const container = document.createElement('div');
             container.className = 'space-y-6';
 
-            // 로컬 상태
-            let listData = [];
-            let originalMap = {}; // key -> originalRow
-            let editedItems = {}; // key -> updatedFields
-            let userList = [];
-            let allUserList = []; // 퇴사자 포함 전체 사용자 목록
-            let defaultsList = [];
-            let selectedRows = new Set();
+            const cache = window.rewardAdjustCache;
+
+            // 로컬 상태 (캐시가 있으면 캐시에서 복원)
+            let listData = cache && cache.hasData ? [...cache.listData] : [];
+            let originalMap = cache && cache.hasData ? { ...cache.originalMap } : {};
+            let editedItems = cache && cache.hasData ? { ...cache.editedItems } : {};
+            let userList = cache && cache.hasData ? [...cache.userList] : [];
+            let allUserList = cache && cache.hasData ? [...cache.allUserList] : [];
+            let defaultsList = cache && cache.hasData ? [...cache.defaultsList] : [];
+            let selectedRows = cache && cache.hasData ? new Set(cache.selectedRowKeys) : new Set();
+            let contractDateSortState = cache && cache.hasData ? cache.contractDateSortState : 'none';
             
             // 엑셀 파싱 원천 데이터 임시 보관소
             let uploadedParsedRows = []; 
+
+            // 캐시 동기화 헬퍼 함수
+            function syncCache() {
+                if (!cache) return;
+                cache.editedItems = { ...editedItems };
+                cache.selectedRowKeys = Array.from(selectedRows);
+                cache.contractDateSortState = contractDateSortState;
+                if (chkRetiredOnly) cache.chkRetiredOnly = chkRetiredOnly.checked;
+            }
 
             // 202510부터 현재월/익월 및 state.months(실제 데이터 월)를 포함한 마감월 목록 동적 생성 헬퍼
             function getAdjMonthsList() {
@@ -841,6 +872,7 @@
                     });
 
                     if (appliedCount > 0) {
+                        syncCache();
                         renderTable();
                         unsavedBadge.classList.remove('hidden');
                         saveAdjustBtn.disabled = false;
@@ -1256,6 +1288,30 @@
                         batchEditAllBtn.disabled = false;
                     }
 
+                    // 전역 캐시에 조회 결과 및 필터 상태 보존
+                    if (cache) {
+                        cache.hasData = true;
+                        cache.listData = listData;
+                        cache.originalMap = originalMap;
+                        cache.editedItems = editedItems;
+                        cache.userList = userList;
+                        cache.allUserList = allUserList;
+                        cache.defaultsList = defaultsList;
+                        cache.selectedRowKeys = Array.from(selectedRows);
+                        cache.companyOptions = companies;
+                        cache.branchOptions = branches;
+                        cache.contractDateSortState = contractDateSortState;
+                        cache.chkRetiredOnly = chkRetiredOnly ? chkRetiredOnly.checked : false;
+                        cache.filter = {
+                            rewardType: adjRewardType.value,
+                            month: adjMonth.value,
+                            company: adjCompany.value,
+                            branch: adjBranch.value,
+                            agent: adjAgent.value.trim() || '전체',
+                            payRefund: adjPayRefund.value
+                        };
+                    }
+
                     renderTable();
                 }
 
@@ -1293,6 +1349,11 @@
                             contractDateSortIcon.textContent = '⇅';
                             contractDateSortIcon.className = 'text-gray-400 font-bold ml-0.5';
                             listData.sort((a, b) => (a._origIdx || 0) - (b._origIdx || 0));
+                        }
+
+                        if (cache && cache.hasData) {
+                            cache.listData = listData;
+                            cache.contractDateSortState = contractDateSortState;
                         }
 
                         renderTable();
@@ -1589,6 +1650,7 @@
                         unsavedBadge.classList.remove('hidden');
                         saveAdjustBtn.disabled = false;
                         updateSummaryRows();
+                        syncCache();
                     };
 
                     contentEl.addEventListener('input', () => handleEditing('content'));
@@ -1645,6 +1707,7 @@
                         if (e.target.checked) selectedRows.add(key);
                         else selectedRows.delete(key);
                         updateBatchEditButtonState();
+                        syncCache();
                     });
 
                     adjTableBody.appendChild(tr);
@@ -1669,6 +1732,7 @@
                     selectedRows.clear();
                 }
                 updateBatchEditButtonState();
+                syncCache();
             });
 
             batchEditBtn.addEventListener('click', () => {
@@ -1977,6 +2041,7 @@
                         };
                     });
 
+                    syncCache();
                     closeModal();
                     renderTable();
                     saveAdjustBtn.disabled = false;
@@ -2009,6 +2074,14 @@
                         selectedRows.clear();
                         if (selectAllCheckbox) selectAllCheckbox.checked = false;
                         
+                        if (cache) {
+                            cache.hasData = false;
+                            cache.listData = [];
+                            cache.editedItems = {};
+                            cache.originalMap = {};
+                            cache.selectedRowKeys = [];
+                        }
+
                         saveAdjustBtn.disabled = true;
                         batchEditBtn.disabled = true;
                         batchEditAllBtn.disabled = true;
@@ -2570,6 +2643,15 @@
                             originalMap = {};
                             selectedRows.clear();
                             if (selectAllCheckbox) selectAllCheckbox.checked = false;
+                            
+                            if (cache) {
+                                cache.hasData = false;
+                                cache.listData = [];
+                                cache.editedItems = {};
+                                cache.originalMap = {};
+                                cache.selectedRowKeys = [];
+                            }
+
                             saveAdjustBtn.disabled = true;
                             batchEditBtn.disabled = true;
                             batchEditAllBtn.disabled = true;
@@ -2591,6 +2673,61 @@
             }
 
             adjSearchBtn.addEventListener('click', fetchAdjustData);
+
+            // 캐시된 데이터가 있을 경우 검색 필터 UI 및 테이블 즉시 복원
+            if (cache && cache.hasData && cache.filter) {
+                if (cache.filter.rewardType) adjRewardType.value = cache.filter.rewardType;
+                if (cache.filter.payRefund) adjPayRefund.value = cache.filter.payRefund;
+                if (cache.filter.month) adjMonth.value = cache.filter.month;
+                if (cache.filter.agent) adjAgent.value = cache.filter.agent === '전체' ? '' : cache.filter.agent;
+                if (chkRetiredOnly && cache.chkRetiredOnly !== undefined) chkRetiredOnly.checked = cache.chkRetiredOnly;
+
+                if (Array.isArray(cache.companyOptions) && cache.companyOptions.length > 0) {
+                    adjCompany.innerHTML = '<option value="전체">전체</option>';
+                    cache.companyOptions.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c; opt.textContent = c;
+                        adjCompany.appendChild(opt);
+                    });
+                    if (cache.filter.company) adjCompany.value = cache.filter.company;
+                }
+
+                if (Array.isArray(cache.branchOptions) && cache.branchOptions.length > 0) {
+                    adjBranch.innerHTML = '<option value="전체">전체</option>';
+                    cache.branchOptions.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b; opt.textContent = b;
+                        adjBranch.appendChild(opt);
+                    });
+                    if (cache.filter.branch) adjBranch.value = cache.filter.branch;
+                }
+
+                if (contractDateSortIcon) {
+                    if (contractDateSortState === 'asc') {
+                        contractDateSortIcon.textContent = '▲';
+                        contractDateSortIcon.className = 'text-primary font-black ml-0.5';
+                    } else if (contractDateSortState === 'desc') {
+                        contractDateSortIcon.textContent = '▼';
+                        contractDateSortIcon.className = 'text-primary font-black ml-0.5';
+                    } else {
+                        contractDateSortIcon.textContent = '⇅';
+                        contractDateSortIcon.className = 'text-gray-400 font-bold ml-0.5';
+                    }
+                }
+
+                const hasUnsaved = Object.keys(editedItems).length > 0;
+                if (hasUnsaved) {
+                    unsavedBadge.classList.remove('hidden');
+                    saveAdjustBtn.disabled = false;
+                }
+
+                if (listData.length > 0) {
+                    batchEditAllBtn.disabled = false;
+                }
+                batchEditBtn.disabled = selectedRows.size === 0;
+
+                renderTable();
+            }
 
             return container;
         }
