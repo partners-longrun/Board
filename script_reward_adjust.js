@@ -851,6 +851,9 @@
                             }
 
                             editedItems[key] = {
+                                _sheetRowIdx: row._sheetRowIdx,
+                                _rowId: row._rowId,
+                                _origIdx: row._origIdx,
                                 '마감월': row['마감월'],
                                 '보험사': row['보험사'],
                                 '증권번호': row['증권번호'],
@@ -1254,8 +1257,8 @@
                     originalMap = {};
                     listData.forEach((item, idx) => {
                         item._origIdx = idx; // 원본 순서 보존용 인덱스
-                        const key = getRowKey(item);
-                        originalMap[key] = { ...item };
+                        item._rowId = item._sheetRowIdx ? `row_${item._sheetRowIdx}` : `row_${idx}`;
+                        originalMap[item._rowId] = { ...item };
                     });
 
                     // 필터 바 드롭다운 동적 재구축 및 이전 선택값 자동 복원
@@ -1390,6 +1393,10 @@
                 }
 
                 function getRowKey(row) {
+                    if (!row) return '';
+                    if (row._rowId) return String(row._rowId);
+                    if (row._sheetRowIdx) return `row_${row._sheetRowIdx}`;
+                    if (row._origIdx !== undefined) return `row_${row._origIdx}`;
                     const m = String(row['마감월'] || '').trim();
                     const c = String(row['보험사'] || '').trim();
                     const p = String(row['증권번호'] || '').trim();
@@ -1667,6 +1674,9 @@
                         updateInputNegativeColor(ratio2El, ratio2El.value);
 
                         editedItems[key] = {
+                            _sheetRowIdx: row._sheetRowIdx,
+                            _rowId: row._rowId,
+                            _origIdx: row._origIdx,
                             '마감월': row['마감월'],
                             '보험사': row['보험사'],
                             '증권번호': row['증권번호'],
@@ -2056,6 +2066,9 @@
                         }
 
                         editedItems[k] = {
+                            _sheetRowIdx: row._sheetRowIdx,
+                            _rowId: row._rowId,
+                            _origIdx: row._origIdx,
                             '마감월': row['마감월'],
                             '보험사': row['보험사'],
                             '증권번호': row['증권번호'],
