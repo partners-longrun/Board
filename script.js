@@ -1928,7 +1928,14 @@
 
             const d = rewardData?.summary || {};
             const selectedDetails = rewardData?.details || null;
-            const keys = ['손보 시상금', '생보 시상금', '본부 시상금', '손보법인 시상금(개인)', '생보법인 시상금(개인)', '해촉자 정산(상위차감)'];
+
+            // 사용자정보 시트의 '손보법인시상대상자' 열의 값이 'Y'인 경우에만 관리자 시상금 현황 노출 및 합산
+            const isNonLifeCorpEligible = !!(rewardData?.isNonLifeCorpEligible || d.isNonLifeCorpEligible || (state.user && (!state.dashboardSelectedMember || state.dashboardSelectedMember.id === state.user.staffId) && state.user.isNonLifeCorpEligible));
+
+            const keys = ['손보 시상금', '생보 시상금', '본부 시상금'];
+            if (isNonLifeCorpEligible) {
+                keys.push('손보법인 시상금(개인)', '생보법인 시상금(개인)', '해촉자 정산(상위차감)');
+            }
             let totalPay = 0, totalRef = 0;
             keys.forEach(k => {
                 const obj = d[k] || { pay: 0, refund: 0 };
@@ -2032,13 +2039,8 @@
                  </div></div>`;
             };
 
-            // 관리자 시상금 현황 표시 여부 (관리자 권한이 있거나 해당 데이터가 존재하는 경우)
-            const hasAdminReward = (typeof isBranchRepAny === 'function' && isBranchRepAny()) ||
-                (typeof isOpsAny === 'function' && isOpsAny()) ||
-                (typeof isLeaderAny === 'function' && isLeaderAny()) ||
-                ((d['손보법인 시상금(개인)']?.pay || 0) + (d['손보법인 시상금(개인)']?.refund || 0)) !== 0 ||
-                (d['해촉자 정산(상위차감)']?.personal || 0) !== 0 ||
-                (d['해촉자 정산(상위차감)']?.hq || 0) !== 0;
+            // 관리자 시상금 현황 표시 여부: 사용자정보 시트에서 '손보법인시상대상자' 열의 값이 'Y'인 경우에만 노출
+            const hasAdminReward = isNonLifeCorpEligible;
 
             dataContainer.innerHTML = `
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
