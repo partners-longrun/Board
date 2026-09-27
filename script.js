@@ -3008,12 +3008,10 @@
                     <span class="w-1.5 h-4 bg-primary rounded-full"></span>
                     <h3 class="font-bold text-gray-800 text-sm md:text-base">수수료 현황</h3>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>${commDetailCard('손보 수수료', nonLifePay, nonLifeRefund, commLoaded)}</div>
                     <div>${commDetailCard('생보 수수료', lifePay, lifeRefund, commLoaded)}</div>
                     <div>${commDetailCard('기타 입금 / 상위 차감', etcPay, etcRefund, commLoaded, "※ '기타 수수료 (세전)'와 '기타 지급 및 공제 (세후)'의 합산", '기타 입금', '상위 차감')}</div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>${branchEtcDetailCard('※ 기타 수수료 (세전)', otherCommPay, otherCommRefund, commLoaded, 'otherComm')}</div>
                     <div>${branchEtcDetailCard('※ 기타 지급 및 공제 (세후)', afterTaxPay, afterTaxRefund, commLoaded, 'afterTax')}</div>
                 </div>
@@ -3025,7 +3023,7 @@
                     <span class="w-1.5 h-4 bg-amber-500 rounded-full"></span>
                     <h3 class="font-bold text-gray-800 text-sm md:text-base">시상금 현황</h3>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     ${rewardDetailCard('손보 법인', '손보 법인시상금')}
                     ${rewardDetailCard('생보 법인', '생보 법인시상금')}
                     ${rewardDetailCard('2차년 인센티브', '2차년 인센티브')}
