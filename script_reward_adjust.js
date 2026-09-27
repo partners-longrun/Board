@@ -1213,8 +1213,6 @@
                 }
             });
 
-                let contractDateSortState = 'none'; // 'none' | 'asc' | 'desc'
-
                 // 2. 조회 실행 함수
                 async function fetchAdjustData() {
                     showLoading(true);
