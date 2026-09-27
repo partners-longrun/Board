@@ -4855,7 +4855,7 @@
             <div class="mb-4 border-b border-gray-200">
                 <nav class="-mb-px flex space-x-6">
                     <button onclick="setST('active')" class="${state.adminSubTab === 'active' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">위촉자 (${dd.reward?.active?.length || 0})</button>
-                    ${(dd.isNonLifeCorpEligible || state.user?.isNonLifeCorpEligible) ? `<button onclick="setST('resigned')" class="${state.adminSubTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 (${dd.reward?.resigned?.length || 0})</button>` : ''}
+                    ${(!isAdminAny() || isBranchRepAny() || isOpsAny() || dd.isNonLifeCorpEligible || state.user?.isNonLifeCorpEligible) ? `<button onclick="setST('resigned')" class="${state.adminSubTab === 'resigned' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 border-b-2 font-medium text-sm transition">해촉자 (${dd.reward?.resigned?.length || 0})</button>` : ''}
                 </nav>
             </div>` : ''}
 
