@@ -2024,7 +2024,7 @@
 
                 return `<div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-amber-200/80">
                  <div class="flex justify-between mb-4 border-b border-amber-200/60 pb-3 items-center">
-                     <h3 class="font-bold text-lg text-amber-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></div>해촉자 정산(상위차감)</h3>
+                     <h3 class="font-bold text-lg text-amber-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></div>해촉자 시상금 지급 및 차감</h3>
                      <span class="text-lg font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
                  </div>
                  <div class="grid grid-cols-2 gap-3 text-center">
@@ -2061,7 +2061,7 @@
              <div class="mt-8 mb-4 flex items-center gap-2">
                  <div class="w-2 h-4 bg-indigo-600 rounded-full"></div>
                  <h3 class="font-extrabold text-base text-gray-800">관리자 시상금 현황</h3>
-                 <span class="text-xs text-gray-400 font-medium">관리자에게 귀속되는 법인 시상금 및 상위차감 정산 내역입니다.</span>
+                 <span class="text-xs text-gray-400 font-medium">관리자에게 귀속되는 법인 시상금 및 해촉자 정산 내역입니다.</span>
              </div>
              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 ${adminCorpCard('손보법인 시상금', '손보법인 시상금(개인)')}
@@ -7888,12 +7888,18 @@
 
             const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
 
+            // 모달창 카테고리 표시명 보정 ('(개인)' 제거 및 '해촉자 정산' 간소화)
+            let displayCat = k;
+            if (displayCat === '손보법인 시상금(개인)') displayCat = '손보법인 시상금';
+            else if (displayCat === '생보법인 시상금(개인)') displayCat = '생보법인 시상금';
+            else if (displayCat === '해촉자 정산(상위차감)' || displayCat === '해촉자 정산') displayCat = '해촉자 정산';
+
             modal.innerHTML = `<div
                 class="bg-gray-50 md:bg-white rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh] md:max-h-[85vh] md:mt-0 overflow-hidden transform transition-all scale-100 ring-1 ring-black/5">
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
         <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
             <span class="w-1.5 h-5 md:h-6 bg-primary rounded-full block shadow-sm"></span>
-            <span class="truncate max-w-[200px] md:max-w-none">${titlePrefix}${k} <span
+            <span class="truncate max-w-[200px] md:max-w-none">${titlePrefix}${displayCat} <span
                     class="${typeColor}">${typeLabel}</span></span>
         </h3>
         <div class="flex items-center gap-3 md:gap-4">
