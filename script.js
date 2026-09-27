@@ -1928,7 +1928,7 @@
 
             const d = rewardData?.summary || {};
             const selectedDetails = rewardData?.details || null;
-            const keys = ['손보 시상금', '생보 시상금', '본부 시상금', '손보법인 시상금(개인)', '생보법인 시상금(개인)'];
+            const keys = ['손보 시상금', '생보 시상금', '본부 시상금', '손보법인 시상금(개인)', '생보법인 시상금(개인)', '해촉자 정산(상위차감)'];
             let totalPay = 0, totalRef = 0;
             keys.forEach(k => {
                 const obj = d[k] || { pay: 0, refund: 0 };
@@ -1947,6 +1947,7 @@
                 ? `openDetail('KEY','TYPE', ${JSON.stringify(selectedDetails).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}, '${displayName}')`
                 : null;
 
+            // 일반 시상금 상세 카드 (손보, 생보, 본부)
             const detailCard = (title, key) => {
                 const obj = d[key] || { pay: 0, refund: 0 };
                 const subTotal = obj.pay + obj.refund;
@@ -1973,20 +1974,101 @@
                  </div></div>`;
             };
 
+            // 관리자 시상금 카드: 손보법인 시상금 (인디고 테마)
+            const adminCorpCard = (title, key) => {
+                const obj = d[key] || { pay: 0, refund: 0 };
+                const subTotal = obj.pay + obj.refund;
+                const payClick = selectedDetails
+                    ? `openDetail('${key}','pay', window._dashboardCurrentDetails, '${displayName}')`
+                    : `openDetail('${key}','pay')`;
+                const refClick = selectedDetails
+                    ? `openDetail('${key}','refund', window._dashboardCurrentDetails, '${displayName}')`
+                    : `openDetail('${key}','refund')`;
+                return `<div class="bg-gradient-to-br from-indigo-50/80 via-blue-50/40 to-slate-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-indigo-200/80">
+                 <div class="flex justify-between mb-4 border-b border-indigo-100 pb-3 items-center">
+                     <h3 class="font-bold text-lg text-indigo-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-600 shadow-xs"></div>${title}</h3>
+                     <span class="text-lg font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-indigo-900'}">${formatMoney(subTotal)}</span>
+                 </div>
+                 <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="cursor-pointer bg-white/90 hover:bg-white p-2.5 rounded-xl transition border border-indigo-100 hover:border-indigo-300 shadow-2xs group" onclick="${payClick}">
+                        <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">지급</p>
+                        <p class="text-base font-bold text-blue-600 group-hover:scale-105 transition-transform">${formatMoney(obj.pay)}</p>
+                    </div>
+                    <div class="cursor-pointer bg-white/90 hover:bg-white p-2.5 rounded-xl transition border border-indigo-100 hover:border-indigo-300 shadow-2xs group" onclick="${refClick}">
+                        <p class="text-[11px] text-gray-500 font-bold uppercase mb-1">환수</p>
+                        <p class="text-base font-bold text-red-500 group-hover:scale-105 transition-transform">${formatMoney(obj.refund)}</p>
+                    </div>
+                 </div></div>`;
+            };
+
+            // 관리자 시상금 카드: 해촉자 정산(상위차감) (앰버 테마 - FP 개인시상 / FP 본부시상)
+            const adminDeductCard = () => {
+                const deductObj = d['해촉자 정산(상위차감)'] || { personal: 0, hq: 0, total: 0 };
+                const personalVal = deductObj.personal || 0;
+                const hqVal = deductObj.hq || 0;
+                const subTotal = deductObj.total !== undefined ? deductObj.total : (personalVal + hqVal);
+
+                const personalClick = selectedDetails
+                    ? `openDetail('해촉자 정산(상위차감)','personal', window._dashboardCurrentDetails, '${displayName}')`
+                    : `openDetail('해촉자 정산(상위차감)','personal')`;
+                const hqClick = selectedDetails
+                    ? `openDetail('해촉자 정산(상위차감)','hq', window._dashboardCurrentDetails, '${displayName}')`
+                    : `openDetail('해촉자 정산(상위차감)','hq')`;
+
+                return `<div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-amber-200/80">
+                 <div class="flex justify-between mb-4 border-b border-amber-200/60 pb-3 items-center">
+                     <h3 class="font-bold text-lg text-amber-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></div>해촉자 정산(상위차감)</h3>
+                     <span class="text-lg font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
+                 </div>
+                 <div class="grid grid-cols-2 gap-3 text-center">
+                    <div class="cursor-pointer bg-white/90 hover:bg-white p-2.5 rounded-xl transition border border-amber-200/60 hover:border-amber-400 shadow-2xs group" onclick="${personalClick}">
+                        <p class="text-[11px] text-amber-800 font-bold uppercase mb-1">FP 개인시상</p>
+                        <p class="text-base font-bold ${personalVal < 0 ? 'text-red-500' : 'text-blue-600'} group-hover:scale-105 transition-transform">${formatMoney(personalVal)}</p>
+                    </div>
+                    <div class="cursor-pointer bg-white/90 hover:bg-white p-2.5 rounded-xl transition border border-amber-200/60 hover:border-amber-400 shadow-2xs group" onclick="${hqClick}">
+                        <p class="text-[11px] text-amber-800 font-bold uppercase mb-1">FP 본부시상</p>
+                        <p class="text-base font-bold ${hqVal < 0 ? 'text-red-500' : 'text-blue-600'} group-hover:scale-105 transition-transform">${formatMoney(hqVal)}</p>
+                    </div>
+                 </div></div>`;
+            };
+
+            // 관리자 시상금 현황 표시 여부 (관리자 권한이 있거나 해당 데이터가 존재하는 경우)
+            const hasAdminReward = (typeof isBranchRepAny === 'function' && isBranchRepAny()) ||
+                (typeof isOpsAny === 'function' && isOpsAny()) ||
+                (typeof isLeaderAny === 'function' && isLeaderAny()) ||
+                ((d['손보법인 시상금(개인)']?.pay || 0) + (d['손보법인 시상금(개인)']?.refund || 0)) !== 0 ||
+                (d['해촉자 정산(상위차감)']?.personal || 0) !== 0 ||
+                (d['해촉자 정산(상위차감)']?.hq || 0) !== 0;
+
             dataContainer.innerHTML = `
              <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                  <div class="col-span-2 md:col-span-1">${card('실지급 총액 (세전)', net, 'border-primary', false, true)}</div>
                  <div class="col-span-1">${card('총 지급액', totalPay, 'border-blue-500')}</div>
                  <div class="col-span-1">${card('총 환수액', totalRef, 'border-red-500', true)}</div>
              </div>
+             
+             <!-- 일반 시상금 현황 -->
              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 ${detailCard('손보 시상금', '손보 시상금')}
                 ${detailCard('생보 시상금', '생보 시상금')}
                 ${detailCard('본부 시상금', '본부 시상금')}
-                ${((d['손보법인 시상금(개인)']?.pay || 0) + (d['손보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('손보법인 시상금', '손보법인 시상금(개인)') : ''}
-                ${((d['생보법인 시상금(개인)']?.pay || 0) + (d['생보법인 시상금(개인)']?.refund || 0)) !== 0 ? detailCard('생보법인 시상금', '생보법인 시상금(개인)') : ''}
              </div>
-             <div class="mt-8 text-center"><div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">💡 Tip: 지급/환수 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.</div></div>`;
+
+             <!-- 관리자 시상금 현황 -->
+             ${hasAdminReward ? `
+             <div class="mt-8 mb-4 flex items-center gap-2">
+                 <div class="w-2 h-4 bg-indigo-600 rounded-full"></div>
+                 <h3 class="font-extrabold text-base text-gray-800">관리자 시상금 현황</h3>
+                 <span class="text-xs text-gray-400 font-medium">관리자에게 귀속되는 법인 시상금 및 상위차감 정산 내역입니다.</span>
+             </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${adminCorpCard('손보법인 시상금', '손보법인 시상금(개인)')}
+                ${adminDeductCard()}
+                ${((d['생보법인 시상금(개인)']?.pay || 0) + (d['생보법인 시상금(개인)']?.refund || 0)) !== 0 ? adminCorpCard('생보법인 시상금', '생보법인 시상금(개인)') : ''}
+             </div>
+             ` : ''}
+
+             <div class="mt-8 text-center"><div class="inline-block px-4 py-2 bg-gray-100 rounded-xl md:rounded-full text-sm text-gray-500 font-medium select-none text-center">💡 Tip: 지급/환수 및 시상 항목 금액을 클릭하면<br class="md:hidden"> 상세 내역을 볼 수 있습니다.</div></div>`;
         }
 
         function createDashboardView() {
@@ -7728,11 +7810,20 @@
                 return ((amt / prem) * 100).toFixed(1) + '%';
             };
 
+            const typeLabelMap = {
+                'pay': '지급',
+                'refund': '환수',
+                'personal': 'FP 개인시상',
+                'hq': 'FP 본부시상'
+            };
+            const typeLabel = typeLabelMap[t] || (t === 'pay' ? '지급' : (t === 'refund' ? '환수' : t));
             const isRefund = t === 'refund';
+            const hasPayCount = isRefund || d.some(x => x.payCount && String(x.payCount).trim() !== '' && String(x.payCount).trim() !== '-');
 
             // 합계 계산
             const totalAmt = d.reduce((sum, x) => sum + (x.amount || 0), 0);
             const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
+            const typeColor = t === 'refund' ? 'text-red-500' : (t === 'pay' ? 'text-blue-600' : (t === 'personal' ? 'text-amber-600' : 'text-indigo-600'));
 
             const desktopRows = d.length ? d.map(x => `
                     <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -7744,7 +7835,7 @@
         <div class="truncate-product" title="${x.product}">${x.product}</div>
     </td>
     <td class="p-3 text-xs text-gray-500">${x.date}</td>
-    ${isRefund ? `<td class="p-3 text-xs text-gray-500 text-center font-mono">${x.payCount || '-'}</td>` : ''}
+    ${hasPayCount ? `<td class="p-3 text-xs text-gray-500 text-center font-mono">${x.payCount || '-'}</td>` : ''}
     <td class="p-3 text-right font-medium text-gray-700">${formatMoney(x.premium)}</td>
     <td class="p-3 text-center text-gray-700">${maskContractor(x.customer)}</td>
     <td class="p-3 text-right font-bold ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">${formatMoney(x.amount)}
@@ -7753,7 +7844,7 @@
     </td>
     <td class="p-3 text-xs text-gray-500 max-w-[200px] truncate" title="${x.desc}">${x.desc}</td>
 </tr>`).join('') : `<tr>
-                    <td colspan="${isRefund ? 11 : 10}" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
+                    <td colspan="${hasPayCount ? 11 : 10}" class="p-8 text-center text-gray-500">내역이 없습니다.</td>
 </tr>`;
 
             const mobileCards = d.length ? d.map(x => `
@@ -7766,9 +7857,7 @@
         </div>
         <div class="text-right flex flex-col items-end">
             <span
-                class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${t
-                    === 'pay' ? '지급' : '환수'} ${(x.amount > 0 && t === 'pay') || (x.amount < 0 && t !== 'pay') ? '' : '(주의)'
-                }</span>
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold ${x.amount >= 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-red-50 text-red-600 border border-red-100'} mb-1">${x.subCategory || typeLabel}</span>
                     <p class="font-extrabold text-base ${x.amount > 0 ? 'text-blue-600' : 'text-red-500'}">
                         ${formatMoney(x.amount)}</p>
         </div>
@@ -7786,7 +7875,7 @@
     </div>
     <div class="flex justify-between items-center mt-1 text-[11px] text-gray-400">
         <span>계약자: <span class="text-gray-600">${maskContractor(x.customer)}</span></span>
-        ${isRefund ? `<span>납입회차: <span class="text-gray-600">${x.payCount || '-'}</span></span>` : ''}
+        ${hasPayCount ? `<span>납입회차: <span class="text-gray-600">${x.payCount || '-'}</span></span>` : ''}
         <span>계약일: <span class="text-gray-600">${x.date}</span></span>
     </div>
     <div class="mt-2 text-[11px] text-gray-500 bg-gray-50/50 p-2 rounded-lg border border-gray-100/50 truncate"
@@ -7802,8 +7891,8 @@
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-20">
         <h3 class="font-bold text-base md:text-xl text-gray-800 flex items-center gap-2 md:gap-3">
             <span class="w-1.5 h-5 md:h-6 bg-primary rounded-full block shadow-sm"></span>
-            <span class="truncate max-w-[150px] md:max-w-none">${titlePrefix}${k} <span
-                    class="${t === 'pay' ? 'text-blue-600' : 'text-red-500'}">${t === 'pay' ? '지급' : '환수'}</span></span>
+            <span class="truncate max-w-[200px] md:max-w-none">${titlePrefix}${k} <span
+                    class="${typeColor}">${typeLabel}</span></span>
         </h3>
         <div class="flex items-center gap-3 md:gap-4">
             <div class="text-right">
@@ -7832,7 +7921,7 @@
                         <th class="p-3 font-semibold">증권번호</th>
                         <th class="p-3 font-semibold">상품명</th>
                         <th class="p-3 font-semibold">계약일</th>
-                        ${isRefund ? `<th class="p-3 font-semibold text-center">납입회차</th>` : ''}
+                        ${hasPayCount ? `<th class="p-3 font-semibold text-center">납입회차</th>` : ''}
                         <th class="p-3 text-right font-semibold">보험료</th>
                         <th class="p-3 text-center font-semibold">계약자</th>
                         <th class="p-3 text-right font-semibold">보험사시상</th>
