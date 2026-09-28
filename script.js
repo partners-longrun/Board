@@ -313,6 +313,10 @@
                         state.currentMonth = sess.currentMonth;
                         const hash = location.hash.replace('#/', '');
                         state.currentView = (hash && hash !== 'login') ? hash : 'home';
+                        const sList = sessionStorage.getItem('partners_member_list');
+                        if (sList) {
+                            try { state.memberList = JSON.parse(sList); } catch (e) { }
+                        }
                         resetSessionTimer();
                         setTimeout(prefetchAllBackground, 500); // [OPTIMIZATION] Trigger background prefetching immediately
                         setTimeout(prefetchFeeTableInBackground, 1200);
@@ -329,6 +333,8 @@
         function clearSession() {
             clearTimeout(sessionTimeoutTimer);
             sessionStorage.removeItem('partners_session');
+            sessionStorage.removeItem('partners_member_list');
+            state.memberList = null;
             history.pushState(null, '', ' ');
         }
 
@@ -1866,8 +1872,16 @@
             return isBranchRepAny() || isOpsAny();
         }
 
-        // 소속원 목록 가져오기 (adminSummary에서)
+        // 소속원 목록 가져오기 (초고속 캐시 우선)
         function getDashboardMemberList() {
+            if (state.memberList && state.memberList.length > 0) return state.memberList;
+            const cachedList = sessionStorage.getItem('partners_member_list');
+            if (cachedList) {
+                try {
+                    state.memberList = JSON.parse(cachedList);
+                    if (state.memberList && state.memberList.length > 0) return state.memberList;
+                } catch(e) {}
+            }
             let dd = state.data.adminSummary;
             if (!dd) {
                 const cached = sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`);
@@ -1893,6 +1907,14 @@
         }
 
         function getRecruitmentMemberList() {
+            if (state.memberList && state.memberList.length > 0) return state.memberList;
+            const cachedList = sessionStorage.getItem('partners_member_list');
+            if (cachedList) {
+                try {
+                    state.memberList = JSON.parse(cachedList);
+                    if (state.memberList && state.memberList.length > 0) return state.memberList;
+                } catch(e) {}
+            }
             let dd = state.data.adminSummary;
             if (!dd) {
                 const cached = sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`);
@@ -2248,22 +2270,24 @@
                         }
                     });
 
-                    // [핵심] adminSummary 로드 로직
-                    if (!state.data.adminSummary) {
-                        const adminKey = `DATA_${state.user.staffId}_${state.currentMonth}_admin`;
-                        const cachedAdmin = sessionStorage.getItem(adminKey);
-                        if (cachedAdmin) {
-                            try { state.data.adminSummary = JSON.parse(cachedAdmin); renderOptions(); } catch (e) { }
+                    // [핵심] 초고속 소속원 목록 로드 로직 (0초 즉시 렌더링)
+                    if (!state.memberList || state.memberList.length === 0) {
+                        const cachedList = sessionStorage.getItem('partners_member_list');
+                        if (cachedList) {
+                            try { state.memberList = JSON.parse(cachedList); renderOptions(); } catch (e) { }
                         }
-                        callApi('getAdminSummary', state.currentMonth, state.user.staffId).then(d => {
-                            if (!state.user) return;
-                            let parsed = typeof d === 'string' ? JSON.parse(d) : d;
-                            if (!parsed.error) {
-                                state.data.adminSummary = parsed;
-                                sessionStorage.setItem(adminKey, JSON.stringify(parsed));
-                                renderOptions(); // 데이터가 오면 목록을 즉시 갱신
-                            }
-                        });
+                        if (!state.memberList || state.memberList.length === 0) {
+                            callApi('getDashboardMembers', state.user.staffId).then(res => {
+                                if (!state.user) return;
+                                if (res && res.success && res.list) {
+                                    state.memberList = res.list;
+                                    sessionStorage.setItem('partners_member_list', JSON.stringify(res.list));
+                                    renderOptions();
+                                }
+                            });
+                        } else {
+                            renderOptions();
+                        }
                     } else {
                         renderOptions();
                     }
@@ -9275,6 +9299,11 @@
                         state.performanceLoaded = true;
                         sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_perf`, JSON.stringify(ihd.performanceData));
                     }
+                }
+
+                if (r.memberList && Array.isArray(r.memberList)) {
+                    state.memberList = r.memberList;
+                    sessionStorage.setItem('partners_member_list', JSON.stringify(r.memberList));
                 }
 
                 if (state.user.isFirstLogin) {
