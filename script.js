@@ -1907,33 +1907,22 @@
         }
 
         function getRecruitmentMemberList() {
-            if (state.memberList && state.memberList.length > 0) return state.memberList;
-            const cachedList = sessionStorage.getItem('partners_member_list');
-            if (cachedList) {
+            // 1. 현재 로드된 증원수당 데이터의 memberList (수수료_DB 증원수당 시트의 해당 마감월 소속원)
+            if (state.data.recData && Array.isArray(state.data.recData.memberList) && state.data.recData.memberList.length > 0) {
+                return state.data.recData.memberList;
+            }
+            // 2. 세션 캐시 확인
+            const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_recruitment`;
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
                 try {
-                    state.memberList = JSON.parse(cachedList);
-                    if (state.memberList && state.memberList.length > 0) return state.memberList;
+                    const parsed = JSON.parse(cached);
+                    if (parsed && Array.isArray(parsed.memberList) && parsed.memberList.length > 0) {
+                        return parsed.memberList;
+                    }
                 } catch(e) {}
             }
-            let dd = state.data.adminSummary;
-            if (!dd) {
-                const cached = sessionStorage.getItem(`DATA_${state.user.staffId}_${state.currentMonth}_admin`);
-                if (cached) { try { dd = JSON.parse(cached); state.data.adminSummary = dd; } catch(e) {} }
-            }
-            if (!dd || !dd.recruitment) return [];
-            const all = dd.recruitment || [];
-            const seen = new Set();
-            const unique = all.filter(m => {
-                const id = String(m.id || m['사번'] || '');
-                if (!id || seen.has(id)) return false;
-                seen.add(id);
-                return true;
-            });
-            return unique.sort((a, b) => {
-                const nameA = String(a.name || a['이름'] || '');
-                const nameB = String(b.name || b['이름'] || '');
-                return nameA.localeCompare(nameB, 'ko');
-            });
+            return [];
         }
 
         function renderDashboardContent(div, rewardData, displayName, isLoading) {
@@ -4275,7 +4264,15 @@
                     });
                 }
             } else {
-                // 본인 데이터인 경우: 초기 로딩 시 이미 state.data.recData에 있을 수 있으나, 명시적으로 처리
+                // 본인 데이터인 경우: 세션 캐시가 있으면 복원하여 즉시 렌더
+                const userCacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_recruitment`;
+                const userCached = sessionStorage.getItem(userCacheKey);
+                if (userCached) {
+                    try {
+                        const parsed = JSON.parse(userCached);
+                        state.data.recData = parsed;
+                    } catch(e) {}
+                }
                 renderContent(state.data.recData);
             }
 
@@ -4291,7 +4288,8 @@
                     const renderOptions = (filterText = '') => {
                         const mList = getRecruitmentMemberList();
                         const fText = filterText.toLowerCase();
-                        const filtered = mList.filter(m => String(m.name || '').toLowerCase().includes(fText));
+                        // 본인은 상단 ME 배지에 표시되므로 목록 필터에서 본인은 제외하여 중복 방지
+                        const filtered = mList.filter(m => String(m.id) !== String(state.user.staffId) && String(m.name || '').toLowerCase().includes(fText));
 
                         if (!optionsContainer) return;
 
