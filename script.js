@@ -9376,10 +9376,11 @@
             }
             if (state.currentView === 'dashboard' && state.dashboardSelectedMember) { render(); return; } // 소속원 선택됨: render()에서 직접 로딩
             if (state.currentView === 'recruitment' && state.recruitmentSelectedMember) { render(); return; } // 증원수당 소속원 선택됨: render()에서 직접 로딩
-            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { render(); return; }
-            if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { render(); return; }
+            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
+            if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
             if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
-                state.data.branchCommData?.month === state.currentMonth) { render(); return; }
+                state.data.branchCommData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
+            if (state.currentView === 'admin' && state.data.adminSummary && !state.data.adminSummary.error && state.data.adminSummaryMonth === state.currentMonth) { state.isLoading = false; render(); return; }
             if (state.currentView === 'performanceAnalysis' && state.perfAnalysisLoaded) { return; }
             if (state.currentView === 'totalAllowanceForecast' && state.forecastLoaded) { return; }
 
@@ -9418,7 +9419,10 @@
                     }
                     else if (state.currentView === 'dashboard') state.data.rewardData = parsed;
                     else if (state.currentView === 'recruitment') state.data.recData = parsed;
-                    else if (state.currentView === 'admin') state.data.adminSummary = parsed;
+                    else if (state.currentView === 'admin') {
+                        state.data.adminSummary = parsed;
+                        state.data.adminSummaryMonth = state.currentMonth;
+                    }
 
                     state.isLoading = false; // [FIX] Reset loading state when using cache
                     render();
@@ -11261,14 +11265,11 @@
         }
 
         /**
-         * [OPTIMIZATION] 사용자 맞춤형 안전 단일 지연 사전 로딩 (Safe Lazy Pre-fetch)
-         * - 구글 웹앱 초당 동시 요청 한도(Rate Limit) 원천 방지: 시차 분산형 사전 로딩
-         * 1) 일반 관리자: 3초 후 관리자 데이터(getAdminSummary) 1건 조용히 호출
-         * 2) 지사대표: 3초 후 번들 API 1건 호출 → 5초 추가 시차(총 8초) 후 관리자 데이터 1건 순차 호출
-         * 3) 일반 사용자(FP): 3초 후 본인의 시상금 API(getRewardData) 1건 조용히 호출
+         * [OPTIMIZATION] 사용자 맞춤형 지연 사전 로딩
+         * - 지사대표/관리자 메뉴는 최초 클릭 시 초고속 단일 쿼리로 최적화되었으므로 사전 로딩을 제거하여 서버 락 경합 방지
+         * - 일반 사용자(FP)의 시상금 데이터만 3초 후 조용히 사전 로딩
          */
         let _userPrefetchTimer = null;
-        let _adminPrefetchTimer = null;
         function prefetchUserDataSafely() {
             if (!state.user) return;
             const staffId = state.user.staffId;
@@ -11277,120 +11278,37 @@
 
             const isRep = isBranchRepAny();
             const isAdmin = isAdminAny();
+            // 지사대표 및 관리자는 프리페치 비활성화 (요청 시 즉시 초고속 조회)
+            if (isRep || isAdmin) return;
+
             const rewardKey = `DATA_${staffId}_${month}_dashboard`;
-            const branchKey = `DATA_${staffId}_${month}_branch`;
-            const commKey = `COMM_${staffId}_${month}_branch`;
-            const adminKey = `DATA_${staffId}_${month}_admin`;
 
             if (state._prefetchingUser) return;
             if (_userPrefetchTimer) clearTimeout(_userPrefetchTimer);
-            if (_adminPrefetchTimer) clearTimeout(_adminPrefetchTimer);
 
             state._prefetchingUser = true;
             _userPrefetchTimer = setTimeout(async () => {
                 try {
-                    // 3초 후 상태 재확인 (로그아웃 등 예외 체크)
                     if (!state.user) {
                         state._prefetchingUser = false;
                         return;
                     }
 
-                    if (isRep) {
-                        // 1) 지사대표: 3초 시점에 지사대표 번들 API 1회 호출
-                        const needBranch = !(state.data.rewardData?.month === month && state.data.branchCommData?.month === month) &&
-                                           !(sessionStorage.getItem(branchKey) && sessionStorage.getItem(commKey));
-
-                        if (needBranch) {
-                            console.log('[Safe Pre-fetch] 지사대표 대시보드 백그라운드 사전 로딩 시작...');
-                            const res = await callApi('getBranchDashboardBundle', staffId, month);
-                            if (res && res.success) {
-                                if (res.rewardData && !res.rewardData.error) {
-                                    res.rewardData.month = month;
-                                    state.data.rewardData = res.rewardData;
-                                    sessionStorage.setItem(rewardKey, JSON.stringify(res.rewardData));
-                                    sessionStorage.setItem(branchKey, JSON.stringify(res.rewardData));
-                                }
-                                if (res.commData && !res.commData.error && res.commData.success) {
-                                    res.commData.month = month;
-                                    state.data.branchCommData = res.commData;
-                                    sessionStorage.setItem(commKey, JSON.stringify(res.commData));
-                                }
-                                if (res.closingStatus && res.closingStatus.success) {
-                                    state.isCurrentMonthClosed = !!res.closingStatus.isClosed;
-                                    state.currentMonthClosedAt = res.closingStatus.closedAt || '';
-                                }
-                                console.log('[Safe Pre-fetch] 지사대표 번들 사전 로딩 완료 (지사대표/시상금 캐시 동시 확보)');
-                                if (state.currentView === 'branch') {
-                                    render();
-                                    if (typeof window.updateMonthClosingBadgeUI === 'function') {
-                                        window.updateMonthClosingBadgeUI(state.isCurrentMonthClosed, state.currentMonthClosedAt);
-                                    }
-                                } else if (state.currentView === 'dashboard') {
-                                    render();
-                                }
-                            }
-                        }
-
-                        // 지사대표의 관리자 메뉴 사전 로딩: 번들과 겹치지 않게 5초 추가 시차(총 8초) 후 순차 호출
-                        const needAdmin = !state.data.adminSummary && !sessionStorage.getItem(adminKey);
-                        if (needAdmin) {
-                            _adminPrefetchTimer = setTimeout(async () => {
-                                try {
-                                    if (!state.user || !isBranchRepAny() || state.data.adminSummary || sessionStorage.getItem(adminKey)) return;
-                                    console.log('[Safe Pre-fetch] (지사대표) 관리자 데이터 2차 순차 사전 로딩 시작...');
-                                    const adminRes = await callApi('getAdminSummary', month, staffId);
-                                    let parsed = adminRes;
-                                    if (typeof adminRes === 'string') {
-                                        try { parsed = JSON.parse(adminRes); } catch(e) { parsed = null; }
-                                    }
-                                    if (parsed && !parsed.error) {
-                                        state.data.adminSummary = parsed;
-                                        sessionStorage.setItem(adminKey, JSON.stringify(parsed));
-                                        console.log('[Safe Pre-fetch] (지사대표) 관리자 데이터 사전 로딩 완료');
-                                        if (state.currentView === 'admin') render();
-                                    }
-                                } catch(err) {
-                                    console.warn('[Safe Pre-fetch] 지사대표 관리자 2차 사전 로딩 예외:', err);
-                                }
-                            }, 5000);
-                        }
-
-                    } else if (isAdmin) {
-                        // 2) 일반 관리자 (지사대표 아님): 3초 시점에 관리자 데이터 단 1회 호출
-                        const needAdmin = !state.data.adminSummary && !sessionStorage.getItem(adminKey);
-                        if (needAdmin) {
-                            console.log('[Safe Pre-fetch] (일반 관리자) 관리자 데이터 사전 로딩 시작...');
-                            const adminRes = await callApi('getAdminSummary', month, staffId);
-                            let parsed = adminRes;
-                            if (typeof adminRes === 'string') {
-                                try { parsed = JSON.parse(adminRes); } catch(e) { parsed = null; }
-                            }
-                            if (parsed && !parsed.error) {
-                                state.data.adminSummary = parsed;
-                                sessionStorage.setItem(adminKey, JSON.stringify(parsed));
-                                console.log('[Safe Pre-fetch] (일반 관리자) 관리자 데이터 사전 로딩 완료');
-                                if (state.currentView === 'admin') render();
-                            }
-                        }
-                    } else {
-                        // 3) 일반 사용자(FP): 3초 시점에 시상금 API 단 1회 호출
-                        const needReward = !(state.data.rewardData?.month === month) && !sessionStorage.getItem(rewardKey);
-                        if (needReward) {
-                            console.log('[Safe Pre-fetch] 일반 시상금 데이터 백그라운드 사전 로딩 시작...');
-                            const d = await callApi('getRewardData', staffId, month);
-                            if (d && !d.error) {
-                                d.month = month;
-                                state.data.rewardData = d;
-                                sessionStorage.setItem(rewardKey, JSON.stringify(d));
-                                console.log('[Safe Pre-fetch] 일반 시상금 데이터 사전 로딩 완료');
-                                if (state.currentView === 'dashboard') {
-                                    render();
-                                }
+                    // 일반 사용자(FP): 3초 시점에 본인 시상금 API 단 1회 호출
+                    const needReward = !(state.data.rewardData?.month === month) && !sessionStorage.getItem(rewardKey);
+                    if (needReward) {
+                        const d = await callApi('getRewardData', staffId, month);
+                        if (d && !d.error) {
+                            d.month = month;
+                            state.data.rewardData = d;
+                            sessionStorage.setItem(rewardKey, JSON.stringify(d));
+                            if (state.currentView === 'dashboard') {
+                                render();
                             }
                         }
                     }
                 } catch (e) {
-                    console.warn('[Safe Pre-fetch] 사전 로딩 중 예외 발생:', e);
+                    console.warn('[Safe Pre-fetch] 일반 시상금 사전 로딩 예외:', e);
                 } finally {
                     state._prefetchingUser = false;
                 }
@@ -11424,6 +11342,7 @@
             }
 
             state.data.adminSummary = parsed;
+            state.data.adminSummaryMonth = state.currentMonth;
             if (!parsed.error && key) sessionStorage.setItem(key, JSON.stringify(parsed));
             render();
         }
