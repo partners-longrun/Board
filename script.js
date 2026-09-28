@@ -2024,7 +2024,7 @@
 
                 return `<div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-amber-200/80">
                  <div class="flex justify-between mb-4 border-b border-amber-200/60 pb-3 items-center">
-                     <h3 class="font-bold text-lg text-amber-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></div>해촉자 시상금 지급 및 차감</h3>
+                     <h3 class="font-bold text-lg text-amber-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></div>해촉자 시상금 정산</h3>
                      <span class="text-lg font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
                  </div>
                  <div class="grid grid-cols-2 gap-3 text-center">
