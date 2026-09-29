@@ -212,6 +212,33 @@
             return dateStr;
         }
 
+        function formatSummaryDate(val) {
+            if (!val) return '';
+            const str = String(val).trim();
+            // 이미 yyyy-MM-dd HH:mm:ss 형태이면 그대로 반환
+            if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/.test(str)) return str;
+
+            // 한글 날짜 포맷 (예: 2026. 9. 29. 오후 11:30:00 등) 정규식 파싱
+            const m = str.match(/(\d{4})[.\-\/]\s*(\d{1,2})[.\-\/]\s*(\d{1,2})[.]?\s*(오전|오후)?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+            if (m) {
+                const yr = m[1];
+                const mo = m[2].padStart(2, '0');
+                const da = m[3].padStart(2, '0');
+                const ampm = m[4];
+                let hr = parseInt(m[5], 10);
+                const min = m[6].padStart(2, '0');
+                const sec = (m[7] || '00').padStart(2, '0');
+                if (ampm === '오후' && hr < 12) hr += 12;
+                if (ampm === '오전' && hr === 12) hr = 0;
+                return `${yr}-${mo}-${da} ${String(hr).padStart(2, '0')}:${min}:${sec}`;
+            }
+
+            const d = new Date(str);
+            if (isNaN(d.getTime())) return str;
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
         // --- 2. Navigation & History ---
         window.handleFabBack = function () {
             if (state.currentView === 'home') {
@@ -222,6 +249,12 @@
         };
 
         function navigate(view, push = true) {
+            if (view === 'branch') {
+                if (!isBranchRepAny()) {
+                    alert('지사대표 메뉴는 지사대표 권한 사용자만 접근할 수 있습니다.');
+                    return;
+                }
+            }
             if (view === 'feeTable') {
                 if (!isFeeTableAllowed()) {
                     alert('해당 메뉴에 대한 접근 권한이 없습니다.');
@@ -3068,7 +3101,7 @@
             const branchSummaryBadgeHtml = hasBranchSummary ? `
                 <div class="flex items-center gap-2 bg-slate-100/80 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-slate-600 text-[11px]">최종 집계: <strong class="text-slate-800 font-bold">${bMeta.timestamp || ''}</strong></span>
+                    <span class="text-slate-600 text-[11px]">최종 집계: <strong class="text-slate-800 font-bold">${formatSummaryDate(bMeta.timestamp)}</strong></span>
                     <button onclick="triggerMonthlyAggregation(true)" class="ml-1 text-[11px] px-2 py-0.5 bg-white hover:bg-slate-200 text-slate-700 font-bold rounded border border-slate-200 shadow-xs transition cursor-pointer">재집계</button>
                 </div>` : '';
 
@@ -4890,7 +4923,7 @@
 
             const aMeta = state.adminSummaryMeta;
             const hasAdminSummary = aMeta && aMeta.hasData;
-            const canRunAgg = isBranchRepAny() || isOpsAny() || (aMeta && aMeta.canAggregate);
+            const canRunAgg = isBranchRepAny(); // 집계/재집계 버튼은 오직 '지사대표' 권한만 가능
 
             // 미집계 시 상단 안내 배너
             const adminNoSummaryBanner = (!hasAdminSummary) ? `
@@ -4908,14 +4941,14 @@
                     <button onclick="triggerMonthlyAggregation(false)" class="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition flex items-center gap-2 whitespace-nowrap cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>지금 집계 실행</span>
-                    </button>` : `<span class="text-xs text-amber-800 font-bold bg-amber-100/80 px-3 py-1.5 rounded-lg">지사대표 또는 운영진의 집계 실행이 필요합니다.</span>`}
+                    </button>` : `<span class="text-xs text-amber-800 font-bold bg-amber-100/80 px-3 py-1.5 rounded-lg">지사대표의 사전 집계 실행이 필요합니다.</span>`}
                 </div>` : '';
 
             // 집계 완료 시 메타데이터 뱃지 및 재집계 버튼
             const adminSummaryBadgeHtml = hasAdminSummary ? `
                 <div class="flex items-center gap-2 bg-slate-100/80 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-slate-600 text-[11px]">최종 집계: <strong class="text-slate-800 font-bold">${aMeta.timestamp || ''}</strong></span>
+                    <span class="text-slate-600 text-[11px]">최종 집계: <strong class="text-slate-800 font-bold">${formatSummaryDate(aMeta.timestamp)}</strong></span>
                     ${canRunAgg ? `<button onclick="triggerMonthlyAggregation(true)" class="ml-1 text-[11px] px-2 py-0.5 bg-white hover:bg-slate-200 text-slate-700 font-bold rounded border border-slate-200 shadow-xs transition cursor-pointer">재집계</button>` : ''}
                 </div>` : '';
 
@@ -8068,20 +8101,45 @@
         }
 
         // 지사대표 대시보드 - 기타 수수료 / 세후지급공제 상세 모달
-        window.openBranchEtcDetail = function (cardType, filterType) {
+        window.openBranchEtcDetail = async function (cardType, filterType) {
+            document.body.classList.add('modal-open');
+            const modal = document.createElement('div');
+            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
+
             const cardTitle = cardType === 'otherComm' ? '기타 수수료 (세전)' : '기타 지급 및 공제 (세후)';
             const typeLabel = filterType === 'pay' ? '지급' : '환수';
-            const rawList = (cardType === 'otherComm'
+
+            const getRawList = () => (cardType === 'otherComm'
                 ? state.data.branchCommData?.otherCommList
                 : state.data.branchCommData?.afterTaxList) || [];
+
+            let rawList = getRawList();
+
+            // 만약 기타 내역 리스트가 캐시/메모리에 없거나 빈 배열이면 비동기 1회 로드
+            if (!rawList || rawList.length === 0) {
+                modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center justify-center gap-3">
+                    <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-sm font-bold text-gray-700">기타 내역을 불러오는 중...</p>
+                </div>`;
+                document.body.appendChild(modal);
+
+                try {
+                    const res = await callApi('getBranchCommissionData', state.user.staffId, state.currentMonth);
+                    if (res && res.success) {
+                        if (!state.data.branchCommData) state.data.branchCommData = {};
+                        state.data.branchCommData.otherCommList = res.otherCommList || [];
+                        state.data.branchCommData.afterTaxList = res.afterTaxList || [];
+                        rawList = getRawList();
+                    }
+                } catch (e) {
+                    console.error('getBranchCommissionData lazy load error:', e);
+                }
+            }
 
             const list = rawList.filter(item => item.type === filterType);
             const totalAmt = list.reduce((sum, x) => sum + (x.amount || 0), 0);
             const totalColor = totalAmt >= 0 ? 'text-blue-600' : 'text-red-500';
-
-            document.body.classList.add('modal-open');
-            const modal = document.createElement('div');
-            modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
             const desktopRows = list.length ? list.map(x => `
                 <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
@@ -8244,6 +8302,49 @@
             }
         };
 
+        // --- 7.4 Admin Modal Ultra-Fast Batch Preload Cache ---
+        window._adminRewardModalCache = window._adminRewardModalCache || {};
+        window._adminCommModalCache = window._adminCommModalCache || {};
+        window._adminBatchPromise = null;
+
+        window.preloadAdminBatchModalCache = async function (month) {
+            if (!month || !state.user) return;
+            const cleanMonth = String(month).replace(/\./g, '').trim();
+            if (window._adminRewardModalCache[cleanMonth]) return;
+
+            const storageKey = `ADMIN_BATCH_CACHE_${cleanMonth}`;
+            const cached = sessionStorage.getItem(storageKey);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    window._adminRewardModalCache[cleanMonth] = parsed.rewardMap || {};
+                    window._adminCommModalCache[cleanMonth] = parsed.commMap || {};
+                    return;
+                } catch (e) {}
+            }
+
+            if (window._adminBatchPromise) return window._adminBatchPromise;
+
+            window._adminBatchPromise = (async () => {
+                try {
+                    const res = await callApi('getAdminBatchModalCache', cleanMonth, state.user.staffId);
+                    if (res && res.success) {
+                        window._adminRewardModalCache[cleanMonth] = res.rewardMap || {};
+                        window._adminCommModalCache[cleanMonth] = res.commMap || {};
+                        try {
+                            sessionStorage.setItem(storageKey, JSON.stringify(res));
+                        } catch (e) {}
+                        return res;
+                    }
+                } catch (err) {
+                    console.warn('Batch modal cache preload error:', err);
+                } finally {
+                    window._adminBatchPromise = null;
+                }
+            })();
+            return window._adminBatchPromise;
+        };
+
         // 시상금 판업 즉시 표시 후 데이터 로딩 (UX 개선)
         window.fetchAndShowAdminDetail = async function (id, name, category, type) {
             // 1. 팝업 즉시 표시 + 로딩 스피너
@@ -8279,13 +8380,30 @@
                 modal.remove();
             });
 
-            // 2. 데이터 로드 (캐시 우선 확인 및 핀포인트 초경량 조회)
-            const cacheKey = `DATA_${id}_${state.currentMonth}_dashboard`;
-            const pinpointCacheKey = `MODAL_REW_${id}_${state.currentMonth}_${category}_${type}`;
+            // 2. 데이터 로드 (일괄 배치 캐시 우선 확인 -> 초고속 0ms)
+            const cleanMonth = String(state.currentMonth).replace(/\./g, '').trim();
+            const cacheKey = `DATA_${id}_${cleanMonth}_dashboard`;
+            const pinpointCacheKey = `MODAL_REW_${id}_${cleanMonth}_${category}_${type}`;
             let d = null;
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                try { d = JSON.parse(cached); } catch (e) { }
+
+            // 2-1. 일괄 캐시 우선 탐색 (사전 로드 완료된 경우 0ms 즉시 응답)
+            if (window._adminRewardModalCache?.[cleanMonth]?.[id]?.[category]?.[type]) {
+                d = { month: cleanMonth, details: window._adminRewardModalCache[cleanMonth][id][category][type] };
+            }
+            // 2-2. 백그라운드 프리페치가 진행 중인 경우 완료 대기
+            if (!d && window._adminBatchPromise) {
+                try {
+                    await window._adminBatchPromise;
+                    if (window._adminRewardModalCache?.[cleanMonth]?.[id]?.[category]?.[type]) {
+                        d = { month: cleanMonth, details: window._adminRewardModalCache[cleanMonth][id][category][type] };
+                    }
+                } catch (e) {}
+            }
+            if (!d) {
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) {
+                    try { d = JSON.parse(cached); } catch (e) { }
+                }
             }
             if (!d) {
                 const pinpointCached = sessionStorage.getItem(pinpointCacheKey);
@@ -8295,15 +8413,15 @@
             }
             if (!d) {
                 // 초경량 핀포인트 API 호출 (해당 시트 1개만 정밀 조회하여 0.2초 내 반환)
-                const fastModalRes = await callApi('getMemberRewardModalDetails', state.user.staffId, id, state.currentMonth, category, type);
+                const fastModalRes = await callApi('getMemberRewardModalDetails', state.user.staffId, id, cleanMonth, category, type);
                 if (fastModalRes && fastModalRes.success && fastModalRes.details) {
-                    d = { month: state.currentMonth, details: fastModalRes.details };
+                    d = { month: cleanMonth, details: fastModalRes.details };
                     sessionStorage.setItem(pinpointCacheKey, JSON.stringify(d));
                 } else {
                     // 폴백: 전체 시상금 조회
-                    d = await callApi('getRewardData', id, state.currentMonth);
+                    d = await callApi('getRewardData', id, cleanMonth);
                     if (d && !d.error) {
-                        d.month = state.currentMonth;
+                        d.month = cleanMonth;
                         sessionStorage.setItem(cacheKey, JSON.stringify(d));
                     }
                 }
@@ -8461,15 +8579,32 @@
                 modal.remove();
             });
 
-            // 2. 데이터 로드 (캐시 우선 확인)
-            const cacheKey = `DATA_COMM_${targetId}_${state.currentMonth}_${commType}_${payType}`;
+            // 2. 데이터 로드 (일괄 배치 캐시 우선 확인 -> 초고속 0ms)
+            const cleanMonth = String(state.currentMonth).replace(/\./g, '').trim();
+            const cacheKey = `DATA_COMM_${targetId}_${cleanMonth}_${commType}_${payType}`;
             let res = null;
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                try { res = JSON.parse(cached); } catch (e) { }
+
+            // 2-1. 일괄 캐시 우선 탐색 (사전 로드 완료된 경우 0ms 즉시 응답)
+            if (window._adminCommModalCache?.[cleanMonth]?.[targetId]?.[commType]?.[payType]) {
+                res = { success: true, list: window._adminCommModalCache[cleanMonth][targetId][commType][payType] };
+            }
+            // 2-2. 백그라운드 프리페치가 진행 중인 경우 완료 대기
+            if (!res && window._adminBatchPromise) {
+                try {
+                    await window._adminBatchPromise;
+                    if (window._adminCommModalCache?.[cleanMonth]?.[targetId]?.[commType]?.[payType]) {
+                        res = { success: true, list: window._adminCommModalCache[cleanMonth][targetId][commType][payType] };
+                    }
+                } catch (e) {}
             }
             if (!res) {
-                res = await callApi('getBranchMemberCommissionDetails', state.user.staffId, targetId, state.currentMonth, commType,
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) {
+                    try { res = JSON.parse(cached); } catch (e) { }
+                }
+            }
+            if (!res) {
+                res = await callApi('getBranchMemberCommissionDetails', state.user.staffId, targetId, cleanMonth, commType,
                     payType);
                 if (res && res.success && !res.error) {
                     sessionStorage.setItem(cacheKey, JSON.stringify(res));
@@ -11350,11 +11485,11 @@
             }
         }
 
-        // 마감월 사전 집계 실행 함수 (지사대표/운영진 전용)
+        // 마감월 사전 집계 실행 함수 (지사대표 전용)
         window.triggerMonthlyAggregation = async function(isReaggregate = false) {
-            const canAgg = isBranchRepAny() || isOpsAny();
+            const canAgg = isBranchRepAny();
             if (!canAgg) {
-                alert('집계 권한이 없습니다. (지사대표 또는 운영진 전용)');
+                alert('집계 권한이 없습니다. (지사대표 전용)');
                 return;
             }
 
@@ -11374,6 +11509,10 @@
                     sessionStorage.removeItem(`DATA_${state.user.staffId}_${month}_branch`);
                     sessionStorage.removeItem(`DATA_${state.user.staffId}_${month}_admin`);
                     sessionStorage.removeItem(`COMM_${state.user.staffId}_${month}_branch`);
+                    const cleanM = String(month).replace(/\./g, '').trim();
+                    sessionStorage.removeItem(`ADMIN_BATCH_CACHE_${cleanM}`);
+                    if (window._adminRewardModalCache) delete window._adminRewardModalCache[cleanM];
+                    if (window._adminCommModalCache) delete window._adminCommModalCache[cleanM];
                     if (state.currentView === 'branch') fetchBranch();
                     else if (state.currentView === 'admin') fetchAdmin();
                     else render();
@@ -11510,13 +11649,14 @@
                     };
                     if (key) sessionStorage.setItem(key, JSON.stringify(fastRes));
                     render();
+                    preloadAdminBatchModalCache(state.currentMonth);
                     return;
                 }
 
                 // 2. 미집계 상태: 안내 배너 및 집계 실행 버튼 표시 준비
                 state.adminSummaryMeta = {
                     hasData: false,
-                    canAggregate: isBranchRepAny() || isOpsAny(),
+                    canAggregate: isBranchRepAny(),
                     message: fastRes?.message || `${state.currentMonth} 마감월의 사전 집계 데이터가 없습니다.`
                 };
                 state.data.adminSummary = { hasData: false, reward: { active: [], resigned: [] }, recruitment: [] };
