@@ -1518,13 +1518,15 @@
                 container.querySelector('#changePwBtnM')?.addEventListener('click', () => openChangePasswordModal(true));
 
                 // Always try to ensure Lapse data is synced visually if loaded
-                if (state.lapseLoaded) {
+                if (state.lapseLoaded && state.lapseData) {
                     const lCount = container.querySelector('#home-lapsed-count');
                     const aCount = container.querySelector('#home-arrears-count');
                     const uCount = container.querySelector('#home-unpaid-count');
-                    if (lCount) lCount.innerHTML = state.lapseData.lapsed.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
-                    if (aCount) aCount.innerHTML = state.lapseData.arrears.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
-                    if (uCount) uCount.innerHTML = state.lapseData.unpaid.length + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    const unsCount = container.querySelector('#home-unsubmitted-count');
+                    if (lCount) lCount.innerHTML = (state.lapseData.lapsed?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    if (aCount) aCount.innerHTML = (state.lapseData.arrears?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    if (uCount) uCount.innerHTML = (state.lapseData.unpaid?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
+                    if (unsCount) unsCount.innerHTML = (state.lapseData.unsubmitted?.length || 0) + '<span class="text-lg ml-0.5 font-bold">건</span>';
                 }
             }, 0);
             return container;
@@ -1535,20 +1537,20 @@
             state.lapseLimit = 20; // reset pagination limit
             const container = document.getElementById('lapse-container');
             let data = [];
-            if (tab === 'arrears') data = state.lapseData.arrears;
-            else if (tab === 'unpaid') data = state.lapseData.unpaid;
-            else if (tab === 'unsubmitted') data = state.lapseData.unsubmitted;
-            else data = state.lapseData.lapsed;
+            if (tab === 'arrears') data = state.lapseData?.arrears || [];
+            else if (tab === 'unpaid') data = state.lapseData?.unpaid || [];
+            else if (tab === 'unsubmitted') data = state.lapseData?.unsubmitted || [];
+            else data = state.lapseData?.lapsed || [];
             renderLapseContents(container, data);
 
             // Update Base Date Text in Title
             const dateEl = document.querySelector('h2.text-xl.font-bold span.text-gray-400') || document.querySelector('h2.tracking-tight span.text-gray-400');
             if (dateEl) {
                 let dateStr = '';
-                if (tab === 'arrears') dateStr = state.lapseData.arrearsDate;
-                else if (tab === 'unpaid') dateStr = state.lapseData.unpaidDate;
-                else if (tab === 'unsubmitted') dateStr = state.lapseData.unsubmittedDate;
-                else dateStr = state.lapseData.lapsedDate;
+                if (tab === 'arrears') dateStr = state.lapseData?.arrearsDate;
+                else if (tab === 'unpaid') dateStr = state.lapseData?.unpaidDate;
+                else if (tab === 'unsubmitted') dateStr = state.lapseData?.unsubmittedDate;
+                else dateStr = state.lapseData?.lapsedDate;
                 dateEl.innerText = dateStr ? `(${formatBaseDate(dateStr)} 기준)` : '';
             }
 
@@ -1581,10 +1583,10 @@
             // 현재 선택된 탭에 맞춰 초기 기준일 결정
             let initialDate = '';
             const curTab = state.lapseCurrentTab || 'lapsed';
-            if (curTab === 'arrears') initialDate = state.lapseData.arrearsDate;
-            else if (curTab === 'unpaid') initialDate = state.lapseData.unpaidDate;
-            else if (curTab === 'unsubmitted') initialDate = state.lapseData.unsubmittedDate;
-            else initialDate = state.lapseData.lapsedDate;
+            if (curTab === 'arrears') initialDate = state.lapseData?.arrearsDate;
+            else if (curTab === 'unpaid') initialDate = state.lapseData?.unpaidDate;
+            else if (curTab === 'unsubmitted') initialDate = state.lapseData?.unsubmittedDate;
+            else initialDate = state.lapseData?.lapsedDate;
 
             div.innerHTML = `
                 <div class="mb-4">
@@ -1625,19 +1627,19 @@
                     if (dateEl) {
                         let dateStr = '';
                         const curTab = state.lapseCurrentTab || 'lapsed';
-                        if (curTab === 'arrears') dateStr = state.lapseData.arrearsDate;
-                        else if (curTab === 'unpaid') dateStr = state.lapseData.unpaidDate;
-                        else if (curTab === 'unsubmitted') dateStr = state.lapseData.unsubmittedDate;
-                        else dateStr = state.lapseData.lapsedDate;
+                        if (curTab === 'arrears') dateStr = state.lapseData?.arrearsDate;
+                        else if (curTab === 'unpaid') dateStr = state.lapseData?.unpaidDate;
+                        else if (curTab === 'unsubmitted') dateStr = state.lapseData?.unsubmittedDate;
+                        else dateStr = state.lapseData?.lapsedDate;
                         dateEl.innerText = dateStr ? `(${formatBaseDate(dateStr)} 기준)` : '';
                     }
                 }
 
                 let dataToRender = [];
-                if (state.lapseCurrentTab === 'arrears') dataToRender = state.lapseData.arrears;
-                else if (state.lapseCurrentTab === 'unpaid') dataToRender = state.lapseData.unpaid;
-                else if (state.lapseCurrentTab === 'unsubmitted') dataToRender = state.lapseData.unsubmitted;
-                else dataToRender = state.lapseData.lapsed;
+                if (state.lapseCurrentTab === 'arrears') dataToRender = state.lapseData?.arrears || [];
+                else if (state.lapseCurrentTab === 'unpaid') dataToRender = state.lapseData?.unpaid || [];
+                else if (state.lapseCurrentTab === 'unsubmitted') dataToRender = state.lapseData?.unsubmitted || [];
+                else dataToRender = state.lapseData?.lapsed || [];
 
                 renderLapseContents(container, dataToRender);
             }, 10);
@@ -1812,19 +1814,19 @@
             state.lapseLimit += 20;
             const container = document.getElementById('lapse-container');
             let data = [];
-            if (state.lapseCurrentTab === 'arrears') data = state.lapseData.arrears;
-            else if (state.lapseCurrentTab === 'unpaid') data = state.lapseData.unpaid;
-            else if (state.lapseCurrentTab === 'unsubmitted') data = state.lapseData.unsubmitted;
-            else data = state.lapseData.lapsed;
+            if (state.lapseCurrentTab === 'arrears') data = state.lapseData?.arrears || [];
+            else if (state.lapseCurrentTab === 'unpaid') data = state.lapseData?.unpaid || [];
+            else if (state.lapseCurrentTab === 'unsubmitted') data = state.lapseData?.unsubmitted || [];
+            else data = state.lapseData?.lapsed || [];
             renderLapseContents(container, data);
         };
 
         window.openMobileLapseDetail = function (idx) {
             let dataList = [];
-            if (state.lapseCurrentTab === 'arrears') dataList = state.lapseData.arrears;
-            else if (state.lapseCurrentTab === 'unpaid') dataList = state.lapseData.unpaid;
-            else if (state.lapseCurrentTab === 'unsubmitted') dataList = state.lapseData.unsubmitted;
-            else dataList = state.lapseData.lapsed;
+            if (state.lapseCurrentTab === 'arrears') dataList = state.lapseData?.arrears || [];
+            else if (state.lapseCurrentTab === 'unpaid') dataList = state.lapseData?.unpaid || [];
+            else if (state.lapseCurrentTab === 'unsubmitted') dataList = state.lapseData?.unsubmitted || [];
+            else dataList = state.lapseData?.lapsed || [];
             const data = dataList[idx];
             if (!data) return;
 
@@ -6770,8 +6772,62 @@
                 }
             };
 
+            // 직전월(YYYY-MM) 계산 헬퍼 (오늘 날짜 기준)
+            const getLapseUnpaidTargetMonth = () => {
+                const now = new Date();
+                const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const yyyy = prev.getFullYear();
+                const mm = String(prev.getMonth() + 1).padStart(2, '0');
+                return `${yyyy}-${mm}`; // e.g. "2026-08"
+            };
+
+            // 연월(YYYY-MM) 정규화 헬퍼 (다양한 엑셀 서식 대응)
+            const normalizeYearMonth = (val) => {
+                if (val === undefined || val === null) return '';
+                if (val instanceof Date) {
+                    const y = val.getFullYear();
+                    const m = String(val.getMonth() + 1).padStart(2, '0');
+                    return `${y}-${m}`;
+                }
+                const str = String(val).trim();
+                if (!str) return '';
+                const match = str.match(/(\d{4})[-./](\d{1,2})/);
+                if (match) return `${match[1]}-${match[2].padStart(2, '0')}`;
+                const matchKr = str.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
+                if (matchKr) return `${matchKr[1]}-${matchKr[2].padStart(2, '0')}`;
+                const digits = str.replace(/[^0-9]/g, '');
+                if (digits.length >= 6) return `${digits.substring(0, 4)}-${digits.substring(4, 6)}`;
+                return '';
+            };
+
+            // 당월미납 전용: '최종월도'가 직전월인 행만 추출하는 필터 헬퍼
+            const filterLapseUnpaidRows = (headerRow, dataRows) => {
+                const tidyHeaders = (headerRow || []).map(h => String(h || '').trim().replace(/\s+/g, ''));
+                let colIdx = tidyHeaders.indexOf('최종월도');
+                if (colIdx === -1) colIdx = tidyHeaders.indexOf('최종납입월');
+                if (colIdx === -1) colIdx = tidyHeaders.findIndex(h => h.includes('최종월도') || h.includes('최종납입월') || h.includes('최종월'));
+
+                if (colIdx === -1) {
+                    return { filteredRows: dataRows, totalCount: dataRows.length, filteredCount: dataRows.length, targetMonth: '', colFound: false };
+                }
+
+                const targetMonth = getLapseUnpaidTargetMonth();
+                const filteredRows = dataRows.filter(r => {
+                    const ym = normalizeYearMonth(r[colIdx]);
+                    return ym === targetMonth;
+                });
+
+                return {
+                    filteredRows,
+                    totalCount: dataRows.length,
+                    filteredCount: filteredRows.length,
+                    targetMonth,
+                    colFound: true
+                };
+            };
+
             let selectedSheet = '통산유지율';
-            let parsedExcelData = null; // { headerRow, dataRows, fileName }
+            let parsedExcelData = null; // { headerRow, rawDataRows, dataRows, fileName, fileSize }
             let isUploading = false;
 
             modal.innerHTML = `
@@ -6807,6 +6863,7 @@
                                     <div class="mt-0.5 text-gray-500">
                                         정렬 기준: <strong class="text-blue-700 font-semibold" id="infoSortDesc">${sheetConfigs[selectedSheet].sortDesc}</strong>
                                     </div>
+                                    <div id="infoFilterNotice" class="hidden mt-1.5 p-2 rounded-lg bg-purple-50 text-purple-800 text-[11px] font-semibold border border-purple-200/60"></div>
                                 </div>
                             </div>
                         </div>
@@ -6920,9 +6977,19 @@
                     infoSheetTitle.textContent = selectedSheet;
                     infoSortDesc.textContent = sheetConfigs[selectedSheet].sortDesc;
 
-                    // 파일이 이미 파싱되어 있다면 열 수 재검증
+                    const infoNotice = modal.querySelector('#infoFilterNotice');
+                    if (infoNotice) {
+                        if (selectedSheet === '당월미납') {
+                            infoNotice.innerHTML = `💡 <strong>업로드 필터링</strong>: '최종월도'가 직전월(<strong>${getLapseUnpaidTargetMonth()}</strong>)인 행만 선별하여 업로드하고 나머지는 제외합니다.`;
+                            infoNotice.classList.remove('hidden');
+                        } else {
+                            infoNotice.classList.add('hidden');
+                        }
+                    }
+
+                    // 파일이 이미 파싱되어 있다면 시트별 필터링 및 열 수 재검증
                     if (parsedExcelData) {
-                        validateParsedDataWithSheet();
+                        applySheetFilterAndValidation();
                     }
                 });
             });
@@ -7004,6 +7071,7 @@
 
                     parsedExcelData = {
                         ...parsed,
+                        rawDataRows: parsed.dataRows,
                         fileName: file.name,
                         fileSize: (file.size / 1024).toFixed(1) + ' KB'
                     };
@@ -7014,13 +7082,12 @@
                         const targetBtn = Array.from(sheetButtons).find(b => b.getAttribute('data-sheet') === detected);
                         if (targetBtn) targetBtn.click();
                     } else {
-                        validateParsedDataWithSheet();
+                        applySheetFilterAndValidation();
                     }
 
                     previewBox.classList.remove('hidden');
                     previewFileName.textContent = file.name;
                     previewFileSize.textContent = parsedExcelData.fileSize;
-                    previewRowCount.textContent = `데이터 ${parsedExcelData.dataRows.length.toLocaleString()}건`;
 
                     startBtn.disabled = false;
                 } catch (err) {
@@ -7030,12 +7097,30 @@
                 }
             }
 
-            // 열 수 검증 안내
-            function validateParsedDataWithSheet() {
+            // 열 수 검증 및 시트별 필터링 안내
+            function applySheetFilterAndValidation() {
                 if (!parsedExcelData) return;
+
                 const expected = sheetConfigs[selectedSheet].expectedCols;
                 const actual = parsedExcelData.headerRow.length;
 
+                // 1. 당월미납인 경우: 최종월도가 직전월(예: 2026-08)인 행만 선별
+                if (selectedSheet === '당월미납') {
+                    const filterRes = filterLapseUnpaidRows(parsedExcelData.headerRow, parsedExcelData.rawDataRows);
+                    parsedExcelData.dataRows = filterRes.filteredRows;
+
+                    if (filterRes.colFound) {
+                        const excludedCount = filterRes.totalCount - filterRes.filteredCount;
+                        previewRowCount.innerHTML = `데이터 <strong class="text-purple-700">${filterRes.filteredCount.toLocaleString()}건</strong> <span class="text-xs text-gray-500 font-normal">(직전월 <strong>${filterRes.targetMonth}</strong> 선별 / 전체 ${filterRes.totalCount.toLocaleString()}건 중 ${excludedCount.toLocaleString()}건 제외됨)</span>`;
+                    } else {
+                        previewRowCount.textContent = `데이터 ${parsedExcelData.dataRows.length.toLocaleString()}건 ('최종월도' 열 미확인)`;
+                    }
+                } else {
+                    parsedExcelData.dataRows = parsedExcelData.rawDataRows;
+                    previewRowCount.textContent = `데이터 ${parsedExcelData.dataRows.length.toLocaleString()}건`;
+                }
+
+                // 열 수 검증 안내
                 if (actual === expected) {
                     previewColNotice.className = "text-xs flex items-center gap-1.5 font-medium text-emerald-700";
                     previewColNotice.innerHTML = `
@@ -7056,7 +7141,22 @@
                 if (!parsedExcelData || isUploading) return;
 
                 const rowCount = parsedExcelData.dataRows.length;
-                const confirmMsg = `선택하신 [${selectedSheet}] 시트의 2행부터의 기존 데이터를 모두 삭제하고,\n업로드된 ${rowCount.toLocaleString()}건의 데이터로 새로 갱신합니다.\n\n정말 업로드를 진행하시겠습니까?`;
+                if (rowCount === 0) {
+                    alert(selectedSheet === '당월미납'
+                        ? `최종월도가 직전월(${getLapseUnpaidTargetMonth()})에 해당하는 데이터가 0건입니다.\n업로드할 데이터가 없습니다.`
+                        : '업로드할 데이터가 없습니다.');
+                    return;
+                }
+
+                let confirmMsg = '';
+                if (selectedSheet === '당월미납') {
+                    const targetMonth = getLapseUnpaidTargetMonth();
+                    const totalRaw = parsedExcelData.rawDataRows ? parsedExcelData.rawDataRows.length : rowCount;
+                    const excluded = totalRaw - rowCount;
+                    confirmMsg = `선택하신 [당월미납] 시트의 2행부터의 기존 데이터를 모두 삭제하고,\n'최종월도'가 직전월(${targetMonth})인 ${rowCount.toLocaleString()}건의 데이터만 업로드합니다.\n(직전월 외 ${excluded.toLocaleString()}건은 업로드에서 제외/삭제됨)\n\n정말 업로드를 진행하시겠습니까?`;
+                } else {
+                    confirmMsg = `선택하신 [${selectedSheet}] 시트의 2행부터의 기존 데이터를 모두 삭제하고,\n업로드된 ${rowCount.toLocaleString()}건의 데이터로 새로 갱신합니다.\n\n정말 업로드를 진행하시겠습니까?`;
+                }
                 if (!confirm(confirmMsg)) return;
 
                 isUploading = true;
