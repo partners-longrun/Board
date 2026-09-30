@@ -5094,6 +5094,9 @@
                 if (state.adminTab === 'reward') list = state.adminSubTab === 'active' ? (dd.reward?.active || []) : (dd.reward?.resigned || []);
                 else list = dd.recruitment || [];
 
+                // 사번순(오름차순) 정렬 적용 (위촉자 탭, 해촉자 탭, 증원수당 탭 모두 적용)
+                list = [...list].sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true }));
+
                 const searchTerm = (state.adminSearch || '').trim().toLowerCase();
                 if (searchTerm) {
                     list = list.filter(u => u.name.toLowerCase().includes(searchTerm) || String(u.id).includes(searchTerm));
@@ -11791,6 +11794,17 @@
                 state.isLoading = false;
 
                 if (fastRes && fastRes.hasData) {
+                    if (fastRes.reward) {
+                        if (Array.isArray(fastRes.reward.active)) {
+                            fastRes.reward.active.sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true }));
+                        }
+                        if (Array.isArray(fastRes.reward.resigned)) {
+                            fastRes.reward.resigned.sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true }));
+                        }
+                    }
+                    if (Array.isArray(fastRes.recruitment)) {
+                        fastRes.recruitment.sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true }));
+                    }
                     state.data.adminSummary = fastRes;
                     state.data.adminSummaryMonth = state.currentMonth;
                     state.adminSummaryMeta = {
