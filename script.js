@@ -2406,6 +2406,9 @@
             const div = document.createElement('div');
 
             if (state.branchSubView === 'newContracts') {
+                const dataKey = state.newContractTab === 'nl' ? 'newContractNl' : 'newContractL';
+                const hasCachedData = !!(state.data && state.data[dataKey] && state.data[dataKey + '_month'] === state.currentMonth);
+
                 // === 신계약 리스트 화면 ===
                 div.innerHTML = `
                 <!-- 제목행 + 대시보드/신계약/로그인기록 탭 버튼 (오른쪽 끝) -->
@@ -2441,14 +2444,14 @@
                 </div>
 
                 <div id="nc-list-container">
+                    ${hasCachedData ? '' : `
                     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
                         <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
                         신계약 데이터를 불러오는 중입니다...
-                    </div>
+                    </div>`}
                 </div>`;
 
-                setTimeout(async () => {
-                    const dataKey = state.newContractTab === 'nl' ? 'newContractNl' : 'newContractL';
+                const initNcView = async () => {
                     const container = div.querySelector('#nc-list-container');
 
                     // 1) 계약자-모집인 일치/유사(마스킹 포함) 판별 헬퍼
@@ -2691,11 +2694,22 @@
                     }
 
                     // 초기 데이터 로드 및 렌더링
-                    cachedList = await fetchData();
-                    if (cachedList) {
+                    if (hasCachedData) {
+                        cachedList = state.data[dataKey];
                         doSearch(state.ncSearch || '');
+                    } else {
+                        cachedList = await fetchData();
+                        if (cachedList) {
+                            doSearch(state.ncSearch || '');
+                        }
                     }
-                }, 10);
+                };
+
+                if (hasCachedData) {
+                    initNcView();
+                } else {
+                    setTimeout(initNcView, 10);
+                }
 
                 return div;
             }
@@ -5422,11 +5436,8 @@
         function setLapseAT(t) { state.lapseAdminTab = t; render(); }
         function setBranchSubView(v) { state.branchSubView = v; render(); }
         function setNewContractTab(t) {
+            if (state.newContractTab === t) return;
             state.newContractTab = t;
-            const dataKey = t === 'nl' ? 'newContractNl' : 'newContractL';
-            if (!state.data[dataKey] || state.data[dataKey + '_month'] !== state.currentMonth) {
-                state.data.newContractNl = null; state.data.newContractL = null; // clear both for re-fetch
-            }
             render();
         }
 
