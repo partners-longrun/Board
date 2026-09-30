@@ -2205,10 +2205,22 @@
                     try { renderCurrentData(JSON.parse(cached)); } catch (e) { renderCurrentData(null, true); fetchM(); }
                 } else { renderCurrentData(null, true); fetchM(); }
                 function fetchM() {
-                    callApi('getRewardData', selectedMember.id, state.currentMonth).then(d => {
+                    callApi('getFastRewardSummary', selectedMember.id, state.currentMonth).then(d => {
                         if (!state.user) return;
-                        if (d && !d.error) { d.month = state.currentMonth; sessionStorage.setItem(cacheKey, JSON.stringify(d)); }
-                        renderCurrentData(d && !d.error ? d : null);
+                        if (d && !d.error && d.hasData) {
+                            d.month = state.currentMonth;
+                            sessionStorage.setItem(cacheKey, JSON.stringify(d));
+                            renderCurrentData(d);
+                        } else {
+                            callApi('getRewardData', selectedMember.id, state.currentMonth).then(rd => {
+                                if (!state.user) return;
+                                if (rd && !rd.error) {
+                                    rd.month = state.currentMonth;
+                                    sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                }
+                                renderCurrentData(rd && !rd.error ? rd : null);
+                            });
+                        }
                     });
                 }
             } else {
@@ -2232,15 +2244,25 @@
                     }
                     if (!restored) {
                         renderCurrentData(null, true);
-                        callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
+                        callApi('getFastRewardSummary', state.user.staffId, state.currentMonth).then(d => {
                             if (!state.user) return;
-                            if (d && !d.error) {
+                            if (d && !d.error && d.hasData) {
                                 d.month = state.currentMonth;
                                 state.data.rewardData = d;
                                 sessionStorage.setItem(cacheKey, JSON.stringify(d));
                                 renderCurrentData(d);
                             } else {
-                                renderCurrentData(null);
+                                callApi('getRewardData', state.user.staffId, state.currentMonth).then(rd => {
+                                    if (!state.user) return;
+                                    if (rd && !rd.error) {
+                                        rd.month = state.currentMonth;
+                                        state.data.rewardData = rd;
+                                        sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                        renderCurrentData(rd);
+                                    } else {
+                                        renderCurrentData(null);
+                                    }
+                                });
                             }
                         });
                     }
@@ -3046,7 +3068,7 @@
                             </h3>
                             ${subNotice ? `<p class="text-[10px] text-gray-400 mt-0.5">${subNotice}</p>` : ''}
                         </div>
-                        <span class="text-base font-bold ${net < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(net) : spinner}</span>
+                        <span class="text-lg font-bold ${net < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(net) : spinner}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center mt-auto">
                         <div class="p-2.5 bg-blue-50/50 rounded-xl border border-blue-100/50">
@@ -3070,7 +3092,7 @@
                         <h3 class="font-bold text-base text-amber-950 flex items-center gap-2">
                             <div class="w-2 h-2 rounded-full bg-amber-500 shadow-sm"></div>${title}
                         </h3>
-                        <span class="text-base font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
+                        <span class="text-lg font-extrabold ${subTotal < 0 ? 'text-red-600' : 'text-amber-900'}">${formatMoney(subTotal)}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center mt-auto">
                         <div class="cursor-pointer bg-white/90 hover:bg-blue-50/90 p-2.5 rounded-xl transition border border-amber-100 hover:border-blue-200 shadow-xs group" onclick="openDetail('${key}','pay')">
@@ -3093,7 +3115,7 @@
                         <h3 class="font-bold text-base text-gray-700 flex items-center gap-2">
                             <div class="w-1.5 h-1.5 rounded-full bg-gray-400"></div>${title}
                         </h3>
-                        <span class="text-base font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(subTotal) : spinner}</span>
+                        <span class="text-lg font-bold ${subTotal < 0 ? 'text-red-600' : 'text-gray-800'}">${loaded ? formatMoney(subTotal) : spinner}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-3 text-center mt-auto">
                         <div class="cursor-pointer bg-white hover:bg-blue-50/50 p-2.5 rounded-xl transition border border-gray-100 hover:border-blue-100 shadow-xs group" onclick="openBranchEtcDetail('${cardType}','pay')">
@@ -7963,11 +7985,14 @@
                 document.body.appendChild(modal);
 
                 try {
-                    const res = await callApi('getRewardData', state.user.staffId, state.currentMonth);
+                    const targetStaffId = (state.dashboardSelectedMember && state.dashboardSelectedMember.id) ? state.dashboardSelectedMember.id : state.user.staffId;
+                    const res = await callApi('getRewardData', targetStaffId, state.currentMonth);
                     if (res && res.details) {
                         res.month = state.currentMonth;
-                        state.data.rewardData = res;
-                        const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_dashboard`;
+                        if (!state.dashboardSelectedMember) {
+                            state.data.rewardData = res;
+                        }
+                        const cacheKey = `DATA_${targetStaffId}_${state.currentMonth}_dashboard`;
                         sessionStorage.setItem(cacheKey, JSON.stringify(res));
                         if (state.currentView === 'dashboard' && !state.dashboardSelectedMember) {
                             const mainView = document.getElementById('main-view');
@@ -11512,16 +11537,19 @@
 
         async function fetchReward(key) {
             state.isLoading = true; render();
-            const d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
+            let d = await callApi('getFastRewardSummary', state.user.staffId, state.currentMonth);
+            if (!d || d.error || !d.hasData) {
+                d = await callApi('getRewardData', state.user.staffId, state.currentMonth);
+            }
             state.isLoading = false;
 
-            if (!d.error) {
+            if (d && !d.error) {
                 d.month = state.currentMonth;
                 state.data.rewardData = d;
                 sessionStorage.setItem(key, JSON.stringify(d));
                 render();
             } else {
-                alert('데이터 로드 실패: ' + d.message);
+                alert('데이터 로드 실패: ' + (d?.message || '알 수 없는 오류'));
                 render();
             }
         }
@@ -11549,6 +11577,7 @@
                     // 관련 세션 캐시 제거하여 최신 데이터 강제 리로드
                     sessionStorage.removeItem(`DATA_${state.user.staffId}_${month}_branch`);
                     sessionStorage.removeItem(`DATA_${state.user.staffId}_${month}_admin`);
+                    sessionStorage.removeItem(`DATA_${state.user.staffId}_${month}_dashboard`);
                     sessionStorage.removeItem(`COMM_${state.user.staffId}_${month}_branch`);
                     const cleanM = String(month).replace(/\./g, '').trim();
                     sessionStorage.removeItem(`ADMIN_BATCH_CACHE_${cleanM}`);
@@ -11556,6 +11585,7 @@
                     if (window._adminCommModalCache) delete window._adminCommModalCache[cleanM];
                     if (state.currentView === 'branch') fetchBranch();
                     else if (state.currentView === 'admin') fetchAdmin();
+                    else if (state.currentView === 'dashboard') fetchReward();
                     else render();
                 } else {
                     alert('집계 실패: ' + (res?.message || '알 수 없는 오류가 발생했습니다.'));
@@ -11639,7 +11669,10 @@
                     // 일반 사용자(FP): 3초 시점에 본인 시상금 API 단 1회 호출
                     const needReward = !(state.data.rewardData?.month === month) && !sessionStorage.getItem(rewardKey);
                     if (needReward) {
-                        const d = await callApi('getRewardData', staffId, month);
+                        let d = await callApi('getFastRewardSummary', staffId, month);
+                        if (!d || d.error || !d.hasData) {
+                            d = await callApi('getRewardData', staffId, month);
+                        }
                         if (d && !d.error) {
                             d.month = month;
                             state.data.rewardData = d;
