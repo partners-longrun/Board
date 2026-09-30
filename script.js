@@ -2212,7 +2212,39 @@
                     });
                 }
             } else {
-                renderCurrentData(displayData);
+                // 본인 시상금 데이터 유효성 검증: 정상적인 개인 시상금 summary 키('손보 시상금')가 있는지 확인
+                const isDataValid = displayData && displayData.month === state.currentMonth && displayData.summary && ('손보 시상금' in displayData.summary);
+                if (isDataValid) {
+                    renderCurrentData(displayData);
+                } else {
+                    const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_dashboard`;
+                    const cached = sessionStorage.getItem(cacheKey);
+                    let restored = false;
+                    if (cached) {
+                        try {
+                            const parsed = JSON.parse(cached);
+                            if (parsed && parsed.month === state.currentMonth && parsed.summary && ('손보 시상금' in parsed.summary)) {
+                                state.data.rewardData = parsed;
+                                renderCurrentData(parsed);
+                                restored = true;
+                            }
+                        } catch (e) {}
+                    }
+                    if (!restored) {
+                        renderCurrentData(null, true);
+                        callApi('getRewardData', state.user.staffId, state.currentMonth).then(d => {
+                            if (!state.user) return;
+                            if (d && !d.error) {
+                                d.month = state.currentMonth;
+                                state.data.rewardData = d;
+                                sessionStorage.setItem(cacheKey, JSON.stringify(d));
+                                renderCurrentData(d);
+                            } else {
+                                renderCurrentData(null);
+                            }
+                        });
+                    }
+                }
             }
 
             // 드롭다운 기능 설정
@@ -2946,7 +2978,7 @@
             // === 대시보드 화면 (default) ===
 
             // 시상금 데이터 (손보 법인, 생보 법인, 2차년 인센티브, 해촉자 정산)
-            const d = state.data.rewardData?.summary || {};
+            const d = state.data.branchRewardData?.summary || {};
             const rewardKeys = ['손보 법인시상금', '생보 법인시상금', '2차년 인센티브', '해촉자 정산'];
             let rewardPay = 0, rewardRefund = 0;
             rewardKeys.forEach(k => { const o = d[k] || { pay: 0, refund: 0 }; rewardPay += o.pay; rewardRefund += o.refund; });
@@ -7933,8 +7965,17 @@
                 try {
                     const res = await callApi('getRewardData', state.user.staffId, state.currentMonth);
                     if (res && res.details) {
-                        if (!state.data.rewardData) state.data.rewardData = {};
-                        state.data.rewardData.details = res.details;
+                        res.month = state.currentMonth;
+                        state.data.rewardData = res;
+                        const cacheKey = `DATA_${state.user.staffId}_${state.currentMonth}_dashboard`;
+                        sessionStorage.setItem(cacheKey, JSON.stringify(res));
+                        if (state.currentView === 'dashboard' && !state.dashboardSelectedMember) {
+                            const mainView = document.getElementById('main-view');
+                            if (mainView && typeof createDashboardView === 'function') {
+                                mainView.innerHTML = '';
+                                mainView.appendChild(createDashboardView());
+                            }
+                        }
                     }
                 } catch (e) {
                     console.error('getRewardData lazy load error:', e);
@@ -9639,9 +9680,9 @@
             }
             if (state.currentView === 'dashboard' && state.dashboardSelectedMember) { render(); return; } // 소속원 선택됨: render()에서 직접 로딩
             if (state.currentView === 'recruitment' && state.recruitmentSelectedMember) { render(); return; } // 증원수당 소속원 선택됨: render()에서 직접 로딩
-            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
+            if (state.currentView === 'dashboard' && state.data.rewardData?.month === state.currentMonth && state.data.rewardData?.summary && ('손보 시상금' in state.data.rewardData.summary)) { state.isLoading = false; render(); return; }
             if (state.currentView === 'recruitment' && state.data.recData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
-            if (state.currentView === 'branch' && state.data.rewardData?.month === state.currentMonth &&
+            if (state.currentView === 'branch' && state.data.branchRewardData?.month === state.currentMonth &&
                 state.data.branchCommData?.month === state.currentMonth) { state.isLoading = false; render(); return; }
             if (state.currentView === 'admin' && state.data.adminSummary && !state.data.adminSummary.error && state.data.adminSummaryMonth === state.currentMonth) { state.isLoading = false; render(); return; }
             if (state.currentView === 'performanceAnalysis' && state.perfAnalysisLoaded) { return; }
@@ -9658,8 +9699,8 @@
                         state.homeLoaded = true;
                     }
                     else if (state.currentView === 'branch') {
-                        // branch 뷰: rewardData 및 branchCommData 세션 캐시 동시 복원
-                        state.data.rewardData = parsed;
+                        // branch 뷰: branchRewardData 및 branchCommData 세션 캐시 동시 복원
+                        state.data.branchRewardData = parsed;
                         const commCached = sessionStorage.getItem(`COMM_${state.user.staffId}_${state.currentMonth}_branch`);
                         if (commCached) {
                             try {
@@ -11535,7 +11576,7 @@
                     fastRes.branchCommData.month = state.currentMonth;
                     fastRes.rewardData.month = state.currentMonth;
                     state.data.branchCommData = fastRes.branchCommData;
-                    state.data.rewardData = fastRes.rewardData;
+                    state.data.branchRewardData = fastRes.rewardData;
                     state.branchSummaryMeta = {
                         hasData: true,
                         timestamp: fastRes.timestamp,
@@ -11554,7 +11595,7 @@
                     message: fastRes?.message || `${state.currentMonth} 마감월의 사전 집계 데이터가 없습니다.`
                 };
                 state.data.branchCommData = { month: state.currentMonth, lifePay: 0, lifeRefund: 0, nonLifePay: 0, nonLifeRefund: 0 };
-                state.data.rewardData = { month: state.currentMonth, summary: {} };
+                state.data.branchRewardData = { month: state.currentMonth, summary: {} };
                 state.isLoading = false;
                 render();
                 if (typeof checkMonthClosingStatus === 'function') checkMonthClosingStatus();
@@ -11751,7 +11792,6 @@
                 callApiPrefetch('getRewardData', d => {
                     d.month = state.currentMonth;
                     sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_dashboard`, JSON.stringify(d));
-                    sessionStorage.setItem(`DATA_${state.user.staffId}_${state.currentMonth}_branch`, JSON.stringify(d));
                 }, state.user.staffId, state.currentMonth);
             }
 
