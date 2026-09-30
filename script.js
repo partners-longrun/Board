@@ -1971,7 +1971,7 @@
             }
 
             const d = rewardData?.summary || {};
-            const selectedDetails = rewardData?.details || null;
+            const hasDetails = !!(rewardData?.details && rewardData.details.length > 0);
 
             // 사용자정보 시트의 '손보법인시상대상자' 열의 값이 'Y'인 경우에만 관리자 시상금 현황 노출 및 합산
             const isNonLifeCorpEligible = !!(rewardData?.isNonLifeCorpEligible || d.isNonLifeCorpEligible || (state.user && (!state.dashboardSelectedMember || state.dashboardSelectedMember.id === state.user.staffId) && state.user.isNonLifeCorpEligible));
@@ -1993,21 +1993,16 @@
                  <p class="${big ? 'text-2xl' : 'text-xl'} font-extrabold ${isRed || (val < 0) ? 'text-red-500' : 'text-gray-800'} tracking-tight">${formatMoney(val)}</p>
               </div>`;
 
-            // selectedDetails가 있으면 해당 details를 사용, 없으면 state.data.rewardData.details 사용
-            const detailJsArgs = selectedDetails
-                ? `openDetail('KEY','TYPE', ${JSON.stringify(selectedDetails).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}, '${displayName}')`
-                : null;
-
             // 일반 시상금 상세 카드 (손보, 생보, 본부)
             const detailCard = (title, key) => {
                 const obj = d[key] || { pay: 0, refund: 0 };
                 const subTotal = obj.pay + obj.refund;
-                const payClick = selectedDetails
+                const payClick = hasDetails
                     ? `openDetail('${key}','pay', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('${key}','pay')`;
-                const refClick = selectedDetails
+                    : `openDetail('${key}','pay', null, '${displayName}')`;
+                const refClick = hasDetails
                     ? `openDetail('${key}','refund', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('${key}','refund')`;
+                    : `openDetail('${key}','refund', null, '${displayName}')`;
                 return `<div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 border border-gray-100">
                  <div class="flex justify-between mb-4 border-b border-gray-50 pb-3 items-center">
                      <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-primary/50"></div>${title}</h3>
@@ -2029,12 +2024,12 @@
             const adminCorpCard = (title, key) => {
                 const obj = d[key] || { pay: 0, refund: 0 };
                 const subTotal = obj.pay + obj.refund;
-                const payClick = selectedDetails
+                const payClick = hasDetails
                     ? `openDetail('${key}','pay', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('${key}','pay')`;
-                const refClick = selectedDetails
+                    : `openDetail('${key}','pay', null, '${displayName}')`;
+                const refClick = hasDetails
                     ? `openDetail('${key}','refund', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('${key}','refund')`;
+                    : `openDetail('${key}','refund', null, '${displayName}')`;
                 return `<div class="bg-gradient-to-br from-indigo-50/80 via-blue-50/40 to-slate-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-indigo-200/80">
                  <div class="flex justify-between mb-4 border-b border-indigo-100 pb-3 items-center">
                      <h3 class="font-bold text-lg text-indigo-950 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-600 shadow-xs"></div>${title}</h3>
@@ -2059,12 +2054,12 @@
                 const hqVal = deductObj.hq || 0;
                 const subTotal = deductObj.total !== undefined ? deductObj.total : (personalVal + hqVal);
 
-                const personalClick = selectedDetails
+                const personalClick = hasDetails
                     ? `openDetail('해촉자 정산(상위차감)','personal', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('해촉자 정산(상위차감)','personal')`;
-                const hqClick = selectedDetails
+                    : `openDetail('해촉자 정산(상위차감)','personal', null, '${displayName}')`;
+                const hqClick = hasDetails
                     ? `openDetail('해촉자 정산(상위차감)','hq', window._dashboardCurrentDetails, '${displayName}')`
-                    : `openDetail('해촉자 정산(상위차감)','hq')`;
+                    : `openDetail('해촉자 정산(상위차감)','hq', null, '${displayName}')`;
 
                 return `<div class="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/60 rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-6 border border-amber-200/80">
                  <div class="flex justify-between mb-4 border-b border-amber-200/60 pb-3 items-center">
@@ -2188,10 +2183,13 @@
              </div>`;
 
             // 전역 상숫값 저장
+            const currentStaffId = selectedMember ? selectedMember.id : state.user.staffId;
+            window._dashboardCurrentStaffId = currentStaffId;
             window._dashboardCurrentDetails = null;
 
             const renderCurrentData = (rewardData, loading = false) => {
-                window._dashboardCurrentDetails = rewardData?.details || null;
+                window._dashboardCurrentDetails = (rewardData?.details && rewardData.details.length > 0) ? rewardData.details : null;
+                window._dashboardCurrentStaffId = currentStaffId;
                 renderDashboardContent(div, rewardData, displayName, loading);
                 const titleEl = div.querySelector('#dashboard-title');
                 if (titleEl) titleEl.textContent = `${displayName}님의 시상금 (${state.currentMonth})`;
@@ -2211,6 +2209,18 @@
                             d.month = state.currentMonth;
                             sessionStorage.setItem(cacheKey, JSON.stringify(d));
                             renderCurrentData(d);
+
+                            // 상세 내역(details) 사전 비동기 로딩
+                            callApi('getRewardData', selectedMember.id, state.currentMonth).then(rd => {
+                                if (!state.user) return;
+                                if (rd && rd.details && rd.details.length > 0) {
+                                    rd.month = state.currentMonth;
+                                    sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                    if (state.dashboardSelectedMember && state.dashboardSelectedMember.id === selectedMember.id) {
+                                        window._dashboardCurrentDetails = rd.details;
+                                    }
+                                }
+                            }).catch(e => {});
                         } else {
                             callApi('getRewardData', selectedMember.id, state.currentMonth).then(rd => {
                                 if (!state.user) return;
@@ -2251,6 +2261,19 @@
                                 state.data.rewardData = d;
                                 sessionStorage.setItem(cacheKey, JSON.stringify(d));
                                 renderCurrentData(d);
+
+                                // 상세 내역(details) 사전 비동기 로딩
+                                callApi('getRewardData', state.user.staffId, state.currentMonth).then(rd => {
+                                    if (!state.user) return;
+                                    if (rd && rd.details && rd.details.length > 0) {
+                                        rd.month = state.currentMonth;
+                                        state.data.rewardData = rd;
+                                        sessionStorage.setItem(cacheKey, JSON.stringify(rd));
+                                        if (state.currentView === 'dashboard' && !state.dashboardSelectedMember) {
+                                            window._dashboardCurrentDetails = rd.details;
+                                        }
+                                    }
+                                }).catch(e => {});
                             } else {
                                 callApi('getRewardData', state.user.staffId, state.currentMonth).then(rd => {
                                     if (!state.user) return;
@@ -7975,44 +7998,79 @@
             const modal = document.createElement('div');
             modal.className = "fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 fade-in";
 
-            // 지사대표 대시보드 등에서 사전 집계로 들어와 details가 없는 경우 비동기 로딩
-            if (!customDetails && (!state.data.rewardData?.details || state.data.rewardData.details.length === 0)) {
+            // 대상 사번 파악 (소속원 선택 조회 중인지 확인)
+            const targetStaffId = window._dashboardCurrentStaffId || (state.dashboardSelectedMember && state.dashboardSelectedMember.id) || state.user?.staffId;
+
+            // 1. 유효한 상세 내역 목록(detailsList) 확보
+            let detailsList = (Array.isArray(customDetails) && customDetails.length > 0) ? customDetails : null;
+
+            if (!detailsList && Array.isArray(window._dashboardCurrentDetails) && window._dashboardCurrentDetails.length > 0) {
+                detailsList = window._dashboardCurrentDetails;
+            }
+
+            if (!detailsList && (!state.dashboardSelectedMember || state.dashboardSelectedMember.id === state.user?.staffId)) {
+                if (state.data.rewardData?.details && state.data.rewardData.details.length > 0) {
+                    detailsList = state.data.rewardData.details;
+                }
+            }
+
+            if (!detailsList && targetStaffId) {
+                const cacheKey = `DATA_${targetStaffId}_${state.currentMonth}_dashboard`;
+                try {
+                    const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+                    if (cached && Array.isArray(cached.details) && cached.details.length > 0) {
+                        detailsList = cached.details;
+                        window._dashboardCurrentDetails = cached.details;
+                    }
+                } catch (e) {}
+            }
+
+            // 2. 상세 내역이 아직 없으면 서버에서 비동기로 가져오기 (로딩 스피너 표시)
+            if (!detailsList && targetStaffId) {
                 modal.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center justify-center gap-3">
                     <div class="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                     <p class="text-sm font-bold text-gray-700">${k} 상세 내역을 불러오는 중...</p>
+                    <button class="modal-cancel-btn mt-2 px-4 py-1.5 text-xs text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">취소</button>
                 </div>`;
                 document.body.appendChild(modal);
 
+                let isCancelled = false;
+                const cancelBtn = modal.querySelector('.modal-cancel-btn');
+                if (cancelBtn) {
+                    cancelBtn.onclick = () => {
+                        isCancelled = true;
+                        document.body.classList.remove('modal-open');
+                        modal.remove();
+                    };
+                }
+
                 try {
-                    const targetStaffId = (state.dashboardSelectedMember && state.dashboardSelectedMember.id) ? state.dashboardSelectedMember.id : state.user.staffId;
                     const res = await callApi('getRewardData', targetStaffId, state.currentMonth);
+                    if (isCancelled) return;
                     if (res && res.details) {
                         res.month = state.currentMonth;
-                        if (!state.dashboardSelectedMember) {
+                        detailsList = res.details;
+                        window._dashboardCurrentDetails = res.details;
+                        if (!state.dashboardSelectedMember || state.dashboardSelectedMember.id === state.user?.staffId) {
                             state.data.rewardData = res;
                         }
                         const cacheKey = `DATA_${targetStaffId}_${state.currentMonth}_dashboard`;
                         sessionStorage.setItem(cacheKey, JSON.stringify(res));
-                        if (state.currentView === 'dashboard' && !state.dashboardSelectedMember) {
-                            const mainView = document.getElementById('main-view');
-                            if (mainView && typeof createDashboardView === 'function') {
-                                mainView.innerHTML = '';
-                                mainView.appendChild(createDashboardView());
-                            }
-                        }
+                    } else {
+                        detailsList = [];
                     }
                 } catch (e) {
                     console.error('getRewardData lazy load error:', e);
+                    if (isCancelled) return;
+                    detailsList = [];
                 }
             }
 
-            let d = [];
-            if (customDetails) {
-                d = customDetails.filter(x => x.category === k && x.type === t);
-            } else {
-                d = (state.data.rewardData?.details || []).filter(x => x.category === k && x.type === t);
-            }
+            if (!modal.parentNode && detailsList === null) return;
+
+            const rawDetails = detailsList || [];
+            const d = rawDetails.filter(x => x.category === k && x.type === t);
 
             const calcRate = (amt, prem) => {
                 if (!prem || prem == 0) return '0%';
@@ -8093,7 +8151,7 @@
     </div>
 </div>`).join('') : '<div class="p-8 text-center text-gray-500 bg-gray-50 rounded-2xl">상세 내역이 없습니다.</div>';
 
-            const titlePrefix = customTitle ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
+            const titlePrefix = (customTitle && (!state.user || customTitle !== state.user.name)) ? `<span class="text-gray-500 mr-2">[${customTitle}]</span>` : '';
 
             // 모달창 카테고리 표시명 보정 ('(개인)' 제거 및 '해촉자 정산' 간소화)
             let displayCat = k;
@@ -8164,6 +8222,12 @@
                 document.body.classList.remove('modal-open');
                 modal.remove();
             });
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    document.body.classList.remove('modal-open');
+                    modal.remove();
+                }
+            };
         }
 
         // 지사대표 대시보드 - 기타 수수료 / 세후지급공제 상세 모달
@@ -11548,6 +11612,20 @@
                 state.data.rewardData = d;
                 sessionStorage.setItem(key, JSON.stringify(d));
                 render();
+
+                // 상세 내역(details)이 없는 빠른 집계인 경우 백그라운드에서 상세 데이터 사전 로딩
+                if (!d.details || d.details.length === 0) {
+                    callApi('getRewardData', state.user.staffId, state.currentMonth).then(fullData => {
+                        if (fullData && fullData.details && fullData.details.length > 0) {
+                            fullData.month = state.currentMonth;
+                            state.data.rewardData = fullData;
+                            sessionStorage.setItem(key, JSON.stringify(fullData));
+                            if (state.currentView === 'dashboard' && !state.dashboardSelectedMember) {
+                                window._dashboardCurrentDetails = fullData.details;
+                            }
+                        }
+                    }).catch(e => {});
+                }
             } else {
                 alert('데이터 로드 실패: ' + (d?.message || '알 수 없는 오류'));
                 render();
