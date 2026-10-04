@@ -10182,11 +10182,17 @@
 
                 <!-- 4. 보험사별 우수 파트너 -->
                 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-5 md:p-8">
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="p-2 bg-yellow-50 rounded-xl text-yellow-600">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-yellow-50 rounded-xl text-yellow-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800">보험사별 우수 파트너 (보험료/건수 1위)</h3>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800">보험사별 우수 파트너 (보험료/건수 1위)</h3>
+                        <button onclick="openPerformanceNoticeModal()" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs md:text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer whitespace-nowrap self-end sm:self-auto">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                            <span>실적 공지문 / 시상 안내문</span>
+                        </button>
                     </div>
                     
                     <div id="top-partners-container" class="space-y-12"></div>
@@ -10947,6 +10953,320 @@
                 renderGroup('손해보험', nlComps, '#F37321', true) +
                 renderGroup('생명보험', lifeComps, '#3B82F6', false);
         }
+
+        // ==========================================
+        // [실적분석] 실적 공지문 / 시상 안내문 모달 시스템
+        // ==========================================
+        window.perfNoticeState = {
+            isOpen: false,
+            tab: 'midMonth', // 'midMonth' | 'monthClosing' | 'quarterClosing'
+            midYear: '',
+            midMonth: '',
+            closingMonth: '',
+            quarterYear: '',
+            quarter: 1,
+            loading: false,
+            noticeText: '',
+            availableMonths: []
+        };
+
+        function initPerfNoticeDefaults() {
+            const now = new Date();
+            const curY = now.getFullYear();
+            const curM = now.getMonth() + 1; // 1-12
+
+            // 1. 월 중간: 현재 실적분석 선택 연월 또는 현재 연월
+            window.perfNoticeState.midYear = state.perfAnalysisYear || String(curY);
+            window.perfNoticeState.midMonth = (state.perfAnalysisMonth && state.perfAnalysisMonth !== 'All')
+                ? state.perfAnalysisMonth
+                : String(curM).padStart(2, '0');
+
+            // 2. 월마감: 기본값 지난달
+            const prevD = new Date(curY, now.getMonth() - 1, 1);
+            const prevY = prevD.getFullYear();
+            const prevM = String(prevD.getMonth() + 1).padStart(2, '0');
+            window.perfNoticeState.closingMonth = `${prevY}${prevM}`;
+
+            // 3. 분기마감: 기본값 직전 분기
+            if (curM >= 1 && curM <= 3) {
+                window.perfNoticeState.quarterYear = String(curY - 1);
+                window.perfNoticeState.quarter = 4;
+            } else if (curM >= 4 && curM <= 6) {
+                window.perfNoticeState.quarterYear = String(curY);
+                window.perfNoticeState.quarter = 1;
+            } else if (curM >= 7 && curM <= 9) {
+                window.perfNoticeState.quarterYear = String(curY);
+                window.perfNoticeState.quarter = 2;
+            } else {
+                window.perfNoticeState.quarterYear = String(curY);
+                window.perfNoticeState.quarter = 3;
+            }
+        }
+
+        window.openPerformanceNoticeModal = function () {
+            initPerfNoticeDefaults();
+            window.perfNoticeState.isOpen = true;
+
+            const modalId = 'perf-notice-modal';
+            let modal = document.getElementById(modalId);
+            if (modal) modal.remove();
+
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = "fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn";
+            document.body.appendChild(modal);
+
+            renderPerformanceNoticeModalContent();
+            fetchPerformanceNotice();
+        };
+
+        window.closePerformanceNoticeModal = function () {
+            window.perfNoticeState.isOpen = false;
+            const modal = document.getElementById('perf-notice-modal');
+            if (modal) modal.remove();
+        };
+
+        window.switchPerformanceNoticeTab = function (tabName) {
+            if (window.perfNoticeState.tab === tabName) return;
+            window.perfNoticeState.tab = tabName;
+            renderPerformanceNoticeModalContent();
+            fetchPerformanceNotice();
+        };
+
+        window.fetchPerformanceNotice = async function () {
+            const st = window.perfNoticeState;
+            st.loading = true;
+            renderPerformanceNoticeModalContent();
+
+            let params = { mode: st.tab };
+            if (st.tab === 'midMonth') {
+                params.year = st.midYear;
+                params.month = st.midMonth;
+            } else if (st.tab === 'monthClosing') {
+                params.yearMonth = st.closingMonth;
+            } else if (st.tab === 'quarterClosing') {
+                params.year = st.quarterYear;
+                params.quarter = st.quarter;
+            }
+
+            try {
+                const res = await callApi('getPerformanceAwardsNoticeData', state.user.staffId, params);
+                st.loading = false;
+                if (res && res.success) {
+                    st.noticeText = res.noticeText || '';
+                    if (res.availableMonths && res.availableMonths.length > 0) {
+                        st.availableMonths = res.availableMonths;
+                    }
+                } else {
+                    st.noticeText = '데이터를 불러오는 중 오류가 발생했습니다: ' + (res?.message || '알 수 없는 오류');
+                }
+            } catch (e) {
+                st.loading = false;
+                st.noticeText = '조회 실패: ' + e.toString();
+            }
+
+            renderPerformanceNoticeModalContent();
+        };
+
+        window.copyPerformanceNoticeText = function () {
+            const textarea = document.getElementById('perf-notice-textarea');
+            if (!textarea) return;
+            const text = textarea.value;
+            if (!text) return;
+
+            navigator.clipboard.writeText(text).then(() => {
+                showNoticeCopySuccess();
+            }).catch(() => {
+                try {
+                    textarea.select();
+                    document.execCommand('copy');
+                    showNoticeCopySuccess();
+                } catch (e) {
+                    alert('복사에 실패했습니다. 텍스트를 직접 드래그하여 복사해주세요.');
+                }
+            });
+        };
+
+        function showNoticeCopySuccess() {
+            const btn = document.getElementById('perf-notice-copy-btn');
+            if (btn) {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                    <span>복사 완료!</span>
+                `;
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+                btn.classList.remove('from-amber-500', 'to-orange-500');
+
+                setTimeout(() => {
+                    if (btn) {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
+                        btn.classList.add('from-amber-500', 'to-orange-500');
+                    }
+                }, 2000);
+            }
+        }
+
+        window.renderPerformanceNoticeModalContent = function () {
+            const modal = document.getElementById('perf-notice-modal');
+            if (!modal) return;
+
+            const st = window.perfNoticeState;
+
+            // 가용 마감월 리스트 (state.months 및 availableMonths 병합)
+            const rawMonths = (st.availableMonths || []).concat(state.months || []);
+            const allAllowedMonths = [...new Set(rawMonths)].filter(m => m >= '202601').sort().reverse();
+            if (allAllowedMonths.length === 0) {
+                allAllowedMonths.push('202609', '202608', '202607');
+            }
+
+            // 마감월 옵션
+            const closingMonthOptions = allAllowedMonths.map(ym => {
+                const y = ym.substring(0, 4);
+                const m = parseInt(ym.substring(4, 6), 10);
+                const isSelected = ym === st.closingMonth ? 'selected' : '';
+                return `<option value="${ym}" ${isSelected}>${y}년 ${m}월 마감</option>`;
+            }).join('');
+
+            // 분기 연도 옵션
+            const currentYearNum = new Date().getFullYear();
+            const quarterYearOptions = [currentYearNum - 1, currentYearNum, currentYearNum + 1].map(y => {
+                const isSelected = String(y) === String(st.quarterYear) ? 'selected' : '';
+                return `<option value="${y}" ${isSelected}>${y}년</option>`;
+            }).join('');
+
+            // 분기 옵션
+            const quarterOptions = [
+                { q: 1, label: '1/4 분기 (1~3월)' },
+                { q: 2, label: '2/4 분기 (4~6월)' },
+                { q: 3, label: '3/4 분기 (7~9월)' },
+                { q: 4, label: '4/4 분기 (10~12월)' }
+            ].map(item => {
+                const isSelected = item.q === Number(st.quarter) ? 'selected' : '';
+                return `<option value="${item.q}" ${isSelected}>${item.label}</option>`;
+            }).join('');
+
+            // 탭 스타일
+            const getTabClass = (tName) => {
+                return st.tab === tName
+                    ? "bg-white text-gray-900 font-extrabold shadow-sm border-b-2 border-amber-500"
+                    : "text-gray-500 hover:text-gray-700 font-bold hover:bg-gray-100/60";
+            };
+
+            // 컨트롤 바 내용
+            let controlBarHtml = '';
+            if (st.tab === 'midMonth') {
+                const midMonthNum = parseInt(st.midMonth, 10);
+                controlBarHtml = `
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-amber-50/70 border border-amber-200/60 rounded-2xl p-3.5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            <span class="text-xs md:text-sm font-extrabold text-amber-900">${st.midYear}년 ${midMonthNum}월 중간 실적 (최신 집계 기준)</span>
+                        </div>
+                        <button onclick="fetchPerformanceNotice()" class="px-3 py-1.5 bg-white hover:bg-amber-100/70 text-amber-800 text-xs font-bold rounded-xl border border-amber-300 shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            <span>새로고침</span>
+                        </button>
+                    </div>
+                `;
+            } else if (st.tab === 'monthClosing') {
+                controlBarHtml = `
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-blue-50/70 border border-blue-200/60 rounded-2xl p-3.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs md:text-sm font-extrabold text-blue-900">마감월 선택 :</span>
+                            <select id="perf-notice-closing-select" onchange="perfNoticeState.closingMonth = this.value; fetchPerformanceNotice();" class="bg-white border border-blue-300 text-blue-900 text-xs md:text-sm font-bold rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-blue-500/20 cursor-pointer">
+                                ${closingMonthOptions}
+                            </select>
+                        </div>
+                        <span class="text-[11px] text-blue-600 font-medium">※ 기본값: 지난달 (직전월)</span>
+                    </div>
+                `;
+            } else if (st.tab === 'quarterClosing') {
+                controlBarHtml = `
+                    <div class="flex flex-wrap items-center justify-between gap-3 bg-emerald-50/70 border border-emerald-200/60 rounded-2xl p-3.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs md:text-sm font-extrabold text-emerald-900">분기 선택 :</span>
+                            <select id="perf-notice-quarter-year-select" onchange="perfNoticeState.quarterYear = this.value; fetchPerformanceNotice();" class="bg-white border border-emerald-300 text-emerald-900 text-xs md:text-sm font-bold rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer">
+                                ${quarterYearOptions}
+                            </select>
+                            <select id="perf-notice-quarter-select" onchange="perfNoticeState.quarter = parseInt(this.value, 10); fetchPerformanceNotice();" class="bg-white border border-emerald-300 text-emerald-900 text-xs md:text-sm font-bold rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-emerald-500/20 cursor-pointer">
+                                ${quarterOptions}
+                            </select>
+                        </div>
+                        <span class="text-[11px] text-emerald-700 font-medium">※ 기본값: 직전 분기</span>
+                    </div>
+                `;
+            }
+
+            modal.innerHTML = `
+                <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden transform scale-100 flex flex-col max-h-[92vh] border border-gray-100">
+                    <!-- 헤더 -->
+                    <div class="p-5 md:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex justify-between items-center relative">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-md">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-lg md:text-xl font-black tracking-tight">실적 공지문 / 시상 안내문</h3>
+                                <p class="text-xs text-slate-300 mt-0.5">월실적 및 유지율 DB 기반 맞춤형 공지 양식 자동 생성</p>
+                            </div>
+                        </div>
+                        <button onclick="closePerformanceNoticeModal()" class="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- 3개 탭 바 -->
+                    <div class="flex border-b border-gray-100 bg-gray-50/90 p-1.5 gap-1">
+                        <button onclick="switchPerformanceNoticeTab('midMonth')" class="flex-1 py-2.5 px-2 text-xs md:text-sm rounded-xl transition text-center cursor-pointer ${getTabClass('midMonth')}">
+                            1. 월 중간 실적 TOP 5
+                        </button>
+                        <button onclick="switchPerformanceNoticeTab('monthClosing')" class="flex-1 py-2.5 px-2 text-xs md:text-sm rounded-xl transition text-center cursor-pointer ${getTabClass('monthClosing')}">
+                            2. 월마감 실적 시상
+                        </button>
+                        <button onclick="switchPerformanceNoticeTab('quarterClosing')" class="flex-1 py-2.5 px-2 text-xs md:text-sm rounded-xl transition text-center cursor-pointer ${getTabClass('quarterClosing')}">
+                            3. 분기마감 실적 시상
+                        </button>
+                    </div>
+
+                    <!-- 메인 컨텐츠 영역 -->
+                    <div class="p-5 md:p-6 space-y-4 overflow-y-auto flex-1">
+                        <!-- 컨트롤 바 (월 선택 / 분기 선택 등) -->
+                        ${controlBarHtml}
+
+                        <!-- 안내문 프리뷰 박스 -->
+                        <div class="relative">
+                            ${st.loading ? `
+                            <div class="h-80 w-full bg-slate-900 rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 border border-slate-800">
+                                <svg class="animate-spin w-8 h-8 text-amber-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <span class="text-xs font-semibold text-slate-300">실적 및 유지율 데이터를 분석하여 공지문을 작성하는 중입니다...</span>
+                            </div>
+                            ` : `
+                            <textarea id="perf-notice-textarea" class="w-full h-80 p-4 font-mono text-xs md:text-sm bg-slate-900 text-slate-100 rounded-2xl border border-slate-700 shadow-inner focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-y leading-relaxed select-all" placeholder="공지문이 생성됩니다...">${st.noticeText || ''}</textarea>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- 푸터 버튼 영역 -->
+                    <div class="p-4 md:p-5 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div class="text-[11px] text-gray-500 text-center sm:text-left flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>공지 내용을 수정한 뒤 복사하거나, 카카오톡 등에 즉시 붙여넣기(Ctrl+V)하세요.</span>
+                        </div>
+                        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button onclick="closePerformanceNoticeModal()" class="px-4 py-2.5 bg-white hover:bg-gray-100 text-gray-700 font-bold text-xs md:text-sm rounded-xl border border-gray-200 transition cursor-pointer">
+                                닫기
+                            </button>
+                            <button id="perf-notice-copy-btn" onclick="copyPerformanceNoticeText()" class="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs md:text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                <span>📋 공지문 복사</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
 
         // ==========================================
         // 총수당 예상 시뮬레이션 관련 프론트엔드 로직
