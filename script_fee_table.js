@@ -725,29 +725,38 @@ function renderFeeTableView(targetContainer) {
                     </div>
                 </div>
 
-                <!-- 지급율 시뮬레이션 카드 (권한1: 지사대표, 운영진, 관리자 전용) -->
-                ${isSimAllowed ? `
-                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 w-full lg:w-auto min-w-[300px] shadow-2xs">
-                    <div class="flex justify-between items-center mb-1.5">
-                        <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                            지급율 시뮬레이션
-                        </span>
-                        <span class="text-xs font-black text-primary" id="ft-payout-display">${hasRate ? currentRate.toFixed(1) + '%' : '미등록 (시뮬레이션 필요)'}</span>
+                <!-- 컨트롤 영역 (1주차 손보 시상금 정리 버튼 + 지급율 시뮬레이션 카드) -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto justify-start lg:justify-end">
+                    <!-- 1주차 손보 시상금 정리 버튼 (지급율 시뮬레이션 카드 바로 좌측 밀착) -->
+                    <button onclick="openNonLifeRewardSummaryModal()" class="px-3.5 py-2 sm:py-2.5 bg-[#4D7238] hover:bg-[#41622f] active:bg-[#385427] text-white font-extrabold rounded-xl text-xs shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 transition-all transform hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap self-stretch sm:self-auto cursor-pointer" title="1주차 손보 시상금 정리 표 조회">
+                        <svg class="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>1주차 손보 시상금 정리</span>
+                    </button>
+
+                    <!-- 지급율 시뮬레이션 카드 (권한1: 지사대표, 운영진, 관리자 전용) -->
+                    ${isSimAllowed ? `
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-3 w-full sm:w-auto min-w-[300px] shadow-2xs">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                                지급율 시뮬레이션
+                            </span>
+                            <span class="text-xs font-black text-primary" id="ft-payout-display">${hasRate ? currentRate.toFixed(1) + '%' : '미등록 (시뮬레이션 필요)'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="range" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-slider" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
+                            <input type="number" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
+                        </div>
+                        <div class="flex items-center justify-between gap-1 mt-1.5">
+                            <button onclick="setFeePayoutRate(75)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 75 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">75%</button>
+                            <button onclick="setFeePayoutRate(80)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 80 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">80%</button>
+                            <button onclick="setFeePayoutRate(85)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 85 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">85%</button>
+                            <button onclick="setFeePayoutRate(90)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 90 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">90%</button>
+                            <button onclick="resetFeePayoutRate()" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === null ? 'bg-primary text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">내지급율</button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <input type="range" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-slider" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary">
-                        <input type="number" min="50" max="100" step="0.5" value="${hasRate ? currentRate : 80}" id="ft-payout-input" class="w-14 px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-xs font-bold text-center text-slate-800 focus:outline-none focus:border-primary">
-                    </div>
-                    <div class="flex items-center justify-between gap-1 mt-1.5">
-                        <button onclick="setFeePayoutRate(75)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 75 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">75%</button>
-                        <button onclick="setFeePayoutRate(80)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 80 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">80%</button>
-                        <button onclick="setFeePayoutRate(85)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 85 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">85%</button>
-                        <button onclick="setFeePayoutRate(90)" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === 90 ? 'bg-orange-500 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">90%</button>
-                        <button onclick="resetFeePayoutRate()" class="flex-1 py-0.5 text-[10px] font-bold rounded ${feeTableState.overrideRate === null ? 'bg-primary text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">내지급율</button>
-                    </div>
+                    ` : ''}
                 </div>
-                ` : ''}
             </div>
 
             <!-- 2. Category Tab & Company Chips (컴팩트 가로 배치) -->
@@ -2124,3 +2133,359 @@ async function executeFeeExcelUpload() {
         btn.classList.remove('opacity-50', 'cursor-not-allowed');
     }
 }
+
+/**
+ * ==============================================================================
+ * 1주차 손보 시상금 정리 모달 시스템
+ * - 시상금_DB의 '월별시상' 시트 연동
+ * - ①익월시상 : 익월기본시상 열
+ * - ②본사시상 : 본사시상 열
+ * - 보험사시상 : (주차시상 + 연속시상 + 기타시상) 열의 합
+ * - 정렬: 장기 인보험 (①익월시상+②본사시상 합계순)
+ * ==============================================================================
+ */
+
+// 월별 시상 정책 메모리 캐시 (normMonth -> array)
+var nonLifeRewardPolicyCache = {};
+
+// 표준 손보사 목록 및 우선순위
+const NON_LIFE_COMPANIES_STANDARD = [
+    '흥국화재', '현대해상', 'KB손보', 'DB손보', '삼성화재',
+    '한화손보', '하나손보', '롯데손보', '메리츠', 'NH농협', 'AIG손보'
+];
+
+// 기본 fallback 데이터 (2026.09 기준 이미지 기본값)
+const NON_LIFE_REWARD_FALLBACK_DATA = [
+    { company: '흥국화재', nextMonth: 230, hq: 240, companyReward: 2000, totalSum: 470 },
+    { company: '현대해상', nextMonth: 250, hq: 200, companyReward: 1750, totalSum: 450 },
+    { company: 'KB손보', nextMonth: 250, hq: 200, companyReward: 1500, totalSum: 450 },
+    { company: 'DB손보', nextMonth: 250, hq: 200, companyReward: 1300, totalSum: 450 },
+    { company: '삼성화재', nextMonth: 230, hq: 200, companyReward: 1450, totalSum: 430 },
+    { company: '한화손보', nextMonth: 190, hq: 240, companyReward: 1500, totalSum: 430 },
+    { company: '하나손보', nextMonth: 220, hq: 200, companyReward: 2050, totalSum: 420 },
+    { company: '롯데손보', nextMonth: 190, hq: 170, companyReward: 2230, totalSum: 360 },
+    { company: '메리츠', nextMonth: 100, hq: 140, companyReward: 1600, totalSum: 240 },
+    { company: 'NH농협', nextMonth: 100, hq: 0, companyReward: 1900, totalSum: 100 },
+    { company: 'AIG손보', nextMonth: 100, hq: 0, companyReward: 0, totalSum: 100 }
+];
+
+/**
+ * 시상율 숫자 파싱 헬퍼
+ */
+function parseRewardRateNumber(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    const str = String(val).replace(/[^0-9.-]/g, '');
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.round(num);
+}
+
+/**
+ * 손보사명 정규화 (시트의 다양한 명칭을 표준 명칭으로 통합)
+ */
+function normalizeNonLifeCompanyName(name) {
+    const raw = String(name || '').trim();
+    if (!raw) return '';
+    if (raw.includes('흥국')) return '흥국화재';
+    if (raw.includes('현대')) return '현대해상';
+    if (raw.includes('KB') || raw.includes('케이비') || raw.includes('kb')) return 'KB손보';
+    if (raw.includes('DB') || raw.includes('디비') || raw.includes('동부') || raw.includes('db')) return 'DB손보';
+    if (raw.includes('삼성')) return '삼성화재';
+    if (raw.includes('한화')) return '한화손보';
+    if (raw.includes('하나')) return '하나손보';
+    if (raw.includes('롯데')) return '롯데손보';
+    if (raw.includes('메리츠')) return '메리츠';
+    if (raw.includes('농협') || raw.includes('NH') || raw.includes('nh')) return 'NH농협';
+    if (raw.includes('AIG') || raw.includes('에이아이지') || raw.includes('aig')) return 'AIG손보';
+    return raw;
+}
+
+/**
+ * 상단 헤더 타이틀 포맷 ('26.09월 1주차 손보 시상금 정리)
+ */
+function formatNonLifeRewardHeaderTitle(monthStr) {
+    const digits = String(monthStr || '').replace(/[^0-9]/g, '');
+    if (digits.length >= 6) {
+        const yy = digits.substring(2, 4);
+        const mm = digits.substring(4, 6);
+        return `'${yy}.${mm}월 1주차 손보 시상금 정리`;
+    }
+    return `${monthStr || ''} 1주차 손보 시상금 정리`;
+}
+
+/**
+ * 1주차 손보 시상금 정리 모달 열기
+ */
+function openNonLifeRewardSummaryModal(targetMonth) {
+    const month = targetMonth || feeTableState.month || '2026.09';
+    const modalId = 'nonlife-reward-summary-modal';
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = "fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto animate-fadeIn";
+        modal.onclick = (e) => {
+            if (e.target === modal) closeNonLifeRewardSummaryModal();
+        };
+        document.body.appendChild(modal);
+
+        // ESC 키로 닫기
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const curModal = document.getElementById(modalId);
+                if (curModal && !curModal.classList.contains('hidden')) {
+                    closeNonLifeRewardSummaryModal();
+                }
+            }
+        });
+    }
+
+    document.body.classList.add('modal-open');
+    modal.classList.remove('hidden');
+    renderNonLifeRewardSummaryModalContent(month, false);
+}
+
+/**
+ * 1주차 손보 시상금 정리 모달 닫기
+ */
+function closeNonLifeRewardSummaryModal() {
+    const modal = document.getElementById('nonlife-reward-summary-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    document.body.classList.remove('modal-open');
+}
+
+/**
+ * 모달 콘텐츠 렌더링 (데이터 조회, 계산, 정렬 및 표 렌더링)
+ */
+async function renderNonLifeRewardSummaryModalContent(month, forceRefresh) {
+    const modal = document.getElementById('nonlife-reward-summary-modal');
+    if (!modal) return;
+
+    const normMonth = String(month || '2026.09').replace(/[^0-9]/g, '');
+    const titleText = formatNonLifeRewardHeaderTitle(month);
+
+    // 1. 모달 기본 프레임 및 로딩 UI 설정
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 flex flex-col animate-scaleUp my-auto select-text">
+            <!-- 1. Header (진한 숲색 배너) -->
+            <div style="background-color: #4D7238;" class="px-5 py-3.5 flex items-center justify-between text-white shadow-xs">
+                <div class="w-6"></div>
+                <h3 class="font-extrabold text-base sm:text-lg tracking-tight text-center flex-1">
+                    ${titleText}
+                </h3>
+                <button onclick="closeNonLifeRewardSummaryModal()" class="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition" title="닫기">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- 2. Subheader -->
+            <div class="text-center pt-3 pb-1 px-4">
+                <h4 class="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                    장기 인보험 <span class="text-xs sm:text-sm font-normal text-slate-600">(①익월시상+②본사시상 합계순)</span>
+                </h4>
+            </div>
+
+            <!-- 3. Table / Content Container -->
+            <div id="nonlife-reward-modal-body" class="p-4 sm:p-5 pt-2">
+                <div class="py-12 flex flex-col items-center justify-center text-slate-400 gap-2.5">
+                    <div class="loader ease-linear rounded-full border-3 border-t-3 border-emerald-500 h-8 w-8 animate-spin"></div>
+                    <p class="text-xs font-semibold text-slate-500">시상금_DB(월별시상) 데이터를 불러오는 중...</p>
+                </div>
+            </div>
+
+            <!-- 4. Footer Controls -->
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                    <button onclick="renderNonLifeRewardSummaryModalContent('${month}', true)" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow-2xs" title="스프레드시트 최신 데이터 다시 조회">
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        <span>새로고침</span>
+                    </button>
+                    <button onclick="copyNonLifeRewardTableToClipboard()" class="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg transition flex items-center gap-1 shadow-2xs" title="표 내용을 클립보드로 복사">
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span>복사</span>
+                    </button>
+                </div>
+                <button onclick="closeNonLifeRewardSummaryModal()" class="px-5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold rounded-xl transition shadow-xs">
+                    닫기
+                </button>
+            </div>
+        </div>
+    `;
+
+    // 2. 백엔드 또는 캐시에서 데이터 조회
+    let policyList = [];
+    if (!forceRefresh && nonLifeRewardPolicyCache[normMonth]) {
+        policyList = nonLifeRewardPolicyCache[normMonth];
+    } else {
+        if (typeof API_URL !== 'undefined' && API_URL) {
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'getRewardPolicy',
+                        args: [month]
+                    })
+                });
+                const data = await res.json();
+                if (data && data.success && Array.isArray(data.list) && data.list.length > 0) {
+                    policyList = data.list;
+                    nonLifeRewardPolicyCache[normMonth] = policyList;
+                }
+            } catch (err) {
+                console.warn('[RewardSummary] 월별시상 시트 조회 실패, 기본값 사용:', err);
+            }
+        }
+    }
+
+    // 3. 데이터 파싱 및 집계 로직
+    // - 선택된 기준연월에 해당하는 마감월 행 필터
+    // - 보험사 : 보험사명 열
+    // - ①익월시상 : 익월기본시상 열
+    // - ②본사시상 : 본사시상 열
+    // - 보험사시상 : (주차시상 + 연속시상 + 기타시상) 열의 합
+    const bodyContainer = document.getElementById('nonlife-reward-modal-body');
+    if (!bodyContainer) return;
+
+    let items = [];
+    const companyMap = {};
+
+    if (policyList && policyList.length > 0) {
+        policyList.forEach(row => {
+            const rowMonth = String(row['마감월'] || '').replace(/[^0-9]/g, '');
+            if (rowMonth !== normMonth) return;
+
+            const cat = String(row['보험사구분'] || '').trim();
+            const rawComp = String(row['보험사명'] || '').trim();
+            const stdComp = normalizeNonLifeCompanyName(rawComp);
+
+            const isNonLife = cat.includes('손보') || cat.includes('손해') || NON_LIFE_COMPANIES_STANDARD.includes(stdComp);
+            if (!isNonLife || !stdComp) return;
+
+            const prodCat = String(row['상품구분'] || '').trim();
+            // 손보사당 대표 1개 행(종합건강/인보험 우선) 선정
+            if (!companyMap[stdComp] || prodCat.includes('종합건강') || prodCat.includes('인보험')) {
+                const nextMonth = parseRewardRateNumber(row['익월기본시상']);
+                const hq = parseRewardRateNumber(row['본사시상']);
+                const week = parseRewardRateNumber(row['주차시상']);
+                const cont = parseRewardRateNumber(row['연속시상']);
+                const other = parseRewardRateNumber(row['기타시상']);
+                const companyReward = week + cont + other;
+                const totalSum = nextMonth + hq;
+
+                companyMap[stdComp] = {
+                    company: stdComp,
+                    nextMonth: nextMonth,
+                    hq: hq,
+                    companyReward: companyReward,
+                    totalSum: totalSum
+                };
+            }
+        });
+        items = Object.values(companyMap);
+    }
+
+    // 시트에 데이터가 없거나 로드되지 않았을 시 2026.09 기본값 활용
+    if (items.length === 0) {
+        items = JSON.parse(JSON.stringify(NON_LIFE_REWARD_FALLBACK_DATA));
+    }
+
+    // 4. 정렬: "장기 인보험 (①익월시상+②본사시상 합계순)"
+    items.sort((a, b) => {
+        if (b.totalSum !== a.totalSum) {
+            return b.totalSum - a.totalSum;
+        }
+        if (b.companyReward !== a.companyReward) {
+            return b.companyReward - a.companyReward;
+        }
+        return NON_LIFE_COMPANIES_STANDARD.indexOf(a.company) - NON_LIFE_COMPANIES_STANDARD.indexOf(b.company);
+    });
+
+    // 전역 변수에 현재 렌더링된 항목 보관 (복사 기능 등 활용)
+    window._currentNonLifeRewardItems = items;
+    window._currentNonLifeRewardMonth = titleText;
+
+    // 5. 테이블 HTML 생성 (첨부 이미지 디자인 1:1 완벽 일치)
+    bodyContainer.innerHTML = `
+        <div class="w-full overflow-hidden rounded-sm" style="border: 1px solid #759a60;">
+            <table id="nonlife-reward-table" class="w-full border-collapse text-center" style="font-family: -apple-system, BlinkMacSystemFont, 'Malgun Gothic', '맑은 고딕', sans-serif;">
+                <thead>
+                    <tr style="background-color: #D6E8D0; color: #1e293b; font-weight: 700;">
+                        <th rowspan="2" style="border: 1px dotted #8fa982; padding: 6px 2px; width: 22%; font-size: 13px;">보험사</th>
+                        <th rowspan="2" style="border: 1px dotted #8fa982; padding: 6px 2px; width: 21%; font-size: 13px; line-height: 1.25;">
+                            ①익월시상<br><span style="font-size: 11px; font-weight: normal; color: #334155;">(본사+보험사)</span>
+                        </th>
+                        <th colspan="2" style="border: 1px dotted #8fa982; padding: 5px 2px; width: 38%; font-size: 13px;">2년차 (13회차 유지)</th>
+                        <th rowspan="2" style="border: 1px dotted #8fa982; padding: 6px 2px; width: 19%; font-size: 13px; line-height: 1.25;">
+                            ①+②<br>합계
+                        </th>
+                    </tr>
+                    <tr style="background-color: #D6E8D0; color: #1e293b; font-weight: 700;">
+                        <th style="border: 1px dotted #8fa982; padding: 5px 2px; width: 18%; font-size: 12.5px;">②본사시상</th>
+                        <th style="border: 1px dotted #8fa982; padding: 5px 2px; width: 20%; font-size: 12.5px;">보험사시상</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => `
+                        <tr style="background-color: #ffffff;">
+                            <td style="border: 1px dotted #8fa982; padding: 6.5px 2px; background-color: #E8F3E5; font-weight: 700; color: #1e293b; font-size: 13px;">
+                                ${item.company}
+                            </td>
+                            <td style="border: 1px dotted #8fa982; padding: 6.5px 2px; color: #0f172a; font-size: 13px;">
+                                ${item.nextMonth}%
+                            </td>
+                            <td style="border: 1px dotted #8fa982; padding: 6.5px 2px; color: #0f172a; font-size: 13px;">
+                                ${item.hq}%
+                            </td>
+                            <td style="border: 1px dotted #8fa982; padding: 6.5px 2px; color: #0f172a; font-size: 13px;">
+                                ${item.companyReward}%
+                            </td>
+                            <td style="border: 1px dotted #8fa982; padding: 6.5px 2px; font-weight: 700; color: #0f172a; font-size: 13px;">
+                                ${item.totalSum}%
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 하단 참고사항 -->
+        <div class="mt-3 px-0.5 text-left text-xs leading-relaxed text-slate-800">
+            <div class="font-extrabold text-slate-900 text-xs">※ 참고사항</div>
+            <div class="text-[11.5px] text-slate-600 mt-0.5 font-medium leading-snug">
+                2년차 보험사시상은 주차/연속가동/주력상품 등 조건만족시 최대금액임.
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * 표 내용을 클립보드로 복사하는 헬퍼 함수
+ */
+function copyNonLifeRewardTableToClipboard() {
+    const items = window._currentNonLifeRewardItems || [];
+    const monthTitle = window._currentNonLifeRewardMonth || '1주차 손보 시상금 정리';
+    if (!items || items.length === 0) {
+        alert('복사할 데이터가 없습니다.');
+        return;
+    }
+
+    let text = `${monthTitle}\n장기 인보험 (①익월시상+②본사시상 합계순)\n\n`;
+    text += `보험사\t①익월시상\t②본사시상\t보험사시상(2년차)\t①+② 합계\n`;
+    items.forEach(it => {
+        text += `${it.company}\t${it.nextMonth}%\t${it.hq}%\t${it.companyReward}%\t${it.totalSum}%\n`;
+    });
+    text += `\n※ 참고사항\n2년차 보험사시상은 주차/연속가동/주력상품 등 조건만족시 최대금액임.`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert('시상금 정리 표가 클립보드에 복사되었습니다.\n카카오톡이나 엑셀에 바로 붙여넣기 하실 수 있습니다.');
+        }).catch(() => {
+            prompt('아래 내용을 복사하세요 (Ctrl+C):', text);
+        });
+    } else {
+        prompt('아래 내용을 복사하세요 (Ctrl+C):', text);
+    }
+}
+
