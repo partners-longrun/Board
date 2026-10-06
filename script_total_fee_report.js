@@ -255,6 +255,46 @@ async function initTotalFeeReport(targetContainer) {
 }
 
 /**
+ * 총수당 예시표 가용 마감월 목록 반환
+ */
+function getAvailableReportMonths() {
+    let months = [];
+    if (typeof feeTableAvailableMonths !== 'undefined' && Array.isArray(feeTableAvailableMonths) && feeTableAvailableMonths.length > 0) {
+        months = [...feeTableAvailableMonths];
+    }
+    const curM = totalFeeReportState.month || '2026.09';
+    if (!months.includes(curM)) {
+        months.unshift(curM);
+    }
+    return months;
+}
+
+/**
+ * 총수당 예시표 기준월 변경 핸들러
+ */
+async function changeTotalFeeReportMonth(newMonth) {
+    if (!newMonth || newMonth === totalFeeReportState.month) return;
+    totalFeeReportState.month = newMonth;
+    if (typeof feeTableState !== 'undefined') {
+        feeTableState.month = newMonth;
+    }
+    const parts = newMonth.split('.');
+    if (parts.length === 2) {
+        totalFeeReportState.weekText = `${parts[0]}년 ${parseInt(parts[1], 10)}월 1주차 기준`;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(`${newMonth} 수수료 및 시상금 데이터를 불러옵니다.`, 'info');
+    }
+
+    if (typeof loadFeeTableData === 'function') {
+        await loadFeeTableData(newMonth, false, false);
+    }
+    await fetchRewardPolicyData(newMonth);
+    renderTotalFeeReportView();
+}
+
+/**
  * 백엔드에서 시상금 정책 데이터 로드
  */
 async function fetchRewardPolicyData(month) {
@@ -520,12 +560,6 @@ function renderTotalFeeReportView(targetContainer) {
 
                 <!-- 출력 액션 버튼 2원화 -->
                 <div class="flex flex-wrap items-center gap-2.5">
-                    ${isAdmin ? `
-                        <button onclick="openRewardPolicyModal()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
-                            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                            시상금 및 대표상품 관리
-                        </button>
-                    ` : ''}
                     <button onclick="triggerPrintReport('tablesOnly')" class="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-orange-200">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                         예시표만 출력
@@ -575,8 +609,23 @@ function renderTotalFeeReportView(targetContainer) {
                         </div>
                     </div>
 
-                    <!-- 3. 기준 주차 문구 및 전체 일괄 정렬 기준 -->
-                    <div class="flex items-center gap-3">
+                    <!-- 3. 기준월 및 기준 주차 문구 및 전체 일괄 정렬 기준 -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- 기준월 선택 드롭다운 -->
+                        <div class="flex items-center gap-1.5 bg-orange-50/70 border border-orange-200 px-3 py-1.5 rounded-xl">
+                            <span class="text-xs font-bold text-orange-950">기준월:</span>
+                            <div class="relative">
+                                <select onchange="changeTotalFeeReportMonth(this.value)" class="appearance-none bg-white border border-orange-300 text-orange-800 text-xs font-bold py-1 pl-2.5 pr-7 rounded-lg cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400">
+                                    ${getAvailableReportMonths().map(m => `
+                                        <option value="${m}" ${m === state.month ? 'selected' : ''}>${m} 기준</option>
+                                    `).join('')}
+                                </select>
+                                <div class="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-orange-600">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="flex items-center gap-1.5">
                             <span class="text-xs font-semibold text-gray-500">기준주차:</span>
                             <input type="text" value="${state.weekText}" onchange="totalFeeReportState.weekText = this.value; updateReportTablesOnly();" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 w-36 outline-none focus:border-orange-400">

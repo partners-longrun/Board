@@ -501,7 +501,11 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
                     console.warn('[FeeTable] sessionStorage write error:', sErr);
                 }
             }
-            if (!feeTableAvailableMonths.includes(feeTableState.month)) {
+            // 번들된 가용 마감월 목록 즉시 반영
+            if (Array.isArray(dataRes.availableMonths) && dataRes.availableMonths.length > 0) {
+                feeTableAvailableMonths = [...dataRes.availableMonths];
+            }
+            if (feeTableState.month && !feeTableAvailableMonths.includes(feeTableState.month)) {
                 feeTableAvailableMonths.unshift(feeTableState.month);
             }
         } else {
@@ -509,12 +513,15 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
             console.warn('Fee table data not found for month:', monthParam, dataRes);
         }
 
-        // 2. 가용 마감월 목록 조회 (GAS 동시 요청 충돌을 방지하기 위해 순차 조회)
-        if (feeTableAvailableMonths.length === 0 || forceReload) {
+        // 2. 가용 마감월 목록 보완 (응답에 없거나 단일 항목일 때, 또는 forceReload 시 추가 확인)
+        if (feeTableAvailableMonths.length <= 1 || forceReload) {
             try {
                 const monthsRes = await callApi('getAvailableFeeMonths');
-                if (monthsRes && monthsRes.success && Array.isArray(monthsRes.months)) {
+                if (monthsRes && monthsRes.success && Array.isArray(monthsRes.months) && monthsRes.months.length > 0) {
                     feeTableAvailableMonths = monthsRes.months;
+                    if (feeTableState.month && !feeTableAvailableMonths.includes(feeTableState.month)) {
+                        feeTableAvailableMonths.unshift(feeTableState.month);
+                    }
                 }
             } catch (mErr) {
                 console.warn('[FeeTable] 마감월 목록 조회 지연:', mErr);
@@ -525,11 +532,27 @@ async function loadFeeTableData(targetMonth = null, forceReload = false, isBackg
         window.FEE_TABLE_DATA = null;
     } finally {
         feeTableLoading = false;
-        // 핵심: 백그라운드 프리페치 여부와 관계없이 사용자가 현재 'feeTable'을 보고 있다면 무조건 렌더링하여 화면 갱신
+        // 백그라운드 프리페치 여부와 관계없이 사용자가 현재 'feeTable'을 보고 있다면 무조건 렌더링
         if (typeof state !== 'undefined' && state.currentView === 'feeTable') {
             renderFeeTableView();
         }
     }
+}
+
+/**
+ * 기준월 변경 시 처리 함수 (수수료 예시표 & 총수당 예시표 동기화)
+ */
+async function changeFeeTableMonth(newMonth) {
+    if (!newMonth || newMonth === feeTableState.month) return;
+    feeTableState.month = newMonth;
+    if (typeof totalFeeReportState !== 'undefined') {
+        totalFeeReportState.month = newMonth;
+        const parts = newMonth.split('.');
+        if (parts.length === 2) {
+            totalFeeReportState.weekText = `${parts[0]}년 ${parseInt(parts[1], 10)}월 1주차 기준`;
+        }
+    }
+    await loadFeeTableData(newMonth, false, false);
 }
 
 /**
@@ -692,6 +715,7 @@ function renderFeeTableView(targetContainer) {
     const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
     // 권한1 기반 기능별 권한 제어 (다른 권한열 무시)
     const isExcelUploadAllowed = (role1 === '지사대표');
+    const isRewardPolicyAllowed = (role1 === '지사대표');
     const isTotalReportAllowed = (role1 === '지사대표' || role1 === '운영자' || role1 === '운영진');
     const isSimAllowed = (role1 === '지사대표' || role1 === '운영자' || role1 === '운영진' || role1 === '관리자');
 
@@ -710,7 +734,7 @@ function renderFeeTableView(targetContainer) {
                                 <h2 class="text-xl font-black tracking-tight text-slate-900">수수료 예시표 조회</h2>
                                 <!-- 기준월 선택 셀렉트박스 -->
                                 <div class="relative inline-flex items-center">
-                                    <select id="ft-month-select" onchange="loadFeeTableData(this.value, true)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
+                                    <select id="ft-month-select" onchange="changeFeeTableMonth(this.value)" class="appearance-none bg-orange-50 hover:bg-orange-100/80 border border-orange-200 text-orange-800 text-[11px] font-bold py-0.5 pl-2.5 pr-6 rounded-full cursor-pointer focus:outline-none transition">
                                         ${(feeTableAvailableMonths.length > 0 ? feeTableAvailableMonths : [FEE_TABLE_DATA.month || '2026.09']).map(m => `
                                             <option value="${m}" ${m === feeTableState.month ? 'selected' : ''}>${m} 기준</option>
                                         `).join('')}
@@ -967,13 +991,19 @@ function renderFeeTableView(targetContainer) {
                 </ul>
             </div>
 
-            <!-- 8. Bottom Action Buttons: 엑셀 업로드 (권한1: 지사대표) & 총수당 예시표 출력하기 (권한1: 지사대표, 운영진) -->
-            ${(isExcelUploadAllowed || isTotalReportAllowed) ? `
-            <div class="flex justify-end items-center gap-3 pt-2">
+            <!-- 8. Bottom Action Buttons: 엑셀 업로드 & 시상금 및 대표상품 관리 & 총수당 예시표 출력하기 -->
+            ${(isExcelUploadAllowed || isRewardPolicyAllowed || isTotalReportAllowed) ? `
+            <div class="flex flex-wrap justify-end items-center gap-3 pt-2">
                 ${isExcelUploadAllowed ? `
                     <button onclick="openFeeExcelUploadModal()" class="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
                         <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         엑셀 업로드
+                    </button>
+                ` : ''}
+                ${isRewardPolicyAllowed ? `
+                    <button onclick="handleOpenRewardPolicyModalFromFeeTable()" class="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        시상금 및 대표상품 관리
                     </button>
                 ` : ''}
                 ${isTotalReportAllowed ? `
@@ -1311,6 +1341,33 @@ function resetFeePayoutRate() {
 }
 
 /**
+ * 수수료 예시표 화면에서 시상금 및 대표상품 관리 모달 열기 핸들러
+ */
+async function handleOpenRewardPolicyModalFromFeeTable() {
+    const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
+    if (role1 !== '지사대표') {
+        alert('시상금 및 대표상품 관리는 지사대표 권한 사용자만 가능합니다.');
+        return;
+    }
+    if (typeof openRewardPolicyModal !== 'function') {
+        alert('시상금 및 대표상품 관리 기능을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+    }
+    const currentMonth = feeTableState.month || '2026.09';
+    if (typeof totalFeeReportState !== 'undefined') {
+        totalFeeReportState.month = currentMonth;
+    }
+    if (typeof fetchRewardPolicyData === 'function') {
+        try {
+            await fetchRewardPolicyData(currentMonth);
+        } catch (e) {
+            console.warn('[FeeTable] fetchRewardPolicyData warning:', e);
+        }
+    }
+    openRewardPolicyModal();
+}
+
+/**
  * ==============================================================================
  * 관리자 전용: 수수료 예시표 엑셀 업로드 및 브라우저 파서 (SheetJS)
  * ==============================================================================
@@ -1335,7 +1392,26 @@ function openFeeExcelUploadModal() {
         document.body.appendChild(modal);
     }
 
-    const defaultMonth = feeTableState.month || (state.currentMonth ? state.currentMonth : '2026.09');
+    // 디폴트 기준월: 현재 실제 연월 (YYYY.MM)
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = String(now.getMonth() + 1).padStart(2, '0');
+    const defaultCurrentMonth = `${curY}.${curM}`;
+
+    // 기준월 셀렉트박스 옵션 목록: 현재월 기준 과거 6개월 ~ 미래 2개월 범위
+    const uploadMonthOptions = [];
+    for (let offset = 2; offset >= -6; offset--) {
+        const d = new Date(curY, now.getMonth() + offset, 1);
+        const ym = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (!uploadMonthOptions.includes(ym)) uploadMonthOptions.push(ym);
+    }
+    // 기존 가용 월 목록도 포함
+    if (Array.isArray(feeTableAvailableMonths)) {
+        feeTableAvailableMonths.forEach(m => {
+            if (m && !uploadMonthOptions.includes(m)) uploadMonthOptions.push(m);
+        });
+    }
+    uploadMonthOptions.sort().reverse();
 
     modal.innerHTML = `
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 flex flex-col animate-scaleUp">
@@ -1357,10 +1433,19 @@ function openFeeExcelUploadModal() {
 
             <!-- Modal Body -->
             <div class="p-6 space-y-5">
-                <!-- 1. Month Input -->
+                <!-- 1. Month Select Box (디폴트: 현재 연월) -->
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5">적용 기준월 (YYYY.MM)</label>
-                    <input type="text" id="ft-upload-month" value="${defaultMonth}" placeholder="예: 2026.09" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition">
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">적용 기준월 선택</label>
+                    <div class="relative">
+                        <select id="ft-upload-month" class="w-full appearance-none px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none focus:border-primary focus:bg-white transition cursor-pointer pr-10">
+                            ${uploadMonthOptions.map(m => `
+                                <option value="${m}" ${m === defaultCurrentMonth ? 'selected' : ''}>${m}</option>
+                            `).join('')}
+                        </select>
+                        <div class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
                     <p class="text-[11px] text-slate-400 mt-1">※ 동일 기준월 데이터가 이미 존재하는 경우 최신 데이터로 덮어씌워집니다.</p>
                 </div>
 
