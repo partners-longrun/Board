@@ -2702,10 +2702,16 @@ async function saveRewardPolicyToDb() {
             } else {
                 alert('저장 완료 (메모리 반영됨): ' + (resData.message || ''));
             }
-        // 세션스토리지 캐시 동기화
+        } else {
+            alert('시상금 및 대표상품 설정이 메모리에 반영되었습니다.');
+        }
+
+        // 세션스토리지 캐시 동기화 (Tracking Prevention 대응 안전 처리)
         try {
             const mClean = String(totalFeeReportState.month || '2026.09').replace(/\./g, '');
-            sessionStorage.setItem('CACHE_REWARD_POLICY_' + mClean, JSON.stringify(totalFeeReportState.policyData));
+            if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('CACHE_REWARD_POLICY_' + mClean, JSON.stringify(totalFeeReportState.policyData));
+            }
         } catch (sErr) {}
     } catch (err) {
         console.error('saveRewardPolicyToDb 에러:', err);
@@ -2739,6 +2745,12 @@ async function copyPreviousMonthPolicyData() {
             const resData = await res.json();
             if (resData && resData.success && resData.list && resData.list.length > 0) {
                 totalFeeReportState.policyData = resData.list;
+                try {
+                    const mClean = String(totalFeeReportState.month || '2026.09').replace(/\./g, '');
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.setItem('CACHE_REWARD_POLICY_' + mClean, JSON.stringify(resData.list));
+                    }
+                } catch (sErr) {}
                 alert(resData.message || '전월 데이터를 성공적으로 불러왔습니다.');
                 switchRewardPolicyTab(totalFeeReportState.activeTab || '손해보험');
                 updateReportTablesOnly();
