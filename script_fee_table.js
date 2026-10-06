@@ -1001,7 +1001,7 @@ function renderFeeTableView(targetContainer) {
                     </button>
                 ` : ''}
                 ${isRewardPolicyAllowed ? `
-                    <button onclick="handleOpenRewardPolicyModalFromFeeTable()" class="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+                    <button id="ft-btn-reward-policy" onclick="handleOpenRewardPolicyModalFromFeeTable()" class="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white font-black text-sm rounded-2xl shadow-md flex items-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98]">
                         <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                         시상금 및 대표상품 관리
                     </button>
@@ -1340,9 +1340,13 @@ function resetFeePayoutRate() {
     renderFeeTableView();
 }
 
+
 /**
  * 수수료 예시표 화면에서 시상금 및 대표상품 관리 모달 열기 핸들러
+ * - 중복 클릭 완벽 차단 및 즉각적인 로딩 UI 피드백 제공
+ * - 캐시 우선 즉시 오픈 및 백그라운드 데이터 동기화로 0초 체감 속도 달성
  */
+let isRewardPolicyModalOpening = false;
 async function handleOpenRewardPolicyModalFromFeeTable() {
     const role1 = (state.user && state.user.role) ? String(state.user.role).trim() : '';
     if (role1 !== '지사대표') {
@@ -1353,18 +1357,77 @@ async function handleOpenRewardPolicyModalFromFeeTable() {
         alert('시상금 및 대표상품 관리 기능을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
         return;
     }
-    const currentMonth = feeTableState.month || '2026.09';
-    if (typeof totalFeeReportState !== 'undefined') {
-        totalFeeReportState.month = currentMonth;
+    // 중복 클릭 방지 (연타 클릭 차단)
+    if (isRewardPolicyModalOpening) return;
+    isRewardPolicyModalOpening = true;
+
+    const btn = document.getElementById('ft-btn-reward-policy');
+    let originalBtnHtml = '';
+    if (btn) {
+        originalBtnHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
+        btn.innerHTML = `
+            <svg class="w-5 h-5 animate-spin text-orange-400 inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            데이터 로딩중...
+        `;
     }
-    if (typeof fetchRewardPolicyData === 'function') {
+
+    try {
+        const currentMonth = feeTableState.month || '2026.09';
+        if (typeof totalFeeReportState !== 'undefined') {
+            totalFeeReportState.month = currentMonth;
+        }
+
+        const mClean = String(currentMonth).replace(/\./g, '');
+        // 세션스토리지 캐시 확인
+        let hasCache = false;
         try {
-            await fetchRewardPolicyData(currentMonth);
-        } catch (e) {
-            console.warn('[FeeTable] fetchRewardPolicyData warning:', e);
+            const cached = sessionStorage.getItem('CACHE_REWARD_POLICY_' + mClean);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    totalFeeReportState.policyData = parsed;
+                    hasCache = true;
+                }
+            }
+        } catch (e) {}
+
+        const hasMemoryData = Array.isArray(totalFeeReportState.policyData) && 
+                              totalFeeReportState.policyData.some(p => String(p['마감월']).replace(/\./g, '') === mClean);
+
+        if (hasMemoryData || hasCache) {
+            // 1. 이미 캐시/메모리에 데이터가 있으면 0.01초 만에 즉시 모달 열기!
+            openRewardPolicyModal(false);
+            // 백그라운드에서 최신 데이터 비동기 동기화
+            if (typeof fetchRewardPolicyData === 'function') {
+                fetchRewardPolicyData(currentMonth).then(() => {
+                    if (typeof refreshRewardPolicyModalContent === 'function') {
+                        refreshRewardPolicyModalContent();
+                    }
+                }).catch(e => console.warn(e));
+            }
+        } else {
+            // 2. 첫 진입 등 데이터가 없는 경우: 모달을 즉시 열고(0초 반응) 내부에서 로딩 스켈레톤 표시!
+            openRewardPolicyModal(true);
+            if (typeof fetchRewardPolicyData === 'function') {
+                await fetchRewardPolicyData(currentMonth);
+            }
+            if (typeof refreshRewardPolicyModalContent === 'function') {
+                refreshRewardPolicyModalContent();
+            }
+        }
+    } catch (err) {
+        console.error('시상금 관리 모달 열기 오류:', err);
+        alert('시상금 데이터를 불러오는 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+        isRewardPolicyModalOpening = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            if (originalBtnHtml) btn.innerHTML = originalBtnHtml;
         }
     }
-    openRewardPolicyModal();
 }
 
 /**

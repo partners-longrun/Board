@@ -297,7 +297,26 @@ async function changeTotalFeeReportMonth(newMonth) {
 /**
  * 백엔드에서 시상금 정책 데이터 로드
  */
-async function fetchRewardPolicyData(month) {
+async function fetchRewardPolicyData(month, forceReload = false) {
+    const mStr = String(month || '2026.09').replace(/\./g, '');
+    const cacheKey = 'CACHE_REWARD_POLICY_' + mStr;
+
+    // 1. 캐시 우선 반영 (forceReload가 아닌 경우 즉시 캐시 적용)
+    if (!forceReload) {
+        try {
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    totalFeeReportState.policyData = parsed;
+                }
+            }
+        } catch (cErr) {
+            console.warn('Reward policy cache parse error:', cErr);
+        }
+    }
+
+    // 2. 백엔드 최신 데이터 조회 및 캐시 갱신
     try {
         if (typeof API_URL !== 'undefined' && API_URL) {
             const res = await fetch(API_URL, {
@@ -311,6 +330,9 @@ async function fetchRewardPolicyData(month) {
             const data = await res.json();
             if (data && data.success && data.list && data.list.length > 0) {
                 totalFeeReportState.policyData = data.list;
+                try {
+                    sessionStorage.setItem(cacheKey, JSON.stringify(data.list));
+                } catch (sErr) {}
                 return;
             }
         }
@@ -318,8 +340,10 @@ async function fetchRewardPolicyData(month) {
         console.warn('fetchRewardPolicyData 백엔드 호출 실패, 로컬 기본값 사용:', err);
     }
 
-    // 실패 또는 데이터가 비어있을 시 디폴트 데이터 로드
-    totalFeeReportState.policyData = getDefaultRewardPolicies(month);
+    // 캐시도 없고 백엔드 응답도 비어있을 시 디폴트 데이터 로드
+    if (!totalFeeReportState.policyData || totalFeeReportState.policyData.length === 0) {
+        totalFeeReportState.policyData = getDefaultRewardPolicies(month);
+    }
 }
 
 /**
@@ -1829,26 +1853,26 @@ function triggerPrintReport(mode) {
 /**
  * 관리자용: 시상금 및 대표상품 관리 모달 열기
  */
-function openRewardPolicyModal() {
-    // 기존에 열려 있는 모달이 있으면 제거
-    const oldModal = document.getElementById('reward-policy-modal');
-    if (oldModal) oldModal.remove();
-
-    const state = totalFeeReportState;
-    const curTab = state.activeTab || '손해보험';
+function openRewardPolicyModal(isLoading = false) {
+    let modal = document.getElementById('reward-policy-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'reward-policy-modal';
+        modal.className = "fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn";
+        
+        // 모달 바깥 배경 클릭 시 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeRewardPolicyModal();
+            }
+        });
+        document.body.appendChild(modal);
+    }
 
     document.body.classList.add('modal-open');
 
-    const modal = document.createElement('div');
-    modal.id = 'reward-policy-modal';
-    modal.className = "fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn";
-    
-    // 모달 바깥 배경 클릭 시 닫기
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeRewardPolicyModal();
-        }
-    });
+    const state = totalFeeReportState;
+    const curTab = state.activeTab || '손해보험';
 
     modal.innerHTML = `
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-200" onclick="event.stopPropagation()">
@@ -1884,7 +1908,15 @@ function openRewardPolicyModal() {
             <!-- 설정 테이블 그리드 영역 -->
             <div class="p-6 overflow-y-auto flex-1 space-y-4">
                 <div id="reward-policy-grid-container">
-                    ${buildPolicyGridHtml(curTab)}
+                    ${isLoading ? `
+                        <div class="py-24 text-center space-y-4">
+                            <div class="inline-block animate-spin w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full shadow-sm"></div>
+                            <div>
+                                <p class="text-sm font-extrabold text-slate-800">최신 시상금 및 대표상품 데이터를 불러오는 중입니다...</p>
+                                <p class="text-xs text-slate-400 mt-1">구글 시트 '월별시상' 시트에서 ${state.month || ''} 정책 데이터를 안전하게 동기화하고 있습니다.</p>
+                            </div>
+                        </div>
+                    ` : buildPolicyGridHtml(curTab)}
                 </div>
             </div>
 
@@ -1897,7 +1929,7 @@ function openRewardPolicyModal() {
                     <button onclick="closeRewardPolicyModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition">
                         닫기
                     </button>
-                    <button onclick="saveRewardPolicyToDb()" id="save-reward-policy-btn" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200 transition flex items-center gap-1.5">
+                    <button onclick="saveRewardPolicyToDb()" id="save-reward-policy-btn" ${isLoading ? 'disabled' : ''} class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-200 transition flex items-center gap-1.5 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         월별시상 시트에 저장하기
                     </button>
@@ -1907,8 +1939,6 @@ function openRewardPolicyModal() {
         </div>
     `;
 
-    document.body.appendChild(modal);
-
     // ESC 키로 모달 닫기
     const escHandler = (e) => {
         if (e.key === 'Escape') {
@@ -1917,6 +1947,22 @@ function openRewardPolicyModal() {
         }
     };
     window.addEventListener('keydown', escHandler);
+}
+
+/**
+ * 모달 내부 그리드 및 저장 버튼 활성화 갱신
+ */
+function refreshRewardPolicyModalContent() {
+    const curTab = totalFeeReportState.activeTab || '손해보험';
+    const gridContainer = document.getElementById('reward-policy-grid-container');
+    if (gridContainer && typeof buildPolicyGridHtml === 'function') {
+        gridContainer.innerHTML = buildPolicyGridHtml(curTab);
+    }
+    const saveBtn = document.getElementById('save-reward-policy-btn');
+    if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
 }
 
 /**
@@ -2656,9 +2702,11 @@ async function saveRewardPolicyToDb() {
             } else {
                 alert('저장 완료 (메모리 반영됨): ' + (resData.message || ''));
             }
-        } else {
-            alert('시상금 및 대표상품 설정이 월별시상 시트에 반영되었습니다.');
-        }
+        // 세션스토리지 캐시 동기화
+        try {
+            const mClean = String(totalFeeReportState.month || '2026.09').replace(/\./g, '');
+            sessionStorage.setItem('CACHE_REWARD_POLICY_' + mClean, JSON.stringify(totalFeeReportState.policyData));
+        } catch (sErr) {}
     } catch (err) {
         console.error('saveRewardPolicyToDb 에러:', err);
         alert('저장 중 네트워크 오류가 발생했으나, 현재 화면에는 정상 반영되었습니다.');
