@@ -272,6 +272,7 @@
                 padding: 0 !important;
                 margin: 0 auto !important;
                 width: 210mm !important;
+                overflow: visible !important;
             }
 
             .report-a4-page-container {
@@ -280,11 +281,15 @@
                 padding: 0 !important;
             }
 
+            .report-a4-page-container > * {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
             .a4-page {
                 width: 210mm !important;
-                height: 297mm !important;
-                min-height: 297mm !important;
-                max-height: 297mm !important;
+                height: 296.5mm !important;
+                max-height: 296.5mm !important;
                 margin: 0 auto !important;
                 padding: 12mm 14mm !important;
                 box-sizing: border-box !important;
@@ -295,5 +300,12 @@
                 break-after: page !important;
                 break-inside: avoid !important;
                 overflow: hidden !important;
+            }
+
+            /* 마지막 페이지 뒤에는 페이지 나눔을 하지 않아 빈 페이지 생성 방지 */
+            .a4-page:last-child,
+            .a4-page:last-of-type {
+                page-break-after: auto !important;
+                break-after: auto !important;
             }
         }
