@@ -53,153 +53,11 @@ const REPORT_COMPANIES = {
 };
 
 /**
- * 기본 시상금 및 대표상품 디폴트 데이터 생성 (시트 데이터가 아직 없을 때 사용)
+ * 기본 시상금 및 대표상품 디폴트 데이터 생성
+ * - 새 마감월 또는 미등록 시: 모든 시상금(0)과 출력용 표시명('')을 완전히 초기화된 빈 상태로 유지
  */
 function getDefaultRewardPolicies(month) {
-    const list = [];
-    const mStr = String(month || '2026.09').replace(/\./g, '');
-
-    // 1. 손해보험 (종합건강)
-    const nonLifeDefaults = [
-        { comp: '삼성화재', prod: '마이헬스***보험', payPeriod: '20년납', next: 380, hq: 0, week: 700, cont: 800, other: 200, corp: 0 },
-        { comp: '하나손보', prod: '하나더스타**건강보험', payPeriod: '20년납', next: 370, hq: 0, week: 900, cont: 700, other: 350, corp: 0 },
-        { comp: 'DB손보', prod: '건강할때****청춘어람플러스종합보험', payPeriod: '20년납', next: 400, hq: 0, week: 700, cont: 800, other: 200, corp: 0 },
-        { comp: '흥국화재', prod: '흥Good The 건강한 ****종합보험', payPeriod: '20년납', next: 400, hq: 0, week: 900, cont: 600, other: 0, corp: 0 },
-        { comp: 'KB손보', prod: '닥터***보험', payPeriod: '20년납', next: 400, hq: 0, week: 700, cont: 600, other: 400, corp: 0 },
-        { comp: '현대해상', prod: '퍼펙트***보험', payPeriod: '20년납', next: 400, hq: 0, week: 800, cont: 800, other: 150, corp: 0 },
-        { comp: '한화손보', prod: '더건** 한아름종합보험', payPeriod: '20년납', next: 360, hq: 0, week: 1000, cont: 800, other: 100, corp: 0 },
-        { comp: '롯데손보', prod: 'let: smile***보험', payPeriod: '20년납', next: 330, hq: 0, week: 700, cont: 1330, other: 0, corp: 0 },
-        { comp: '메리츠', prod: '알파***보험', payPeriod: '20년납', next: 200, hq: 0, week: 200, cont: 600, other: 1000, corp: 0 },
-        { comp: '농협손보', prod: '가성비**건강보험', payPeriod: '20년납', next: 100, hq: 0, week: 500, cont: 1000, other: 100, corp: 0 },
-        { comp: 'AIG손보', prod: '소문난 N** 암보험(갱신형)', payPeriod: '10년갱신', next: 100, hq: 0, week: 0, cont: 0, other: 0, corp: 0 }
-    ];
-
-    nonLifeDefaults.forEach(d => {
-        list.push({
-            '마감월': mStr,
-            '보험사구분': '손해보험',
-            '보험사명': d.comp,
-            '상품구분': '종합건강',
-            '대표상품명': d.prod,
-            '납입기간': d.payPeriod,
-            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
-            '상품명표시': d.prod,
-            '시상내용': '',
-            '익월기본시상': d.next,
-            '13차월시상': 0,
-            '주차시상': d.week,
-            '연속시상': d.cont,
-            '기타시상': d.other,
-            '본사시상': d.hq,
-            '법인시상': d.corp,
-            '임시시상': 0
-        });
-    });
-
-    // 2. 생명보험 - 종신보험 (20년납)
-    const lifeDefaults = [
-        { comp: '미래에셋', prod: '변액*** 약속', payPeriod: '20년납', next: 50, m13: 280 },
-        { comp: 'KB라이프', prod: 'KB 역모**종신보험', payPeriod: '20년납', next: 100, m13: 200 },
-        { comp: '한화생명', prod: '제로**종신보험', payPeriod: '20년납', next: 250, m13: 200 },
-        { comp: '메트라이프', prod: '변액****모두*상속종신', payPeriod: '20년납', next: 50, m13: 0 },
-        { comp: '신한라이프', prod: 'The든**종신보험', payPeriod: '20년납', next: 350, m13: 100 },
-        { comp: 'ABL생명', prod: '우리가족THE***상속종신보험', payPeriod: '20년납', next: 150, m13: 200 },
-        { comp: '교보생명', prod: '실속**종신보험', payPeriod: '20년납', next: 100, m13: 150 },
-        { comp: '삼성생명', prod: '올백(ALL***)종신보험', payPeriod: '20년납', next: 300, m13: 200 },
-        { comp: '라이나생명', prod: 'THE건강***종신보험', payPeriod: '20년납', next: 250, m13: 100 },
-        { comp: 'DB생명', prod: '10년 더드***버셜 종신보험', payPeriod: '20년납', next: 0, m13: 0 }
-    ];
-    lifeDefaults.forEach(d => {
-        list.push({
-            '마감월': mStr,
-            '보험사구분': '생명보험',
-            '보험사명': d.comp,
-            '상품구분': '종신보험',
-            '대표상품명': d.prod,
-            '납입기간': d.payPeriod,
-            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
-            '상품명표시': d.prod,
-            '시상내용': '',
-            '익월기본시상': d.next,
-            '13차월시상': d.m13,
-            '주차시상': 0,
-            '연속시상': 0,
-            '기타시상': 0,
-            '본사시상': 0,
-            '법인시상': 0,
-            '임시시상': 0
-        });
-    });
-
-    // 3. 생명보험 - 단기납 종신 (7년납)
-    const shortLifeDefaults = [
-        { comp: '삼성생명', prod: '더행**종신보험', payPeriod: '7년납', next: 500, m13: 0 },
-        { comp: 'KDB생명', prod: '더블찬*** 종신보험', payPeriod: '7년납', next: 350, m13: 0 },
-        { comp: '메트라이프', prod: '백만인***달러종신보험Plus', payPeriod: '7년납', next: 400, m13: 0 },
-        { comp: '한화생명', prod: '밸류플** 보장보험', payPeriod: '7년납', next: 350, m13: 0 },
-        { comp: '하나생명', prod: '하나로THE연**종신보험', payPeriod: '7년납', next: 420, m13: 70 },
-        { comp: '라이나생명', prod: 'THE채우**종신보험', payPeriod: '7년납', next: 350, m13: 150 },
-        { comp: '신한라이프', prod: '모아더**종신보험', payPeriod: '7년납', next: 350, m13: 0 },
-        { comp: '동양생명', prod: '우리WON하는알뜰***종신보험', payPeriod: '7년납', next: 300, m13: 0 },
-        { comp: '교보생명', prod: 'K-실**종신보험', payPeriod: '7년납', next: 100, m13: 0 }
-    ];
-    shortLifeDefaults.forEach(d => {
-        list.push({
-            '마감월': mStr,
-            '보험사구분': '생명보험',
-            '보험사명': d.comp,
-            '상품구분': '단기납종신',
-            '대표상품명': d.prod,
-            '납입기간': d.payPeriod,
-            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
-            '상품명표시': d.prod,
-            '시상내용': '',
-            '익월기본시상': d.next,
-            '13차월시상': d.m13,
-            '주차시상': 0,
-            '연속시상': 0,
-            '기타시상': 0,
-            '본사시상': 0,
-            '법인시상': 0,
-            '임시시상': 0
-        });
-    });
-
-    // 4. 생명보험 - 경영인정기 (20년초과)
-    const ceoDefaults = [
-        { comp: '한화생명', prod: '경**H정기보험', payPeriod: '20년초과', next: 250, m13: 0 },
-        { comp: '카디프생명', prod: '시그**경영인정기보험', payPeriod: '20년초과', next: 50, m13: 250 },
-        { comp: 'KB라이프', prod: '경**정기보험Ⅲ', payPeriod: '20년초과', next: 100, m13: 100 },
-        { comp: '메트라이프', prod: 'TheClassic경**정기보험', payPeriod: '20년초과', next: 50, m13: 100 },
-        { comp: '미래에셋', prod: '경영인을**정기보험', payPeriod: '20년초과', next: 100, m13: 0 },
-        { comp: '교보생명', prod: '경**정기보험', payPeriod: '20년초과', next: 220, m13: 130 },
-        { comp: '신한라이프', prod: '위너스경**정기보험', payPeriod: '20년초과', next: 50, m13: 100 },
-        { comp: '삼성생명', prod: 'CEO**정기보험', payPeriod: '20년초과', next: 100, m13: 0 },
-        { comp: 'DB생명', prod: '경**정기보험', payPeriod: '20년초과', next: 100, m13: 170 }
-    ];
-    ceoDefaults.forEach(d => {
-        list.push({
-            '마감월': mStr,
-            '보험사구분': '생명보험',
-            '보험사명': d.comp,
-            '상품구분': '경영인정기',
-            '대표상품명': d.prod,
-            '납입기간': d.payPeriod,
-            '옵션상세': JSON.stringify({ '납기': d.payPeriod }),
-            '상품명표시': d.prod,
-            '시상내용': '',
-            '익월기본시상': d.next,
-            '13차월시상': d.m13,
-            '주차시상': 0,
-            '연속시상': 0,
-            '기타시상': 0,
-            '본사시상': 0,
-            '법인시상': 0,
-            '임시시상': 0
-        });
-    });
-
-    return list;
+    return [];
 }
 
 var totalFeeReportTargetContainer = null;
@@ -298,17 +156,23 @@ async function changeTotalFeeReportMonth(newMonth) {
  * 백엔드에서 시상금 정책 데이터 로드
  */
 async function fetchRewardPolicyData(month, forceReload = false) {
-    const mStr = String(month || '2026.09').replace(/\./g, '');
+    const targetMonth = month || totalFeeReportState.month || '2026.09';
+    const mStr = String(targetMonth).replace(/\./g, '');
     const cacheKey = 'CACHE_REWARD_POLICY_' + mStr;
+
+    // 타 마감월 데이터가 메모리에 남아있는 것을 원천 차단하기 위해 항상 초기화
+    totalFeeReportState.policyData = [];
 
     // 1. 캐시 우선 반영 (forceReload가 아닌 경우 즉시 캐시 적용)
     if (!forceReload) {
         try {
-            const cached = sessionStorage.getItem(cacheKey);
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    totalFeeReportState.policyData = parsed;
+            if (typeof sessionStorage !== 'undefined') {
+                const cached = sessionStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        totalFeeReportState.policyData = parsed;
+                    }
                 }
             }
         } catch (cErr) {
@@ -324,25 +188,27 @@ async function fetchRewardPolicyData(month, forceReload = false) {
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({
                     action: 'getRewardPolicy',
-                    args: [month]
+                    args: [targetMonth]
                 })
             });
             const data = await res.json();
-            if (data && data.success && data.list && data.list.length > 0) {
+            if (data && data.success && Array.isArray(data.list)) {
                 totalFeeReportState.policyData = data.list;
                 try {
-                    sessionStorage.setItem(cacheKey, JSON.stringify(data.list));
+                    if (typeof sessionStorage !== 'undefined') {
+                        sessionStorage.setItem(cacheKey, JSON.stringify(data.list));
+                    }
                 } catch (sErr) {}
                 return;
             }
         }
     } catch (err) {
-        console.warn('fetchRewardPolicyData 백엔드 호출 실패, 로컬 기본값 사용:', err);
+        console.warn('fetchRewardPolicyData 백엔드 호출 실패:', err);
     }
 
-    // 캐시도 없고 백엔드 응답도 비어있을 시 디폴트 데이터 로드
-    if (!totalFeeReportState.policyData || totalFeeReportState.policyData.length === 0) {
-        totalFeeReportState.policyData = getDefaultRewardPolicies(month);
+    // 캐시도 없고 백엔드 응답도 없는 경우 빈 배열로 깨끗이 유지
+    if (!Array.isArray(totalFeeReportState.policyData)) {
+        totalFeeReportState.policyData = [];
     }
 }
 
@@ -488,6 +354,23 @@ function findInsuranceCompanyKey(catData, company) {
     }
 
     return null;
+}
+
+/**
+ * 보험사명 일치 여부 비교 헬퍼 (공백 무시, 접미사 '손보/손해보험/화재/생명' 변형 및 KDB vs DB 구분 대응)
+ */
+function isSameInsuranceCompany(nameA, nameB) {
+    if (!nameA || !nameB) return false;
+    if (nameA === nameB) return true;
+    const cleanA = String(nameA).replace(/\s+/g, '');
+    const cleanB = String(nameB).replace(/\s+/g, '');
+    if (cleanA === cleanB) return true;
+    // KDB vs DB 오매칭 방지
+    if (cleanA.includes('KDB') !== cleanB.includes('KDB')) return false;
+    // KB vs KDB 오매칭 방지
+    if ((cleanA.includes('KB') && !cleanA.includes('KDB') && cleanB.includes('KDB')) ||
+        (cleanB.includes('KB') && !cleanB.includes('KDB') && cleanA.includes('KDB'))) return false;
+    return cleanA.includes(cleanB) || cleanB.includes(cleanA);
 }
 
 /**
@@ -1880,11 +1763,16 @@ function openRewardPolicyModal(isLoading = false) {
             <!-- 모달 헤더 -->
             <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
                 <div>
-                    <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-orange-500"></span>
-                        월별 보험사 시상금 및 대표상품 설정 관리
-                    </h2>
-                    <p class="text-xs text-slate-400 mt-0.5">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <h2 class="text-base sm:text-lg font-bold flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                            월별 보험사 시상금 및 대표상품 설정 관리
+                        </h2>
+                        <span class="px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-black text-xs shadow-sm tracking-wider">
+                            ${state.month || (typeof feeTableState !== 'undefined' ? feeTableState.month : '') || '2026.09'} 기준
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1">
                         스프레드시트 '월별시상' 시트와 연동되어 매월 대표상품, 납입기간, 표시상품명, 시상금을 설정합니다.
                     </p>
                 </div>
@@ -1950,10 +1838,15 @@ function openRewardPolicyModal(isLoading = false) {
 }
 
 /**
- * 모달 내부 그리드 및 저장 버튼 활성화 갱신
+ * 모달 내부 그리드 및 탭 렌더링 (DOM 메모리 덮어쓰기 없이 순수 갱신)
  */
-function refreshRewardPolicyModalContent() {
-    const curTab = totalFeeReportState.activeTab || '손해보험';
+function renderRewardPolicyModalGrid(tabKey) {
+    const curTab = tabKey || totalFeeReportState.activeTab || '손해보험';
+    totalFeeReportState.activeTab = curTab;
+    const tabsBar = document.getElementById('reward-policy-modal-tabs');
+    if (tabsBar) {
+        tabsBar.innerHTML = buildPolicyTabsHtml(curTab);
+    }
     const gridContainer = document.getElementById('reward-policy-grid-container');
     if (gridContainer && typeof buildPolicyGridHtml === 'function') {
         gridContainer.innerHTML = buildPolicyGridHtml(curTab);
@@ -1963,6 +1856,10 @@ function refreshRewardPolicyModalContent() {
         saveBtn.disabled = false;
         saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     }
+}
+
+function refreshRewardPolicyModalContent() {
+    renderRewardPolicyModalGrid(totalFeeReportState.activeTab || '손해보험');
 }
 
 /**
@@ -2046,7 +1943,14 @@ function syncCurrentTabModalToState() {
         }
 
         // totalFeeReportState.policyData 내 기존 항목 갱신 또는 추가
-        let existingIdx = totalFeeReportState.policyData.findIndex(p => p['보험사명'] === comp && (isNonLife ? p['보험사구분'] === '손해보험' : p['상품구분'] === curTab));
+        let existingIdx = totalFeeReportState.policyData.findIndex(p => {
+            if (!isSameInsuranceCompany(p['보험사명'], comp)) return false;
+            if (isNonLife) {
+                return p['보험사구분'] === '손해보험' || p['상품구분'] === '손해보험' || p['상품구분'] === '종합건강';
+            } else {
+                return p['상품구분'] === curTab;
+            }
+        });
         const newObj = {
             '마감월': mStr,
             '보험사구분': insCategory,
@@ -2306,7 +2210,14 @@ function buildPolicyGridHtml(tabKey) {
                 <tbody class="divide-y divide-gray-200 bg-white">
                     ${compList.map(comp => {
                         // 현재 저장된 정책 찾기
-                        let item = (totalFeeReportState.policyData || []).find(p => p['보험사명'] === comp && (isNonLife ? p['보험사구분'] === '손해보험' : p['상품구분'] === tabKey));
+                        let item = (totalFeeReportState.policyData || []).find(p => {
+                            if (!isSameInsuranceCompany(p['보험사명'], comp)) return false;
+                            if (isNonLife) {
+                                return p['보험사구분'] === '손해보험' || p['상품구분'] === '손해보험' || p['상품구분'] === '종합건강';
+                            } else {
+                                return p['상품구분'] === tabKey;
+                            }
+                        });
                         if (!item) {
                             item = {
                                 '보험사명': comp,
@@ -2752,19 +2663,21 @@ async function copyPreviousMonthPolicyData() {
                     }
                 } catch (sErr) {}
                 alert(resData.message || '전월 데이터를 성공적으로 불러왔습니다.');
-                switchRewardPolicyTab(totalFeeReportState.activeTab || '손해보험');
+                renderRewardPolicyModalGrid(totalFeeReportState.activeTab || '손해보험');
                 updateReportTablesOnly();
+                return;
+            } else {
+                alert((resData && resData.message) ? resData.message : '복사할 수 있는 전월 시상금 데이터가 없습니다.');
                 return;
             }
         }
     } catch (err) {
         console.warn('copyPreviousMonthPolicyData 실패:', err);
+        alert('전월 데이터를 불러오는 중 통신 오류가 발생했습니다: ' + (err.message || err));
+        return;
     }
 
-    // 기본 로컬 복사 폴백
-    alert('전월 데이터를 불러왔습니다.');
-    switchRewardPolicyTab(totalFeeReportState.activeTab || '손해보험');
-    updateReportTablesOnly();
+    alert('복사할 수 있는 전월 시상금 데이터가 없습니다.');
 }
 
 /**

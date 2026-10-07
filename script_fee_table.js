@@ -1376,7 +1376,10 @@ async function handleOpenRewardPolicyModalFromFeeTable() {
     try {
         const currentMonth = feeTableState.month || '2026.09';
         if (typeof totalFeeReportState !== 'undefined') {
-            totalFeeReportState.month = currentMonth;
+            if (totalFeeReportState.month !== currentMonth) {
+                totalFeeReportState.month = currentMonth;
+                totalFeeReportState.policyData = [];
+            }
         }
 
         const mClean = String(currentMonth).replace(/\./g, '');
