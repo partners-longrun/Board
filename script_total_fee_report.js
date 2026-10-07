@@ -445,7 +445,7 @@ function renderTotalFeeReportView(targetContainer) {
     const isAdmin = checkIsAdminUser();
 
     content.innerHTML = `
-        <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
+        <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn print:space-y-0 print:p-0 print:m-0 print:pb-0 print:max-w-none">
             
             <!-- 인쇄 시 1쪽에 출력되지 않도록 상단 제어판 전체를 no-print로 격리 -->
             <div class="no-print space-y-4">
@@ -581,8 +581,8 @@ function renderTotalFeeReportView(targetContainer) {
             </div>
 
             <!-- A4 라이브 프리뷰 컨테이너 (인쇄 영역) -->
-            <div id="print-area-wrapper" class="bg-gray-200 p-4 md:p-8 rounded-2xl overflow-x-auto flex flex-col items-center">
-                <div id="report-print-container" class="report-a4-page-container space-y-8 print:space-y-0">
+            <div id="print-area-wrapper" class="bg-gray-200 p-4 md:p-8 rounded-2xl overflow-x-auto flex flex-col items-center print:bg-transparent print:p-0 print:m-0 print:rounded-none print:shadow-none print:border-none print:w-full">
+                <div id="report-print-container" class="report-a4-page-container space-y-8 print:space-y-0 print:m-0 print:p-0">
                     ${buildReportHtml()}
                 </div>
             </div>

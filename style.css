@@ -248,49 +248,63 @@
             #loading,
             #login-splash,
             #pw-modal,
+            #reward-policy-modal,
             #reward-policy-modal-container,
             .no-print,
-            button {
+            button,
+            .h-20,
+            #mobile-menu {
                 display: none !important;
             }
 
-            /* 인쇄 영역만 풀사이즈 표시 및 사이드바/메인 마진 완전 리셋 */
+            /* 인쇄 영역의 모든 부모 태그 여백/패딩 완전 제거 */
             .main-content-area,
             #content,
             #app,
             main,
-            #main-view {
+            #main-view,
+            #main-view > div {
                 margin: 0 !important;
                 margin-left: 0 !important;
                 padding: 0 !important;
+                padding-bottom: 0 !important;
                 width: 100% !important;
                 max-width: none !important;
+                height: auto !important;
+                min-height: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
             }
 
             #print-area-wrapper {
                 background: transparent !important;
                 padding: 0 !important;
-                margin: 0 auto !important;
+                margin: 0 !important;
                 width: 210mm !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
                 overflow: visible !important;
             }
 
             .report-a4-page-container {
                 width: 210mm !important;
-                margin: 0 auto !important;
+                margin: 0 !important;
                 padding: 0 !important;
             }
 
             .report-a4-page-container > * {
-                margin-top: 0 !important;
-                margin-bottom: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
             .a4-page {
                 width: 210mm !important;
-                height: 296.5mm !important;
-                max-height: 296.5mm !important;
-                margin: 0 auto !important;
+                height: 296mm !important;
+                max-height: 296mm !important;
+                min-height: 0 !important;
+                margin: 0 !important;
                 padding: 12mm 14mm !important;
                 box-sizing: border-box !important;
                 box-shadow: none !important;
@@ -302,10 +316,10 @@
                 overflow: hidden !important;
             }
 
-            /* 마지막 페이지 뒤에는 페이지 나눔을 하지 않아 빈 페이지 생성 방지 */
+            /* 마지막 페이지 뒤에는 절대 페이지를 나누지 않아 빈 페이지 생성 차단 */
             .a4-page:last-child,
             .a4-page:last-of-type {
-                page-break-after: auto !important;
-                break-after: auto !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
             }
         }
