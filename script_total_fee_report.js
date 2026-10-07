@@ -447,8 +447,10 @@ function renderTotalFeeReportView(targetContainer) {
     content.innerHTML = `
         <div class="space-y-4 pb-16 max-w-7xl mx-auto animate-fadeIn">
             
-            <!-- 상단 헤더 및 브레드크럼 -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-sm">
+            <!-- 인쇄 시 1쪽에 출력되지 않도록 상단 제어판 전체를 no-print로 격리 -->
+            <div class="no-print space-y-4">
+                <!-- 상단 헤더 및 브레드크럼 -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200/80 shadow-sm">
                 <div>
                     <div class="flex items-center gap-2 mb-1">
                         <span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-500"></span>
@@ -575,6 +577,7 @@ function renderTotalFeeReportView(targetContainer) {
                         `;
                     }).join('')}
                 </div>
+            </div>
             </div>
 
             <!-- A4 라이브 프리뷰 컨테이너 (인쇄 영역) -->
@@ -1047,35 +1050,35 @@ function buildNonLifeTablePages() {
                 <!-- 회사별 테이블 블록들 (1페이지는 2배 간격 28px, 6개가 들어가는 2페이지는 20px로 최적 분배) -->
                 <div class="${pageIdx === 0 ? 'space-y-7' : 'space-y-5'}">
                     ${pageItems.map(item => `
-                        <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
+                        <div class="border border-gray-300 rounded-md overflow-hidden text-center text-xs bg-white shadow-none">
                             <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
-                            <div class="bg-gray-100/90 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
+                            <div class="bg-gray-100 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
                             </div>
 
-                            <table class="w-full table-fixed border-collapse">
+                            <table class="w-full table-fixed border-collapse m-0 p-0">
                                 <colgroup>
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 12.12%;">
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 10.10%;">
-                                    <col style="width: 12.12%;">
-                                    <col style="width: 15.26%;">
+                                    <col style="width: 10.00%;">
+                                    <col style="width: 10.00%;">
+                                    <col style="width: 11.12%;">
+                                    <col style="width: 11.10%;">
+                                    <col style="width: 11.10%;">
+                                    <col style="width: 11.10%;">
+                                    <col style="width: 11.10%;">
+                                    <col style="width: 11.12%;">
+                                    <col style="width: 13.36%;">
                                 </colgroup>
                                 <thead>
-                                    <tr class="bg-[#2e7b88] text-white text-[11px] font-bold">
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">지급항목</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">익월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">7~12차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">13차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">14차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">15차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
-                                        <th class="py-2.5 px-1 bg-[#1b5059]">총합계</th>
+                                    <tr class="bg-[#e6f1f3] text-[#134e5a] text-[11px] font-extrabold border-b border-[#bed6da]">
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">지급항목</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">익월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da] bg-[#d8eaed]">익월합계</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">7~12차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">13차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">14차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">15차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da] bg-[#d8eaed]">소계</th>
+                                        <th class="py-2 px-1 bg-[#cadfe3]">총합계</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1084,7 +1087,7 @@ function buildNonLifeTablePages() {
                                         <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
                                         <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
                                         <!-- 익월합계 세로 병합 셀 -->
-                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm align-middle">
                                             ${item.nextMonthTotal}%
                                         </td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_11}%</td>
@@ -1093,7 +1096,7 @@ function buildNonLifeTablePages() {
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m15}%</td>
                                         <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
                                         <!-- 총합계 세로 병합 셀 -->
-                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm align-middle">
                                             ${item.grandTotal}%
                                         </td>
                                     </tr>
@@ -1105,7 +1108,7 @@ function buildNonLifeTablePages() {
                                         </td>
                                         <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.reward.next}%</td>
                                         <!-- 익월합계는 위에서 병합됨 -->
-                                        <td colspan="4" class="py-2 px-2 text-[11px] font-medium text-gray-700 text-right border-r border-gray-200 space-x-2">
+                                        <td colspan="4" class="py-2 px-1.5 text-[10.5px] font-medium text-gray-700 text-right border-r border-gray-200 whitespace-nowrap overflow-hidden space-x-1.5">
                                             ${item.reward.hq > 0 ? `<span>(본사) ${item.reward.hq}%</span>` : ''}
                                             ${item.reward.week > 0 ? `<span>(주차) ${item.reward.week}%</span>` : ''}
                                             ${item.reward.cont > 0 ? `<span>(연속) ${item.reward.cont}%</span>` : ''}
@@ -1251,13 +1254,13 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                 <!-- 회사별 테이블 블록들 (기존의 2배 간격: space-y-7) -->
                 <div class="space-y-7">
                     ${pageItems.map(item => `
-                        <div class="border border-gray-300 rounded-lg overflow-hidden text-center text-xs">
+                        <div class="border border-gray-300 rounded-md overflow-hidden text-center text-xs bg-white shadow-none">
                             <!-- 헤더: 회사명 & 대표상품 (납입기간 삭제) -->
-                            <div class="bg-gray-100/90 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
+                            <div class="bg-gray-100 text-gray-900 font-extrabold px-3 py-1.5 text-left border-b border-gray-300 flex items-center justify-between">
                                 <span>[ ${item.company} ] <span class="font-bold text-gray-700">${item.displayName}</span></span>
                             </div>
 
-                            <table class="w-full table-fixed border-collapse">
+                            <table class="w-full table-fixed border-collapse m-0 p-0">
                                 <colgroup>
                                     <col style="width: 9.17%;">
                                     <col style="width: 9.17%;">
@@ -1271,24 +1274,24 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                                     <col style="width: 13.79%;">
                                 </colgroup>
                                 <thead>
-                                    <tr class="bg-[#2e7b88] text-white text-[10.5px] font-bold">
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">지급항목</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">익월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">익월합계</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">7~12차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">13차월</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">2차년</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">3차년</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50">4차년+</th>
-                                        <th class="py-2.5 px-1 border-r border-teal-600/50 bg-[#256772]">소계</th>
-                                        <th class="py-2.5 px-1 bg-[#1b5059]">총합계</th>
+                                    <tr class="bg-[#e6f1f3] text-[#134e5a] text-[10.5px] font-extrabold border-b border-[#bed6da]">
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">지급항목</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">익월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da] bg-[#d8eaed]">익월합계</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">7~12차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">13차월</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">2차년</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">3차년</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da]">4차년+</th>
+                                        <th class="py-2 px-1 border-r border-[#bed6da] bg-[#d8eaed]">소계</th>
+                                        <th class="py-2 px-1 bg-[#cadfe3]">총합계</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="border-b border-gray-200">
                                         <td class="py-2 px-1 font-bold bg-gray-50 text-gray-700 border-r border-gray-200">수수료</td>
                                         <td class="py-2 px-1 font-semibold text-gray-800 border-r border-gray-200">${item.fee.next}%</td>
-                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-indigo-900 bg-indigo-50/80 border-r border-gray-200 text-sm align-middle">
                                             ${item.nextMonthTotal}%
                                         </td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.m7_12}%</td>
@@ -1297,7 +1300,7 @@ function buildLifeTablePages(catKey, subDesc, titleText, badgeColor) {
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.y3}%</td>
                                         <td class="py-2 px-1 text-gray-700 border-r border-gray-200">${item.fee.y4}%</td>
                                         <td class="py-2 px-1 font-bold text-gray-800 bg-gray-50 border-r border-gray-200">${item.fee.subTotal}%</td>
-                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm">
+                                        <td rowspan="2" class="py-2 px-1 font-black text-purple-900 bg-purple-100/90 text-sm align-middle">
                                             ${item.grandTotal}%
                                         </td>
                                     </tr>
