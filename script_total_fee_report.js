@@ -1742,13 +1742,7 @@ function openRewardPolicyModal(isLoading = false) {
         modal = document.createElement('div');
         modal.id = 'reward-policy-modal';
         modal.className = "fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn";
-        
-        // 모달 바깥 배경 클릭 시 닫기
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                closeRewardPolicyModal();
-            }
-        });
+        // 배경 클릭으로 닫히지 않도록 이벤트 리스너를 등록하지 않음 (오직 닫기/저장하기 버튼으로만 닫힘)
         document.body.appendChild(modal);
     }
 
@@ -1826,15 +1820,7 @@ function openRewardPolicyModal(isLoading = false) {
 
         </div>
     `;
-
-    // ESC 키로 모달 닫기
-    const escHandler = (e) => {
-        if (e.key === 'Escape') {
-            closeRewardPolicyModal();
-            window.removeEventListener('keydown', escHandler);
-        }
-    };
-    window.addEventListener('keydown', escHandler);
+    // 실수로 인한 창 닫힘 방지: ESC 키로 닫히지 않음 (오직 닫기/저장하기 버튼으로만 닫힘)
 }
 
 /**
@@ -2580,11 +2566,67 @@ function closeRewardPolicyModal() {
 }
 
 /**
+ * 월별시상 시트 저장 전용 정책 데이터 정렬 및 미선택 필터링 함수
+ * - 대표상품이 선택되지 않은(미선택) 행은 저장에서 제외
+ * - 정렬 순서:
+ *   1) 보험사구분: 손해보험 > 생명보험
+ *   2) 상품구분: (손해보험) 종합건강 > (생명보험) 종신보험 > 단기납종신 > 경영인정기
+ *   3) 보험사명: 영문(ABC순) 우선 -> 한글(가나다순)
+ */
+function sortAndFilterRewardPolicyList(list) {
+    if (!Array.isArray(list)) return [];
+
+    // 1. 대표상품이 선택되지 않은(미선택) 행 제외
+    const validList = list.filter(item => {
+        const prod = item && item['대표상품명'] ? String(item['대표상품명']).trim() : '';
+        return prod !== '';
+    });
+
+    // 2. 우선순위 정의
+    const insOrder = {
+        '손해보험': 1,
+        '생명보험': 2
+    };
+
+    const prodCatOrder = {
+        '종합건강': 1,
+        '손해보험': 1,
+        '종신보험': 10,
+        '단기납종신': 20,
+        '경영인정기': 30
+    };
+
+    return validList.sort((a, b) => {
+        // 1) 보험사구분 (손해보험 > 생명보험)
+        const insA = insOrder[a['보험사구분']] || 99;
+        const insB = insOrder[b['보험사구분']] || 99;
+        if (insA !== insB) return insA - insB;
+
+        // 2) 상품구분 (종합건강 > 종신보험 > 단기납종신 > 경영인정기)
+        const catA = prodCatOrder[a['상품구분']] || 99;
+        const catB = prodCatOrder[b['상품구분']] || 99;
+        if (catA !== catB) return catA - catB;
+
+        // 3) 보험사명: 영문(ABC순) 우선 -> 한글(가나다순)
+        const nameA = String(a['보험사명'] || '').trim();
+        const nameB = String(b['보험사명'] || '').trim();
+        const isEngA = /^[A-Za-z]/.test(nameA);
+        const isEngB = /^[A-Za-z]/.test(nameB);
+        if (isEngA && !isEngB) return -1;
+        if (!isEngA && isEngB) return 1;
+        return nameA.localeCompare(nameB, 'ko');
+    });
+}
+
+/**
  * 모달에서 입력된 정책을 메모리에 수집하고 스프레드시트 DB에 저장
  */
 async function saveRewardPolicyToDb() {
     // 1. 현재 열려있는 탭의 최신 입력값을 policyData에 먼저 동기화
     syncCurrentTabModalToState();
+
+    // 2. 대표상품 미선택 행 제외 및 정렬 (손보>생보, 종합건강>종신>단기납>경영인, ABC>가나다)
+    totalFeeReportState.policyData = sortAndFilterRewardPolicyList(totalFeeReportState.policyData);
 
     const btn = document.getElementById('save-reward-policy-btn');
     if (btn) {
