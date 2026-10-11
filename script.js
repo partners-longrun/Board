@@ -1179,6 +1179,7 @@
                         </form>
                         
                         <!-- PWA 앱 설치 유도 배너 -->
+                        ${checkStandalone() ? '' : `
                         <div id="pwa-install-section" class="bg-indigo-50/50 border border-indigo-100 p-5 rounded-2xl space-y-4">
                             <div class="flex items-center gap-3">
                                 <div class="p-2 bg-indigo-100 rounded-xl text-primary">
@@ -1197,6 +1198,7 @@
                                 기기별 설치 방법 안내
                             </button>
                         </div>
+                        `}
                         
                         <div class="pt-4 text-center">
                             <p class="text-xs text-gray-400 mb-2">도움이 필요하신가요?</p>
@@ -1216,9 +1218,6 @@
                     e.preventDefault();
                     doLogin(container.querySelector('#staffId').value, container.querySelector('#password').value);
                 });
-                if (typeof updatePwaButtonVisibility === 'function') {
-                    updatePwaButtonVisibility();
-                }
             }, 0);
             return container;
         }

@@ -36,47 +36,27 @@
         }
 
         // PWA 설치 프롬프트 이벤트를 보관할 전역 변수
-        let deferredPrompt = null;
+        let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            updatePwaButtonVisibility();
+            const pwaSection = document.getElementById('pwa-install-section');
+            if (pwaSection) {
+                pwaSection.classList.remove('hidden');
+            }
         });
 
-        window.addEventListener('appinstalled', () => {
-            const installBtn = document.getElementById('pwa-install-btn');
+        window.addEventListener('appinstalled', (evt) => {
             const pwaSection = document.getElementById('pwa-install-section');
-            if (installBtn) installBtn.style.display = 'none';
-            if (pwaSection) pwaSection.style.display = 'none';
+            if (pwaSection) {
+                pwaSection.classList.add('hidden');
+            }
             deferredPrompt = null;
         });
 
-        // standalone 실행 확인
+        // 이미 PWA 단독 앱(standalone)으로 실행 중인지 체크
         function checkStandalone() {
-            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-        }
-
-        // PWA 설치 버튼/섹션 노출 제어 함수
-        function updatePwaButtonVisibility() {
-            const isStandalone = checkStandalone();
-            const installBtn = document.getElementById('pwa-install-btn');
-            const pwaSection = document.getElementById('pwa-install-section');
-
-            if (isStandalone) {
-                // 이미 홈 화면에 앱으로 설치되어 단독 실행 중인 경우: 숨김
-                if (installBtn) installBtn.style.display = 'none';
-                if (pwaSection) pwaSection.style.display = 'none';
-            } else {
-                // 브라우저, 크롬 인앱 브라우저(CCT), 카카오톡 등: 무조건 상시 노출
-                if (installBtn) {
-                    installBtn.style.display = 'inline-flex';
-                    installBtn.classList.remove('hidden');
-                }
-                if (pwaSection) {
-                    pwaSection.style.display = '';
-                    pwaSection.classList.remove('hidden');
-                }
-            }
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
         }
 
         // 수동 가이드 열기/닫기
@@ -149,20 +129,17 @@
 
         // PWA 설치 트리거
         window.triggerPwaInstall = async function () {
-            const installBtn = document.getElementById('pwa-install-btn');
+            if (!deferredPrompt) {
+                window.togglePwaGuide(true);
+                return;
+            }
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User choice outcome: ${outcome}`);
+            deferredPrompt = null;
             const pwaSection = document.getElementById('pwa-install-section');
-
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    if (installBtn) installBtn.style.display = 'none';
-                    if (pwaSection) pwaSection.style.display = 'none';
-                }
-                deferredPrompt = null;
-            } else {
-                // 인앱 브라우저나 iOS처럼 프롬프트 이벤트가 없는 환경 안내
-                alert("우측 상단 메뉴(⋮)를 누른 뒤 '홈 화면에 추가' 또는 '앱 설치'를 선택해 주세요.");
+            if (pwaSection) {
+                pwaSection.classList.add('hidden');
             }
         };
     </script>
